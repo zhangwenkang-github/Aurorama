@@ -5,6 +5,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.ContextWrapper
+import android.os.SystemClock
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.tween
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -33,17 +35,21 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,12 +59,16 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSlider
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSliderColors
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSwitch
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
@@ -68,6 +78,8 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.repository.ReaderBookmark
+import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import dagger.hilt.android.EntryPointAccessors
 import java.time.Instant
 import java.util.UUID
 import kotlin.math.roundToInt
@@ -76,6 +88,7 @@ import kotlinx.coroutines.launch
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Layout
 import org.readium.r2.shared.publication.Locator
+import timber.log.Timber
 
 /**
  * 阅读页（§9 Compose 落地）：外壳（顶栏 / 加载 / 错误态 / 设置面板）全部走 core 组件。
@@ -359,6 +372,74 @@ fun ReaderScreen(
         }
     }
 
+    // ---- W6 T6：自动阅读（READER-12）----
+    // 节拍器是纯逻辑（AutoAdvanceEngine）；执行层（翻页 / 滚动帧循环）在 ReadiumEpubView / SimpleBookView 内，
+    // 这里只负责参数、暂停规则与「更多」面板入口。
+    var autoState by remember(bookKey) { mutableStateOf(AutoAdvanceState.Off) }
+    val autoAdvance =
+        remember(bookKey) {
+            AutoAdvanceEngine(
+                clock = { SystemClock.elapsedRealtime() },
+                onStateChanged = { next -> autoState = next },
+            )
+        }
+    val autoPreferences: AppPreferences? =
+        remember(context) {
+            runCatching {
+                EntryPointAccessors.fromApplication(
+                        context.applicationContext,
+                        ReaderPreferencesEntryPoint::class.java,
+                    )
+                    .appPreferences()
+            }
+                .onFailure { Timber.w(it, "自动阅读偏好不可用，沿用默认参数") }
+                .getOrNull()
+        }
+    var autoIntervalSeconds by
+        remember(bookKey) {
+            mutableIntStateOf(
+                autoPreferences?.getValue(ReaderAutoPreferences.pageIntervalSeconds)
+                    ?: AutoAdvanceDefaultIntervalSeconds
+            )
+        }
+    var autoSpeedPxPerSecond by
+        remember(bookKey) {
+            mutableFloatStateOf(
+                autoPreferences?.getValue(ReaderAutoPreferences.scrollSpeedPxPerSecond)
+                    ?: AutoAdvanceDefaultSpeedPxPerSecond
+            )
+        }
+    LaunchedEffect(autoIntervalSeconds, autoSpeedPxPerSecond) {
+        autoAdvance.updateConfig(
+            AutoAdvanceConfig(
+                pageIntervalSeconds = autoIntervalSeconds,
+                scrollSpeedPxPerSecond = autoSpeedPxPerSecond,
+            )
+        )
+    }
+    // 控制层唤出即暂停（关闭后由用户在「更多 → 自动阅读」里手动继续）。
+    LaunchedEffect(controlsVisible) { if (controlsVisible) autoAdvance.pause() }
+    // 离开阅读页即停止并释放帧循环。
+    DisposableEffect(bookKey) { onDispose { autoAdvance.stop() } }
+    val autoReadingAvailable = ready != null
+    // 手动判定读「当前」设置：视图侧的长生命周期收集器可能持有旧 lambda，这里统一取最新快照。
+    val currentAutoSettings = rememberUpdatedState(effectiveSettings)
+    /**
+     * 手动翻页判定：自动翻页后的宽限期内（[AUTO_MANUAL_GRACE_MS]）的位置变化归自动翻页， 其余算手动干预； 滚动档的自动滚动不翻页，手动拖动由滚动容器的
+     * `isScrollInProgress` 单独判定。
+     */
+    val manualPageTurnDetected: () -> Boolean = {
+        val now = SystemClock.elapsedRealtime()
+        val last = autoAdvance.lastPageForwardAtMs
+        autoAdvance.state == AutoAdvanceState.Running &&
+            currentAutoSettings.value.mode != ReaderMode.Scroll &&
+            (last == null || now - last > AUTO_MANUAL_GRACE_MS)
+    }
+    val onAutoAdvanceEnd: () -> Unit = {
+        bookmarkNotice = "已到书末，自动阅读停止"
+        bookmarkNoticeToken++
+    }
+
     CinefinTheme(
         domain = ContentDomain.Book,
         darkTheme = effectiveSettings.isDark(systemDark),
@@ -421,6 +502,9 @@ fun ReaderScreen(
                                                 locator.locations.totalProgression?.let {
                                                     liveProgression = it
                                                 }
+                                                if (manualPageTurnDetected()) {
+                                                    autoAdvance.pauseForManualIntervention()
+                                                }
                                                 onLocationChanged(locator)
                                             },
                                             onJumpHandled = onJumpHandled,
@@ -444,6 +528,11 @@ fun ReaderScreen(
                                                 }
                                             },
                                             clearSelectionToken = epubSelectionClearToken,
+                                            autoAdvance = autoAdvance,
+                                            onManualIntervention = {
+                                                autoAdvance.pauseForManualIntervention()
+                                            },
+                                            onAutoAdvanceEnd = onAutoAdvanceEnd,
                                             modifier = Modifier.fillMaxSize(),
                                         )
                                         epubSelection
@@ -542,6 +631,9 @@ fun ReaderScreen(
                                         onPageChanged = { index, pageCount ->
                                             liveProgression = progressionForPage(index, pageCount)
                                             onSimplePageChanged(index, pageCount)
+                                            if (manualPageTurnDetected()) {
+                                                autoAdvance.pauseForManualIntervention()
+                                            }
                                         },
                                         onJumpHandled = onPageJumpHandled,
                                         brightnessProvider = { brightness },
@@ -557,6 +649,11 @@ fun ReaderScreen(
                                         tapPolicy = effectiveSettings.tapPolicy(controlsVisible),
                                         onToggleControls = { controlsVisible = !controlsVisible },
                                         onDoubleTapBookmark = onDoubleTapToggleBookmark,
+                                        autoAdvance = autoAdvance,
+                                        onManualIntervention = {
+                                            autoAdvance.pauseForManualIntervention()
+                                        },
+                                        onAutoAdvanceEnd = onAutoAdvanceEnd,
                                         modifier = Modifier.fillMaxSize(),
                                     )
                             }
@@ -986,6 +1083,43 @@ fun ReaderScreen(
                                 },
                             )
                         }
+                        // W6 T6（READER-12）：自动阅读分组。开关默认关；参数落 `pref_reader_auto_*`。
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = CinefinSpacing.Space2)
+                        )
+                        Text(
+                            text = "自动阅读",
+                            style = CinefinType.LabelMedium,
+                            color = contentColor.copy(alpha = 0.72f),
+                        )
+                        AutoAdvanceGroup(
+                            state = autoState,
+                            scrollMode = effectiveSettings.mode == ReaderMode.Scroll,
+                            intervalSeconds = autoIntervalSeconds,
+                            speedPxPerSecond = autoSpeedPxPerSecond,
+                            enabled = autoReadingAvailable,
+                            contentColor = contentColor,
+                            accent = accent,
+                            onAccent = effectiveSettings.onAccentColor(systemDark),
+                            onToggle = { running ->
+                                if (running) autoAdvance.start() else autoAdvance.stop()
+                            },
+                            onResume = { autoAdvance.resume() },
+                            onIntervalChange = { seconds ->
+                                autoIntervalSeconds = seconds
+                                autoPreferences?.setValue(
+                                    ReaderAutoPreferences.pageIntervalSeconds,
+                                    seconds,
+                                )
+                            },
+                            onSpeedChange = { speed ->
+                                autoSpeedPxPerSecond = speed
+                                autoPreferences?.setValue(
+                                    ReaderAutoPreferences.scrollSpeedPxPerSecond,
+                                    speed,
+                                )
+                            },
+                        )
                         // 下载 / 流式状态（与设置面板工具区同一份状态文案）。
                         Row(
                             modifier =
@@ -1465,6 +1599,149 @@ private fun BrightnessHud(
                     horizontal = CinefinSpacing.Space5,
                     vertical = CinefinSpacing.Space3,
                 ),
+        )
+    }
+}
+
+/** 自动阅读手动翻页宽限：自动翻页后的位置变化归自动翻页，超过该窗口的手动变化即暂停（W6 T6）。 */
+private const val AUTO_MANUAL_GRACE_MS = 2_000L
+
+/**
+ * 「更多 → 自动阅读」分组（W6 T6 / READER-12）。
+ *
+ * 分页档 = 开关 + 间隔（5–120 秒）；滚动档 = 开关 + 速度（px/s，10–300）。暂停态给「继续」， 参数改动即时生效且不打断节拍。
+ */
+@Composable
+private fun AutoAdvanceGroup(
+    state: AutoAdvanceState,
+    scrollMode: Boolean,
+    intervalSeconds: Int,
+    speedPxPerSecond: Float,
+    enabled: Boolean,
+    contentColor: Color,
+    accent: Color,
+    onAccent: Color,
+    onToggle: (Boolean) -> Unit,
+    onResume: () -> Unit,
+    onIntervalChange: (Int) -> Unit,
+    onSpeedChange: (Float) -> Unit,
+) {
+    val active = state != AutoAdvanceState.Off
+    Row(
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = if (scrollMode) "自动滚动" else "自动翻页",
+                style = CinefinType.BodyMedium,
+                color = contentColor,
+            )
+            Text(
+                text =
+                    when (state) {
+                        AutoAdvanceState.Off -> if (scrollMode) "按速度平滑向下滚动" else "按间隔自动翻到下一页"
+                        AutoAdvanceState.Running -> "进行中 · 唤出控制层或手动翻页即暂停"
+                        AutoAdvanceState.Paused -> "已暂停 · 手动干预后需点按继续"
+                    },
+                style = CinefinType.LabelSmall,
+                color = contentColor.copy(alpha = 0.72f),
+            )
+        }
+        CinefinSwitch(
+            checked = active,
+            onCheckedChange = onToggle,
+            enabled = enabled,
+            colors =
+                SwitchDefaults.colors(
+                    checkedTrackColor = accent,
+                    checkedThumbColor = onAccent,
+                    checkedBorderColor = Color.Transparent,
+                    uncheckedTrackColor = contentColor.copy(alpha = 0.16f),
+                    uncheckedThumbColor = contentColor.copy(alpha = 0.72f),
+                    uncheckedBorderColor = Color.Transparent,
+                ),
+        )
+    }
+    if (state == AutoAdvanceState.Paused) {
+        MoreActionRow(label = "继续自动阅读", contentColor = accent, onClick = onResume)
+    }
+    if (scrollMode) {
+        AutoAdvanceSliderRow(
+            label = "速度",
+            valueText = "${speedPxPerSecond.roundToInt()} px/s",
+            value = speedPxPerSecond,
+            range = AutoAdvanceMinSpeedPxPerSecond..AutoAdvanceMaxSpeedPxPerSecond,
+            steps =
+                ((AutoAdvanceMaxSpeedPxPerSecond - AutoAdvanceMinSpeedPxPerSecond) / 10f)
+                    .roundToInt() - 1,
+            enabled = enabled,
+            contentColor = contentColor,
+            accent = accent,
+            onValueChange = { onSpeedChange((it / 10f).roundToInt() * 10f) },
+        )
+    } else {
+        AutoAdvanceSliderRow(
+            label = "间隔",
+            valueText = "$intervalSeconds 秒",
+            value = intervalSeconds.toFloat(),
+            range =
+                AutoAdvanceMinIntervalSeconds.toFloat()..AutoAdvanceMaxIntervalSeconds.toFloat(),
+            steps = AutoAdvanceMaxIntervalSeconds - AutoAdvanceMinIntervalSeconds - 1,
+            enabled = enabled,
+            contentColor = contentColor,
+            accent = accent,
+            onValueChange = { onIntervalChange(it.roundToInt()) },
+        )
+    }
+}
+
+/** 自动阅读参数滑块行：与设置面板 `SliderRow` 同一视觉口径（标签 48dp、滑杆 ≤230dp、数值右对齐）。 */
+@Composable
+private fun AutoAdvanceSliderRow(
+    label: String,
+    valueText: String,
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    enabled: Boolean,
+    contentColor: Color,
+    accent: Color,
+    onValueChange: (Float) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.width(48.dp),
+            style = CinefinType.BodyMedium,
+            color = contentColor,
+        )
+        CinefinSlider(
+            value = value,
+            onValueChange = onValueChange,
+            enabled = enabled,
+            valueRange = range,
+            steps = steps,
+            modifier = Modifier.weight(1f, fill = false).widthIn(max = 230.dp),
+            colors =
+                CinefinSliderColors(
+                    activeTrackColor = accent,
+                    inactiveTrackColor = contentColor.copy(alpha = 0.16f),
+                    thumbColor = Color.White,
+                    glowColor = accent.copy(alpha = 0.35f),
+                ),
+        )
+        Text(
+            text = valueText,
+            style = CinefinType.LabelMedium,
+            color = contentColor.copy(alpha = 0.72f),
+            textAlign = TextAlign.End,
+            modifier = Modifier.widthIn(min = 56.dp),
         )
     }
 }

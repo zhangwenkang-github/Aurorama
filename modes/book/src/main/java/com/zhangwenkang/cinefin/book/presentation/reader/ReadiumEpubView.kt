@@ -7,7 +7,9 @@ import android.view.ActionMode
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.ViewGroup
 import android.webkit.JavascriptInterface
+import android.webkit.WebView
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -105,6 +107,12 @@ internal fun ReadiumEpubView(
         },
     /** W6 T8：自增即清掉原生选区（创建 / 取消后收起选择手柄）。 */
     clearSelectionToken: Int = 0,
+    /** W6 T6：自动阅读节拍器（分页档 `goForward`、滚动档 WebView `scrollBy` 由本视图驱动）。 */
+    autoAdvance: AutoAdvanceEngine? = null,
+    /** W6 T6：手动干预（单击正文 / 用户拖动滚动）——调用方据此暂停自动阅读。 */
+    onManualIntervention: () -> Unit = {},
+    /** W6 T6：自动阅读已到书末（执行层已停止节拍器）。 */
+    onAutoAdvanceEnd: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -140,6 +148,9 @@ internal fun ReadiumEpubView(
     val currentOnSelectionChanged = rememberUpdatedState(onSelectionChanged)
     val currentOnAnnotationActivated = rememberUpdatedState(onAnnotationActivated)
     val currentSelectionSupported = rememberUpdatedState(selectionSupported)
+    val currentOnManualIntervention = rememberUpdatedState(onManualIntervention)
+    val currentOnAutoAdvanceEnd = rememberUpdatedState(onAutoAdvanceEnd)
+    val currentAnimatedTurns = rememberUpdatedState(animatedTurns)
     // 高亮模板：alpha / 圆角 / 线宽按定稿五 §3（tint 由每条 Decoration 自带）。
     val decorationTemplates = remember {
         HtmlDecorationTemplates.defaultTemplates(
@@ -311,12 +322,86 @@ internal fun ReadiumEpubView(
             if (clearSelectionToken > 0) currentNavigator.clearSelection()
         }
 
+        // W6 T6：自动阅读执行层——分页档按节拍器到点 `goForward`，滚动档逐帧 WebView `scrollBy`。
+        val autoScrollGuard = remember { AutoScrollGuard() }
+        var lastIssuedLocatorKey by remember { mutableStateOf<String?>(null) }
+        var pendingPageTurnVerify by remember { mutableStateOf(false) }
+        LaunchedEffect(navigator, autoAdvance, settings.mode) {
+            val engine = autoAdvance ?: return@LaunchedEffect
+            val currentNavigator = navigator ?: return@LaunchedEffect
+            var lastScrollY = -1
+            var stalledTicks = 0
+            var listenerWebView: WebView? = null
+            try {
+                while (true) {
+                    if (engine.state != AutoAdvanceState.Running) {
+                        delay(AutoAdvanceIdlePollMs)
+                        continue
+                    }
+                    if (settings.mode == ReaderMode.Scroll) {
+                        val tick = engine.tick(paged = false)
+                        val webView = findAutoScrollWebView(currentNavigator.publicationView)
+                        // 用户拖动滚动 = 手动干预：程序化 scrollBy 会同步触发 onScrollChanged，
+                        // 用标志位排除；换章会换 WebView，所以每次循环核对一次监听对象。
+                        if (webView != null && webView !== listenerWebView) {
+                            webView.setOnScrollChangeListener { _, _, _, _, _ ->
+                                if (
+                                    !autoScrollGuard.programmatic &&
+                                        engine.state == AutoAdvanceState.Running
+                                ) {
+                                    currentOnManualIntervention.value()
+                                }
+                            }
+                            listenerWebView = webView
+                        }
+                        if (webView != null && tick is AutoAdvanceTick.Scroll) {
+                            autoScrollGuard.programmatic = true
+                            webView.scrollBy(0, tick.deltaPx)
+                            autoScrollGuard.programmatic = false
+                            stalledTicks =
+                                if (webView.scrollY == lastScrollY) stalledTicks + 1 else 0
+                            lastScrollY = webView.scrollY
+                            if (
+                                autoScrollReachedEnd(webView, liveLocator) ||
+                                    stalledTicks >= AUTO_SCROLL_STALL_TICKS
+                            ) {
+                                engine.stop()
+                                currentOnAutoAdvanceEnd.value()
+                            }
+                        }
+                        delay(AutoAdvanceScrollFrameMs)
+                    } else {
+                        if (engine.tick(paged = true) == AutoAdvanceTick.PageForward) {
+                            val currentKey = liveLocator?.let(::autoLocatorKey)
+                            if (
+                                pendingPageTurnVerify &&
+                                    currentKey != null &&
+                                    currentKey == lastIssuedLocatorKey
+                            ) {
+                                // 上一次翻页后位置没变：已经到书末，停止并退出自动阅读。
+                                engine.stop()
+                                currentOnAutoAdvanceEnd.value()
+                            } else {
+                                lastIssuedLocatorKey = currentKey
+                                pendingPageTurnVerify = true
+                                currentNavigator.goForward(animated = currentAnimatedTurns.value)
+                            }
+                        }
+                        delay(AutoAdvancePagedTickMs)
+                    }
+                }
+            } finally {
+                listenerWebView?.setOnScrollChangeListener(null)
+            }
+        }
+
         ReaderGestureArea(
             enabled = true,
             scrollMode = currentSettings.value.mode == ReaderMode.Scroll,
             brightnessProvider = { currentBrightnessProvider.value() },
             onBrightness = { value -> currentOnBrightness.value(value) },
             onSingleTap = { x, _, width ->
+                currentOnManualIntervention.value()
                 if (selectionActive) {
                     // 有选区时第一次单击 = 取消选区（不翻页、不唤控制层）。
                     selectionActive = false
@@ -587,3 +672,39 @@ private const val EPUB_SELECTION_PROBE_JS =
     return { selector: null, text: '' };
   }
 })()"""
+
+/** 滚动档整书进度达到该值且已不能继续下滚 = 书末。 */
+private const val AUTO_SCROLL_END_PROGRESSION = 0.995
+
+/** 连续无位移的帧数上限（≈3 s）：内核未续接下一章时停止，避免静默空转。 */
+private const val AUTO_SCROLL_STALL_TICKS = 180
+
+/** 程序化滚动标志：`scrollBy` 与用户拖动共用 `onScrollChanged`，只有后者算手动干预。 */
+private class AutoScrollGuard {
+    var programmatic: Boolean = false
+}
+
+/** 位置键：href + position + 整书进度，用于判断一次自动翻页是否真的推进了。 */
+private fun autoLocatorKey(locator: Locator): String {
+    val progression = locator.locations.totalProgression ?: locator.locations.progression ?: 0.0
+    return "${locator.href}#${locator.locations.position ?: -1}@$progression"
+}
+
+/** 滚动档已到书末：整书进度接近 1 且 WebView 不能再向下滚。 */
+private fun autoScrollReachedEnd(webView: WebView, locator: Locator?): Boolean {
+    val progression = locator?.locations?.totalProgression ?: return false
+    return progression >= AUTO_SCROLL_END_PROGRESSION && !webView.canScrollVertically(1)
+}
+
+/** 取导航器里当前可见的正文 WebView（与 `ReaderActivity` 键盘滚动同一查找口径）。 */
+private fun findAutoScrollWebView(view: View?): WebView? =
+    when (view) {
+        null -> null
+        is WebView -> view.takeIf { it.isShown }
+        is ViewGroup ->
+            (0 until view.childCount).firstNotNullOfOrNull {
+                findAutoScrollWebView(view.getChildAt(it))
+            }
+
+        else -> null
+    }

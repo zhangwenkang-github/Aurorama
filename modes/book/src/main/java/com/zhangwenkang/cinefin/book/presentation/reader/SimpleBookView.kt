@@ -118,6 +118,12 @@ internal fun SimpleBookView(
     onToggleControls: () -> Unit = {},
     /** W6 T1：双击正文 = 书签动作（T2 接线，本卡只留回调）。 */
     onDoubleTapBookmark: () -> Unit = {},
+    /** W6 T6：自动阅读节拍器（分页档按页步进、滚动档逐帧滚动由本视图驱动）。 */
+    autoAdvance: AutoAdvanceEngine? = null,
+    /** W6 T6：手动干预（单击正文 / 用户拖动滚动）——调用方据此暂停自动阅读。 */
+    onManualIntervention: () -> Unit = {},
+    /** W6 T6：自动阅读已到书末（执行层已停止节拍器）。 */
+    onAutoAdvanceEnd: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val pageCount = document.pageSource.pageCount
@@ -228,12 +234,35 @@ internal fun SimpleBookView(
         return target.coerceIn(0, pageCount - 1)
     }
 
+    // W6 T6（READER-12）：分页 / 双栏自动翻页——与单击三分区同一条 `gestureJumpPage` 通路（含翻页动画）。
+    LaunchedEffect(autoAdvance, settings.mode, settings.rtl, pageCount, twoColumnLayout) {
+        val engine = autoAdvance ?: return@LaunchedEffect
+        while (true) {
+            if (engine.state != AutoAdvanceState.Running || settings.mode == ReaderMode.Scroll) {
+                delay(AutoAdvanceIdlePollMs)
+                continue
+            }
+            if (engine.tick(paged = true) == AutoAdvanceTick.PageForward) {
+                val target = gestureTargetPage(1)
+                if (target == null || target == currentPage) {
+                    // 已是最后一页：停止自动阅读，由阅读页提示。
+                    engine.stop()
+                    onAutoAdvanceEnd()
+                } else {
+                    gestureJumpPage = target
+                }
+            }
+            delay(AutoAdvancePagedTickMs)
+        }
+    }
+
     ReaderGestureArea(
         enabled = !annotating,
         scrollMode = settings.mode == ReaderMode.Scroll,
         brightnessProvider = brightnessProvider,
         onBrightness = onBrightness,
         onSingleTap = { x, _, width ->
+            onManualIntervention()
             onBlankTap()
             when (readerTapAction(x, width, tapPolicy)) {
                 ReaderTapAction.PreviousPage -> gestureTargetPage(-1)?.let { gestureJumpPage = it }
@@ -258,6 +287,9 @@ internal fun SimpleBookView(
                         annotationsByPage = annotationsByPage,
                         annotating = annotating,
                         jumpTargetPage = jumpTargetPage,
+                        autoAdvance = autoAdvance,
+                        onManualIntervention = onManualIntervention,
+                        onAutoAdvanceEnd = onAutoAdvanceEnd,
                         onPageChanged = { page -> report(page, page) },
                         onFitWidthTargetChanged = { fitWidthTarget = it },
                         onZoomGesture = onZoomInteraction,
@@ -338,6 +370,9 @@ private fun ScrollPages(
     annotationsByPage: Map<Int, List<ReaderAnnotation>>,
     annotating: Boolean,
     jumpTargetPage: Int?,
+    autoAdvance: AutoAdvanceEngine?,
+    onManualIntervention: () -> Unit,
+    onAutoAdvanceEnd: () -> Unit,
     onPageChanged: (Int) -> Unit,
     onFitWidthTargetChanged: (FitWidthTarget?) -> Unit,
     onZoomGesture: () -> Unit,
@@ -397,6 +432,32 @@ private fun ScrollPages(
     LaunchedEffect(jumpTargetPage) {
         val target = jumpTargetPage ?: return@LaunchedEffect
         if (target in 0 until pageCount) listState.scrollToItem(target)
+    }
+    // W6 T6（READER-12）：滚动档自动滚动——逐帧 `dispatchRawDelta`。它不置 `isScrollInProgress`，
+    // 所以下面那条「用户拖动 = 手动干预」的判定不会被自动滚动误触发。
+    LaunchedEffect(autoAdvance, listState) {
+        val engine = autoAdvance ?: return@LaunchedEffect
+        while (true) {
+            if (engine.state != AutoAdvanceState.Running) {
+                delay(AutoAdvanceIdlePollMs)
+                continue
+            }
+            val tick = engine.tick(paged = false)
+            if (tick is AutoAdvanceTick.Scroll) {
+                listState.dispatchRawDelta(tick.deltaPx.toFloat())
+                if (!listState.canScrollForward) {
+                    // 已滚到最后一页：停止自动阅读，由阅读页提示。
+                    engine.stop()
+                    onAutoAdvanceEnd()
+                }
+            }
+            delay(AutoAdvanceScrollFrameMs)
+        }
+    }
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress }
+            .distinctUntilChanged()
+            .collect { scrolling -> if (scrolling) onManualIntervention() }
     }
     LazyColumn(
         state = listState,

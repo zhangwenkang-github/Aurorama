@@ -578,3 +578,18 @@ internal fun ReaderSettings.withTypography(state: ReaderTypographyState): Reader
             themeCustom = state.themeCustom,
         )
         .sanitized()
+
+/**
+ * 自动阅读参数（W6 T6 / READER-12）：沿用 `pref_reader_auto_*` 命名空间，键声明自持在 `modes/book`。
+ *
+ * 只持久化「翻页间隔 / 滚动速度」两个参数；开关本身默认关、离开阅读页即停（会话态，不落盘）。
+ */
+internal object ReaderAutoPreferences {
+    /** 分页档自动翻页间隔（秒，5–120；默认 30）。 */
+    val pageIntervalSeconds =
+        Preference("pref_reader_auto_page_interval_seconds", AutoAdvanceDefaultIntervalSeconds)
+
+    /** 滚动档自动滚动速度（px/s，10–300；默认 60）。 */
+    val scrollSpeedPxPerSecond =
+        Preference("pref_reader_auto_scroll_speed_px", AutoAdvanceDefaultSpeedPxPerSecond)
+}
