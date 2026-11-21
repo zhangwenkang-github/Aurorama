@@ -52,6 +52,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
+import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
@@ -60,6 +61,8 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.repository.ReaderBookmark
+import java.time.Instant
+import java.util.UUID
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import org.readium.r2.shared.ExperimentalReadiumApi
@@ -108,7 +111,7 @@ fun ReaderScreen(
     onUpdateAnnotationNote: (annotationId: String, note: String) -> Unit,
     onRemoveAnnotation: (annotationId: String) -> Unit,
     onBack: () -> Unit,
-    /** W6 T1：双击正文 = 书签动作（T2 接线，本卡只留回调）。 */
+    /** W6 T1 起点 / T2 接线：双击正文 = 书签动作。具体「添加 / 取消」由阅读页内部完成，本钩子保留给外部（默认空）。 */
     onDoubleTapBookmark: () -> Unit = {},
 ) {
     var showSettings by remember { mutableStateOf(false) }
@@ -116,6 +119,19 @@ fun ReaderScreen(
     var showSearch by remember { mutableStateOf(false) }
     var showAnnotations by remember { mutableStateOf(false) }
     var showMore by remember { mutableStateOf(false) }
+    // W6 T2：目录抽屉 / 「进度」入口聚焦 / 双击书签的 900ms 提示胶囊。
+    var showContents by remember { mutableStateOf(false) }
+    var progressFocusToken by remember { mutableIntStateOf(0) }
+    var bookmarkNotice by remember { mutableStateOf<String?>(null) }
+    var bookmarkNoticeToken by remember { mutableIntStateOf(0) }
+    // 当前位置（0–1）：进度条与双击书签都要用，来源与 VM 的持久化同口径（totalProgression / 页换算）。
+    // null = 还没收到第一次位置回调，回落到文档初始进度。
+    var liveProgression by remember(bookKey) { mutableStateOf<Double?>(null) }
+    LaunchedEffect(bookmarkNoticeToken) {
+        if (bookmarkNoticeToken == 0) return@LaunchedEffect
+        delay(BOOKMARK_NOTICE_VISIBLE_MS)
+        bookmarkNotice = null
+    }
     // W6 T1：沉浸态默认关闭控制层；书未就绪（加载 / 错误）时先显示，保证有返回入口。
     var controlsVisible by remember(bookKey) { mutableStateOf(false) }
     val bookReady = state is ReaderUiState.Ready
@@ -160,14 +176,59 @@ fun ReaderScreen(
         brightness = value
         brightnessHudToken++
     }
-    val bookmarksAvailable = (state as? ReaderUiState.Ready)?.document is ReaderDocument.Rich
+    val ready = state as? ReaderUiState.Ready
+    // W6 T2：书签对 EPUB / PDF / CBZ 全格式开放（PDF / CBZ 用页锚点）。
+    val bookmarksAvailable = ready != null
     /** 右起翻页（RTL）只对页序列文档（PDF / CBZ）开放；EPUB 的阅读方向由 Readium 出版物元数据决定。 */
-    val pagingDirectionAvailable =
-        (state as? ReaderUiState.Ready)?.document is ReaderDocument.Simple
+    val pagingDirectionAvailable = ready?.document is ReaderDocument.Simple
     /** PDF 搜索 / 批注：只对 PDF 开放（CBZ 走同一页模型，但本波未列入验收范围）。 */
     val pdfToolsAvailable =
-        ((state as? ReaderUiState.Ready)?.document as? ReaderDocument.Simple)?.format ==
-            SimpleBookFormat.Pdf
+        (ready?.document as? ReaderDocument.Simple)?.format == SimpleBookFormat.Pdf
+    // W6 T2：底片进度条 / 目录抽屉的数据源（导航元数据随 Ready 下发）。
+    val navigation = ready?.navigation ?: ReaderNavigation()
+    val tocEntries = (navigation.toc as? ReaderTocUiState.Ready)?.entries.orEmpty()
+    val progressPageCount =
+        when (val document = ready?.document) {
+            is ReaderDocument.Rich -> navigation.positionPageCount
+            is ReaderDocument.Simple -> document.pageSource.pageCount
+            null -> null
+        }
+    val progressPercentVisible = ready?.document is ReaderDocument.Rich
+    val currentProgression =
+        (liveProgression ?: ready?.initialProgression ?: 0.0).coerceIn(0.0, 1.0)
+    // 书签 marker / 双击切换共用同一投影：列表实例只在书签集合变化时更新（手势 key 不抖动）。
+    val bookmarkProgressions = remember(bookmarks) { bookmarks.map { it.progression.toFloat() } }
+    /** 进度条 / 目录跳转：复用书签跳转通道（locatorJson 为空 → VM 按 progression 定位）。 */
+    val jumpToPosition: (Double, String?) -> Unit = { target, locatorJson ->
+        val itemId = ready?.itemId
+        if (itemId != null) {
+            onJumpToBookmark(
+                readerPositionBookmark(
+                    itemId = itemId,
+                    progression = target,
+                    locatorJson = locatorJson,
+                )
+            )
+        }
+    }
+    /**
+     * W6 T2：双击正文 = 添加 / 取消书签（当前位置已有书签则取消），并弹 900ms 提示胶囊。
+     *
+     * 匹配按 progression（与持久化同口径）；[onDoubleTapBookmark] 是 T1 留的外部钩子（默认空）。
+     */
+    val onDoubleTapToggleBookmark: () -> Unit = {
+        onDoubleTapBookmark()
+        val bookmarkIndex =
+            readerBookmarkIndexAt(bookmarks.map { it.progression }, currentProgression)
+        if (bookmarkIndex != null) {
+            onRemoveBookmark(bookmarks[bookmarkIndex].id)
+            bookmarkNotice = "已取消"
+        } else {
+            onAddBookmark()
+            bookmarkNotice = "已加书签"
+        }
+        bookmarkNoticeToken++
+    }
 
     CinefinTheme(
         domain = ContentDomain.Book,
@@ -217,14 +278,19 @@ fun ReaderScreen(
                                         settings = settings,
                                         systemDark = systemDark,
                                         jumpTarget = jumpTarget,
-                                        onLocationChanged = onLocationChanged,
+                                        onLocationChanged = { locator ->
+                                            locator.locations.totalProgression?.let {
+                                                liveProgression = it
+                                            }
+                                            onLocationChanged(locator)
+                                        },
                                         onJumpHandled = onJumpHandled,
                                         onNavigatorReady = onNavigatorReady,
                                         brightnessProvider = { brightness },
                                         onBrightness = onBrightnessChange,
                                         tapPolicy = settings.tapPolicy(controlsVisible),
                                         onToggleControls = { controlsVisible = !controlsVisible },
-                                        onDoubleTapBookmark = onDoubleTapBookmark,
+                                        onDoubleTapBookmark = onDoubleTapToggleBookmark,
                                         modifier = Modifier.fillMaxSize(),
                                     )
 
@@ -240,7 +306,10 @@ fun ReaderScreen(
                                         annotations = annotations,
                                         annotating = annotating,
                                         jumpTargetPage = pageJumpTarget,
-                                        onPageChanged = onSimplePageChanged,
+                                        onPageChanged = { index, pageCount ->
+                                            liveProgression = progressionForPage(index, pageCount)
+                                            onSimplePageChanged(index, pageCount)
+                                        },
                                         onJumpHandled = onPageJumpHandled,
                                         brightnessProvider = { brightness },
                                         onBrightness = onBrightnessChange,
@@ -254,7 +323,7 @@ fun ReaderScreen(
                                         onBlankTap = { zoomBarToken++ },
                                         tapPolicy = settings.tapPolicy(controlsVisible),
                                         onToggleControls = { controlsVisible = !controlsVisible },
-                                        onDoubleTapBookmark = onDoubleTapBookmark,
+                                        onDoubleTapBookmark = onDoubleTapToggleBookmark,
                                         modifier = Modifier.fillMaxSize(),
                                     )
                             }
@@ -321,6 +390,30 @@ fun ReaderScreen(
                         )
                     }
 
+                    // W6 T2：双击书签的轻提示（900ms 淡入淡出，定稿八）。
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = bookmarkNotice != null,
+                        enter = fadeIn(tween(BOOKMARK_NOTICE_FADE_MS)),
+                        exit = fadeOut(tween(BOOKMARK_NOTICE_FADE_MS)),
+                        modifier = Modifier.align(Alignment.Center),
+                    ) {
+                        Surface(
+                            shape = CinefinShapes.Button,
+                            color = chromeColor.copy(alpha = 0.92f),
+                            contentColor = contentColor,
+                        ) {
+                            Text(
+                                text = bookmarkNotice.orEmpty(),
+                                style = CinefinType.TitleMedium,
+                                modifier =
+                                    Modifier.padding(
+                                        horizontal = CinefinSpacing.Space5,
+                                        vertical = CinefinSpacing.Space3,
+                                    ),
+                            )
+                        }
+                    }
+
                     // 控制层可见时正文区域整体只做「关闭」：透明 scrim 拦截正文点击（含链接 / 批注命中）。
                     if (controlsVisible) {
                         Box(
@@ -337,14 +430,25 @@ fun ReaderScreen(
                         darkChrome = settings.isDark(systemDark),
                         chromeColor = chromeColor,
                         contentColor = contentColor,
+                        progression = currentProgression.toFloat(),
+                        chapterTicks = navigation.chapterTicks,
+                        chapters = tocEntries,
+                        bookmarkProgressions = bookmarkProgressions,
+                        progressPageCount = progressPageCount,
+                        progressPercentVisible = progressPercentVisible,
+                        progressFocusToken = progressFocusToken,
                         onBack = onBack,
                         onMore = { showMore = true },
                         // T2 接线：目录抽屉 / 书签列表 / 进度条拖动。
-                        onOpenContents = {},
-                        onOpenBookmarks = {},
-                        onOpenProgress = {},
+                        onOpenContents = { showContents = true },
+                        onOpenBookmarks = { showBookmarks = true },
+                        onOpenProgress = { progressFocusToken++ },
                         onOpenSettings = { showSettings = true },
                         onDismissByDrag = { controlsVisible = false },
+                        onScrub = { target -> jumpToPosition(target.toDouble(), null) },
+                        onBookmarkTap = { index ->
+                            bookmarks.getOrNull(index)?.let(onJumpToBookmark)
+                        },
                     )
                 }
             }
@@ -432,6 +536,44 @@ fun ReaderScreen(
                         onJumpToBookmark = { bookmark ->
                             onJumpToBookmark(bookmark)
                             showBookmarks = false
+                        },
+                    )
+                }
+            }
+
+            // W6 T2：目录抽屉（底部半屏，可拖成全屏；关闭后再回到控制层）。
+            if (showContents) {
+                ModalBottomSheet(
+                    onDismissRequest = { showContents = false },
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
+                    containerColor = chromeColor,
+                    contentColor = contentColor,
+                    scrimColor = CinefinTokens.Scrim.copy(alpha = CinefinTokens.ScrimAlpha),
+                    dragHandle = {
+                        Box(
+                            modifier =
+                                Modifier.padding(top = CinefinSpacing.Space3)
+                                    .size(width = 32.dp, height = 4.dp)
+                                    .clip(CinefinShapes.TwoXs)
+                                    .background(contentColor.copy(alpha = 0.24f))
+                        )
+                    },
+                ) {
+                    ReaderTocSheet(
+                        state = navigation.toc,
+                        currentProgression = currentProgression,
+                        showReadMarks = settings.tocShowRead,
+                        accent = accent,
+                        contentColor = contentColor,
+                        onSelect = { entry ->
+                            jumpToPosition(
+                                entry.progression ?: currentProgression,
+                                entry.locatorJson,
+                            )
+                            showContents = false
+                        },
+                        onShowReadMarksChange = { checked ->
+                            onSettingsChange(settings.copy(tocShowRead = checked))
                         },
                     )
                 }
@@ -527,20 +669,70 @@ fun ReaderScreen(
                         )
                     },
                 ) {
-                    // T2 起补：目录、书签列表、书内搜索、标注列表、下载 / 流式状态、听书入口。
                     Column(
                         modifier =
                             Modifier.fillMaxWidth()
                                 .padding(horizontal = CinefinSpacing.Space6)
                                 .padding(bottom = CinefinSpacing.Space6),
-                        verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+                        verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1),
                     ) {
-                        Text(text = "更多", style = CinefinType.TitleMedium)
-                        Text(
-                            text = "目录、书内搜索、标注与听书入口将在后续任务补齐。",
-                            style = CinefinType.BodyMedium,
-                            color = contentColor.copy(alpha = 0.7f),
+                        Text(text = "更多", style = CinefinType.TitleMedium, color = contentColor)
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = CinefinSpacing.Space2)
                         )
+                        MoreActionRow(
+                            label = "目录",
+                            contentColor = contentColor,
+                            onClick = {
+                                showMore = false
+                                showContents = true
+                            },
+                        )
+                        MoreActionRow(
+                            label = "书签列表",
+                            contentColor = contentColor,
+                            onClick = {
+                                showMore = false
+                                showBookmarks = true
+                            },
+                        )
+                        if (pdfToolsAvailable) {
+                            MoreActionRow(
+                                label = "书内搜索",
+                                contentColor = contentColor,
+                                onClick = {
+                                    showMore = false
+                                    showSearch = true
+                                },
+                            )
+                            MoreActionRow(
+                                label = "标注列表",
+                                contentColor = contentColor,
+                                onClick = {
+                                    showMore = false
+                                    showAnnotations = true
+                                },
+                            )
+                        }
+                        // 下载 / 流式状态（与设置面板工具区同一份状态文案）。
+                        Row(
+                            modifier =
+                                Modifier.fillMaxWidth().padding(vertical = CinefinSpacing.Space2),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "下载状态",
+                                style = CinefinType.BodyMedium,
+                                color = contentColor,
+                                modifier = Modifier.weight(1f),
+                            )
+                            DownloadAction(
+                                streamState = streamState,
+                                downloadState = downloadState,
+                                contentColor = contentColor,
+                                onDownload = onDownload,
+                            )
+                        }
                     }
                 }
             }
@@ -725,6 +917,48 @@ private fun PendingSyncBanner(
                         vertical = CinefinSpacing.Space1,
                     ),
         )
+    }
+}
+
+/** 双击书签提示胶囊的停留时长（定稿八：900ms 淡入淡出）。 */
+private const val BOOKMARK_NOTICE_VISIBLE_MS = 900L
+
+/** 提示胶囊淡入淡出时长。 */
+private const val BOOKMARK_NOTICE_FADE_MS = 120
+
+/** 位置跳转载体的 id（只走跳转通道，不进书签列表）。 */
+private const val READER_POSITION_BOOKMARK_ID = "reader-position"
+
+/**
+ * 位置跳转载体（W6 T2）：目录 / 进度条跳转复用书签跳转通道（阅读页不额外接线）。
+ *
+ * `locatorJson` 为空 = 按 progression 定位：PDF / CBZ 换成页索引；EPUB 用 publication 定位最近的 locator。
+ */
+private fun readerPositionBookmark(
+    itemId: UUID,
+    progression: Double,
+    locatorJson: String?,
+): ReaderBookmark =
+    ReaderBookmark(
+        id = READER_POSITION_BOOKMARK_ID,
+        itemId = itemId,
+        locatorJson = locatorJson.orEmpty(),
+        progression = progression.coerceIn(0.0, 1.0),
+        label = "",
+        createdAt = Instant.EPOCH,
+    )
+
+/** 「更多」抽屉的一行动作：文字 + ≥48dp 触控区。 */
+@Composable
+private fun MoreActionRow(label: String, contentColor: Color, onClick: () -> Unit) {
+    Row(
+        modifier =
+            Modifier.fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .cinefinClickable(onClickLabel = label, onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text = label, style = CinefinType.BodyMedium, color = contentColor)
     }
 }
 

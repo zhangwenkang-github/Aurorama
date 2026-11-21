@@ -140,6 +140,8 @@ data class ReaderSettings(
     val invertTapZones: Boolean = false,
     /** W6 T1：「点按翻页」——关闭后单击任意处 = 控制层开关。 */
     val tapPagingEnabled: Boolean = true,
+    /** W6 T2：「目录显示已读」——目录抽屉里给已读完的章节打 accent ✓。 */
+    val tocShowRead: Boolean = true,
 ) {
     /** 把外部（SharedPreferences）可能越界 / 非有限的值收进可用区间。 */
     fun sanitized(): ReaderSettings =
@@ -259,6 +261,9 @@ internal object ReaderGesturePreferences {
 
     /** 「点按翻页」：关闭后单击任意处 = 控制层开关。 */
     val tapPagingEnabled = Preference("pref_reader_tap_paging", true)
+
+    /** W6 T2：「目录显示已读」：目录抽屉里给已读完的章节打 ✓（默认开）。 */
+    val tocShowRead = Preference("pref_reader_toc_show_read", true)
 }
 
 /**

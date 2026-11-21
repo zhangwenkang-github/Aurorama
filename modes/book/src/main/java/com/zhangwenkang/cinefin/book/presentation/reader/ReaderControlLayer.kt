@@ -27,6 +27,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +51,8 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
+import kotlinx.coroutines.delay
 
 /** 控制层开启动画时长（定稿一 §3 / 定稿八）。 */
 internal const val READER_CONTROLS_ENTER_MS = 200
@@ -107,6 +114,20 @@ internal fun ReaderControlLayer(
     darkChrome: Boolean,
     chromeColor: Color,
     contentColor: Color,
+    /** 全书进度（0–1）：底片进度条的当前值。 */
+    progression: Float,
+    /** 章节分界刻度（0–1；PDF / CBZ 为空）。 */
+    chapterTicks: List<Float>,
+    /** 目录条目（拖动浮层按位置取章节名）。 */
+    chapters: List<ReaderTocEntry>,
+    /** 书签位置（0–1），点按书签点 = 跳转。 */
+    bookmarkProgressions: List<Float>,
+    /** 分页页数（EPUB = positions 页数，PDF / CBZ = 总页数）；null = 不显示页码行。 */
+    progressPageCount: Int?,
+    /** 浮层是否显示百分比（EPUB = true；PDF / CBZ 只显示页码）。 */
+    progressPercentVisible: Boolean,
+    /** 「进度」入口聚焦令牌：变化时把浮层亮一会儿。 */
+    progressFocusToken: Int,
     onBack: () -> Unit,
     onMore: () -> Unit,
     onOpenContents: () -> Unit,
@@ -114,16 +135,31 @@ internal fun ReaderControlLayer(
     onOpenProgress: () -> Unit,
     onOpenSettings: () -> Unit,
     onDismissByDrag: () -> Unit,
+    /** 进度条松手（只在松手时回调一次）：目标位置 0–1。 */
+    onScrub: (Float) -> Unit,
+    /** 点按进度条上的书签点：书签下标。 */
+    onBookmarkTap: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val reduceMotion = CinefinMotion.reduceMotion()
     val enterMillis = if (reduceMotion) READER_CONTROLS_REDUCED_MS else READER_CONTROLS_ENTER_MS
     val exitMillis = if (reduceMotion) READER_CONTROLS_REDUCED_MS else READER_CONTROLS_EXIT_MS
     val colors = LocalCinefinColors.current
+    val accent = LocalMediaColors.current.base
     // 深色 / OLED 家族 = 玻璃（rgba(10,16,28,.58) + glassBorder）；纸色 / 护眼 = 页色 96%。
     val containerColor = if (darkChrome) colors.glass else chromeColor.copy(alpha = 0.96f)
     val borderColor = if (darkChrome) colors.glassBorder else contentColor.copy(alpha = 0.08f)
     val slidePx = with(LocalDensity.current) { READER_CONTROLS_SLIDE_DP.dp.roundToPx() }
+    // 拖动中的预览位置上抛到本层：浮层要画在底片圆角裁剪之外。
+    var scrubFraction by remember { mutableStateOf<Float?>(null) }
+    var progressFocused by remember { mutableStateOf(false) }
+    LaunchedEffect(progressFocusToken) {
+        if (progressFocusToken <= 0) return@LaunchedEffect
+        progressFocused = true
+        delay(READER_PROGRESS_OVERLAY_FOCUS_MS)
+        progressFocused = false
+    }
+    val overlayProgression = scrubFraction ?: progression.takeIf { progressFocused }
 
     Box(modifier = modifier.fillMaxSize()) {
         AnimatedVisibility(
@@ -190,30 +226,71 @@ internal fun ReaderControlLayer(
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
             Column(
-                modifier =
-                    Modifier.fillMaxWidth()
-                        .clip(ReaderBottomSheetShape)
-                        .background(containerColor)
-                        .border(1.dp, borderColor, ReaderBottomSheetShape)
-                        .navigationBarsPadding()
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                // 进度条占位（定稿二，T2 落地）：本卡只保留 44dp 触控区高度。
-                Box(modifier = Modifier.fillMaxWidth().height(READER_PROGRESS_PLACEHOLDER_HEIGHT))
+                // 拖动 / 聚焦浮层：进度条上方 8dp，画在底片圆角裁剪之外（否则会被 clip 掉）。
+                AnimatedVisibility(
+                    visible = overlayProgression != null,
+                    enter = fadeIn(tween(READER_PROGRESS_OVERLAY_FADE_MS)),
+                    exit = fadeOut(tween(READER_PROGRESS_OVERLAY_FADE_MS)),
+                ) {
+                    ReaderProgressOverlay(
+                        progression = overlayProgression ?: progression,
+                        chapters = chapters,
+                        pageCount = progressPageCount,
+                        percentVisible = progressPercentVisible,
+                        containerColor = containerColor,
+                        contentColor = contentColor,
+                        borderColor = borderColor,
+                        modifier =
+                            Modifier.padding(
+                                start = CinefinSpacing.Space6,
+                                end = CinefinSpacing.Space6,
+                                bottom = READER_PROGRESS_OVERLAY_GAP,
+                            ),
+                    )
+                }
 
-                Row(modifier = Modifier.fillMaxWidth().padding(bottom = CinefinSpacing.Space2)) {
-                    ReaderControlEntry.entries.forEach { entry ->
-                        ControlEntryButton(
-                            entry = entry,
-                            contentColor = contentColor,
-                            onClick =
-                                when (entry) {
-                                    ReaderControlEntry.Contents -> onOpenContents
-                                    ReaderControlEntry.Bookmarks -> onOpenBookmarks
-                                    ReaderControlEntry.Progress -> onOpenProgress
-                                    ReaderControlEntry.Settings -> onOpenSettings
-                                },
-                            modifier = Modifier.weight(1f),
-                        )
+                Column(
+                    modifier =
+                        Modifier.fillMaxWidth()
+                            .clip(ReaderBottomSheetShape)
+                            .background(containerColor)
+                            .border(1.dp, borderColor, ReaderBottomSheetShape)
+                            .navigationBarsPadding()
+                ) {
+                    // 全书进度条（定稿二 §1）：44dp 触控区，松手才跳转一次。
+                    ReaderProgressBar(
+                        progression = progression,
+                        chapterTicks = chapterTicks,
+                        bookmarkProgressions = bookmarkProgressions,
+                        accent = accent,
+                        contentColor = contentColor,
+                        scrubFraction = scrubFraction,
+                        onScrubPreview = { scrubFraction = it },
+                        onScrubCommit = onScrub,
+                        onBookmarkTap = onBookmarkTap,
+                        modifier = Modifier.padding(horizontal = CinefinSpacing.Space3),
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = CinefinSpacing.Space2)
+                    ) {
+                        ReaderControlEntry.entries.forEach { entry ->
+                            ControlEntryButton(
+                                entry = entry,
+                                contentColor = contentColor,
+                                onClick =
+                                    when (entry) {
+                                        ReaderControlEntry.Contents -> onOpenContents
+                                        ReaderControlEntry.Bookmarks -> onOpenBookmarks
+                                        ReaderControlEntry.Progress -> onOpenProgress
+                                        ReaderControlEntry.Settings -> onOpenSettings
+                                    },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
                     }
                 }
             }
@@ -313,9 +390,6 @@ private fun Modifier.dragDownToDismiss(onDismiss: () -> Unit): Modifier =
             }
         }
     }
-
-/** 底片进度条占位高度（定稿二：44dp 触控区）。 */
-private val READER_PROGRESS_PLACEHOLDER_HEIGHT = 44.dp
 
 /** 底片入口行高：图标 + 标签 + 上下留白，保证触控区 ≥48dp。 */
 private val READER_CONTROLS_ENTRY_HEIGHT = 56.dp

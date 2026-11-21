@@ -42,9 +42,11 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Request
 import org.json.JSONObject
+import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.services.locateProgression
+import org.readium.r2.shared.publication.services.positions
 import org.readium.r2.shared.util.AbsoluteUrl
 import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.asset.Asset
@@ -95,6 +97,8 @@ sealed interface ReaderUiState {
         val itemId: UUID,
         val document: ReaderDocument,
         val initialProgression: Double,
+        /** W6 T2：目录 / positions 导航元数据（底片进度条刻度与目录抽屉的数据源）。 */
+        val navigation: ReaderNavigation = ReaderNavigation(),
     ) : ReaderUiState
 
     data class Error(val message: String) : ReaderUiState
@@ -211,6 +215,8 @@ constructor(
     private var simpleProgressJob: Job? = null
     private var periodicJob: Job? = null
     private var downloadJob: Job? = null
+    /** W6 T2：目录 / positions 后台加载（换书 / 热切换时取消）。 */
+    private var navigationJob: Job? = null
     private var currentLocator: Locator? = null
     /** PDF / CBZ 的当前位置（页索引 + 总页数），与 [currentLocator] 二者只会有一个生效。 */
     private var currentSimplePage: Int? = null
@@ -241,6 +247,7 @@ constructor(
             try {
                 val ready = withContext(Dispatchers.IO) { openFromBestSource(itemId) }
                 _state.value = ready
+                loadNavigation()
                 refreshLocalState(itemId)
                 // 后台下载可能比远程首开更快（小书）：阅读页就绪后补做热切换。
                 hotSwapToLocal(itemId)
@@ -619,6 +626,7 @@ constructor(
                         )
                     }
                 _state.value = ready
+                loadNavigation()
                 refreshLocalState(itemId)
                 startPeriodicProgressReporter()
             } catch (cancellation: CancellationException) {
@@ -647,6 +655,8 @@ constructor(
     private fun resetToolState() {
         searchJob?.cancel()
         searchJob = null
+        navigationJob?.cancel()
+        navigationJob = null
         pdfSearchSource?.close()
         pdfSearchSource = null
         openedBookFile = null
@@ -835,7 +845,9 @@ constructor(
         _streamState.value = ReaderStreamState.Local
         pendingHotSwap = null
         releaseRemoteClient()
-        _state.value = ReaderUiState.Ready(itemId, document, progression)
+        _state.value = ReaderUiState.Ready(itemId, document, progression, current.navigation)
+        // 热切换后 publication 指向本地文件：重新算 positions（远端首开时跳过，避免逐资源请求服务器）。
+        loadNavigation()
         Timber.i(
             "阅读流式：热切换本地完成 %d ms（%s）",
             SystemClock.elapsedRealtime() - startedAt,
@@ -896,7 +908,8 @@ constructor(
         _streamState.value = ReaderStreamState.Local
         pendingHotSwap = null
         releaseRemoteClient()
-        _state.value = ReaderUiState.Ready(itemId, document, progression)
+        _state.value = ReaderUiState.Ready(itemId, document, progression, current.navigation)
+        loadNavigation()
         Timber.i(
             "阅读流式：CBZ 热切换本地完成 %d ms（第 %d 页 / %d，%s）",
             SystemClock.elapsedRealtime() - startedAt,
@@ -908,19 +921,46 @@ constructor(
 
     fun addBookmark() {
         val itemId = openedItemId ?: return
-        val locator = currentLocator ?: return
-        val progression =
-            locator.locations.totalProgression ?: locator.locations.progression ?: return
-        viewModelScope.launch {
-            val bookmark =
-                ReaderBookmark(
-                    id = UUID.randomUUID().toString(),
-                    itemId = itemId,
-                    locatorJson = locator.toJSON().toString(),
-                    progression = progression,
-                    label = bookmarkLabel(locator.title, progression),
-                    createdAt = Instant.now(),
+        when (val document = (_state.value as? ReaderUiState.Ready)?.document) {
+            is ReaderDocument.Rich -> {
+                val locator = currentLocator ?: return
+                val progression =
+                    locator.locations.totalProgression ?: locator.locations.progression ?: return
+                saveBookmark(
+                    ReaderBookmark(
+                        id = UUID.randomUUID().toString(),
+                        itemId = itemId,
+                        locatorJson = locator.toJSON().toString(),
+                        progression = progression,
+                        label = bookmarkLabel(locator.title, progression),
+                        createdAt = Instant.now(),
+                    )
                 )
+            }
+            // W6 T2：PDF / CBZ 书签用「页索引 / 总页数」的 progression 当锚点（locatorJson 留空），
+            // data 层的书签模型与文件格式无需迁移；恢复位置走 pageIndexForProgression。
+            is ReaderDocument.Simple -> {
+                val pageCount =
+                    currentSimplePageCount.takeIf { it > 0 } ?: document.pageSource.pageCount
+                if (pageCount <= 0) return
+                val page = (currentSimplePage ?: document.initialPage).coerceIn(0, pageCount - 1)
+                saveBookmark(
+                    ReaderBookmark(
+                        id = UUID.randomUUID().toString(),
+                        itemId = itemId,
+                        locatorJson = "",
+                        progression = progressionForPage(page, pageCount),
+                        label = readerPageLabel(page + 1, pageCount),
+                        createdAt = Instant.now(),
+                    )
+                )
+            }
+            null -> return
+        }
+    }
+
+    private fun saveBookmark(bookmark: ReaderBookmark) {
+        viewModelScope.launch {
             runCatching { readerRepository.saveBookmark(bookmark) }
                 .onSuccess { refreshBookmarks() }
                 .onFailure { Timber.w(it, "保存书签失败") }
@@ -936,9 +976,28 @@ constructor(
         }
     }
 
-    /** 跳转到书签 / 位置（导航器消费后调用 [consumeJumpTarget]）。 */
+    /**
+     * 跳转到书签 / 位置（导航器消费后调用 [consumeJumpTarget]）。
+     *
+     * 三种载体共用本通道（阅读页因此不需要额外接线）：EPUB 书签 = locatorJson；PDF / CBZ 书签 = 空 locatorJson + 页 progression；
+     * 目录 / 进度条跳转 = 空 locatorJson + progression（EPUB 用 publication 定位最近 locator）。
+     */
     fun jumpTo(bookmark: ReaderBookmark) {
-        _jumpTarget.value = bookmark.locatorJson.toLocator() ?: return
+        bookmark.locatorJson.toLocator()?.let { locator ->
+            _jumpTarget.value = locator
+            return
+        }
+        val pageCount = openedSimplePageCount
+        if (pageCount > 0 && openedSimpleFormat != null) {
+            _pageJumpTarget.value = pageIndexForProgression(bookmark.progression, pageCount)
+            return
+        }
+        val publication =
+            ((_state.value as? ReaderUiState.Ready)?.document as? ReaderDocument.Rich)?.publication
+                ?: return
+        viewModelScope.launch {
+            locateByProgression(publication, bookmark.progression)?.let { _jumpTarget.value = it }
+        }
     }
 
     fun consumeJumpTarget() {
@@ -1190,6 +1249,7 @@ constructor(
         simpleProgressJob?.cancel()
         periodicJob?.cancel()
         downloadJob?.cancel()
+        navigationJob?.cancel()
         resetToolState()
         closeDocuments()
         releaseRemoteClient()
@@ -1338,6 +1398,101 @@ constructor(
             BookFormat.Epub,
             BookFormat.Unknown -> openReadium(uri, progress)
         }
+
+    /**
+     * W6 T2：目录与 positions 导航元数据（底片进度条的章节刻度 / 页码、目录抽屉的数据源）。
+     *
+     * 目录（`tableOfContents`）同步就绪，先下发骨架；positions 走后台（`PerResourcePositionsService` 可能要逐资源估算页数），
+     * 就绪后补章节起点、刻度与页码。远端流式阅读时跳过 positions：逐资源估算会对服务器发起成百上千次 Range 请求，热切换本地后再算。
+     */
+    private fun loadNavigation() {
+        val ready = _state.value as? ReaderUiState.Ready ?: return
+        navigationJob?.cancel()
+        navigationJob = null
+        val document = ready.document
+        if (document is ReaderDocument.Simple) {
+            // PDF / CBZ 没有章节概念：目录抽屉给空态，进度条不画刻度。
+            _state.value = ready.copy(navigation = ReaderNavigation(toc = ReaderTocUiState.Empty))
+            return
+        }
+        if (document !is ReaderDocument.Rich) return
+        val publication = document.publication
+        val entries = runCatching {
+            readerTocEntries(tocNodes(publication))
+        }
+            .getOrElse { error ->
+                Timber.w(error, "解析书籍目录失败")
+                _state.value =
+                    ready.copy(
+                        navigation =
+                            ReaderNavigation(
+                                toc = ReaderTocUiState.Error(error.message ?: "目录解析失败")
+                            )
+                    )
+                return
+            }
+        if (entries.isEmpty()) {
+            _state.value = ready.copy(navigation = ReaderNavigation(toc = ReaderTocUiState.Empty))
+            return
+        }
+        _state.value =
+            ready.copy(navigation = ReaderNavigation(toc = ReaderTocUiState.Ready(entries)))
+        if (openedFromRemote) return
+        navigationJob = viewModelScope.launch {
+            val positions =
+                withContext(Dispatchers.IO) { runCatching { publication.positions() }.getOrNull() }
+            if (positions.isNullOrEmpty()) {
+                Timber.i("阅读页：positions 不可用，进度条退化为纯百分比（%s）", openedItemId)
+                return@launch
+            }
+            val projection = positions.map { locator ->
+                ReaderPosition(
+                    href = locator.href.toString().substringBefore('#'),
+                    progression =
+                        locator.locations.totalProgression ?: locator.locations.progression ?: 0.0,
+                )
+            }
+            val current = _state.value as? ReaderUiState.Ready ?: return@launch
+            if ((current.document as? ReaderDocument.Rich)?.publication !== publication) {
+                return@launch
+            }
+            val enriched =
+                readerTocWithProgressions(
+                    (current.navigation.toc as? ReaderTocUiState.Ready)?.entries ?: entries,
+                    projection,
+                )
+            _state.value =
+                current.copy(
+                    navigation =
+                        ReaderNavigation(
+                            toc = ReaderTocUiState.Ready(enriched),
+                            chapterTicks = readerChapterTicks(projection),
+                            positionPageCount = positions.size,
+                        )
+                )
+            Timber.i(
+                "阅读页：目录 %d 条 / 刻度 %d 个 / 页数 %d（%s）",
+                enriched.size,
+                readerChapterTicks(projection).size,
+                positions.size,
+                openedItemId,
+            )
+        }
+    }
+
+    /** Readium 目录树 → 纯数据节点（Locator 派生 JSON 供阅读页跳转，与书签同一通道）。 */
+    private fun tocNodes(
+        publication: Publication,
+        links: List<Link> = publication.tableOfContents,
+    ): List<ReaderTocNode> = links.map { link ->
+        val locator = runCatching { publication.locatorFromLink(link) }.getOrNull()
+        ReaderTocNode(
+            title = link.title.orEmpty(),
+            href = locator?.href?.toString()?.substringBefore('#'),
+            locatorJson = locator?.toJSON()?.toString(),
+            children = tocNodes(publication, link.children),
+        )
+    }
 
     /** 打开好的页序列文档：接管 [PageSource] 生命周期（[closeDocuments] 统一释放）。 */
     private fun openSimple(
@@ -1534,6 +1689,7 @@ constructor(
                 invertTapZones = appPreferences.getValue(ReaderGesturePreferences.invertTapZones),
                 tapPagingEnabled =
                     appPreferences.getValue(ReaderGesturePreferences.tapPagingEnabled),
+                tocShowRead = appPreferences.getValue(ReaderGesturePreferences.tocShowRead),
             )
             .sanitized()
 
@@ -1554,6 +1710,7 @@ constructor(
             ReaderGesturePreferences.tapPagingEnabled,
             settings.tapPagingEnabled,
         )
+        appPreferences.setValue(ReaderGesturePreferences.tocShowRead, settings.tocShowRead)
     }
 }
 
