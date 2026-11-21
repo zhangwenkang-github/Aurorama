@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsDefaultRate
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.MediaBook
 import com.zhangwenkang.cinefin.core.presentation.theme.MediaColors
@@ -592,4 +593,23 @@ internal object ReaderAutoPreferences {
     /** 滚动档自动滚动速度（px/s，10–300；默认 60）。 */
     val scrollSpeedPxPerSecond =
         Preference("pref_reader_auto_scroll_speed_px", AutoAdvanceDefaultSpeedPxPerSecond)
+}
+
+/**
+ * 听书偏好（W6 T9 / READER-32/34）：沿用 `pref_reader_tts_*` 命名空间，键声明自持在 `modes/book`。
+ *
+ * 「点按正文跳转朗读位置」默认开、「点按正文时暂停朗读」默认关（保持播放）——按定稿六 §3 口径。
+ */
+internal object ReaderTtsPreferences {
+    /** 语速（0.5–2.0×，默认 1.0）。 */
+    val rate = Preference("pref_reader_tts_rate", ReaderTtsDefaultRate)
+
+    /** 系统音色名（`voice.name`）；空串 = 让引擎按语言挑默认音色。 */
+    val voice = Preference("pref_reader_tts_voice", "")
+
+    /** 「点按正文跳转朗读位置」：默认开。 */
+    val tapFollowsReading = Preference("pref_reader_tts_tap_follow", true)
+
+    /** 「点按正文时暂停朗读」：默认关 = 保持播放。 */
+    val pauseOnTap = Preference("pref_reader_tts_tap_pause", false)
 }

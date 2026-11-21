@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.FragmentContainerView
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsDecoration
 import com.zhangwenkang.cinefin.core.presentation.theme.rememberReduceMotionEnabled
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Job
@@ -52,6 +53,11 @@ import org.readium.r2.shared.util.AbsoluteUrl
 import timber.log.Timber
 
 private const val NAVIGATOR_TAG = "CinefinEpubNavigator"
+
+/** W6 T9：朗读句高亮的 Decoration group（与用户标注 `"annotation"` 分开整组替换）。 */
+private const val EPUB_TTS_DECORATION_GROUP = "tts"
+
+private const val EPUB_TTS_DECORATION_ID = "tts-current-sentence"
 
 /** 选区稳定去抖（spike：selectionchange 约 120ms 去抖）。 */
 private const val EPUB_SELECTION_DEBOUNCE_MS = 120L
@@ -113,6 +119,10 @@ internal fun ReadiumEpubView(
     onManualIntervention: () -> Unit = {},
     /** W6 T6：自动阅读已到书末（执行层已停止节拍器）。 */
     onAutoAdvanceEnd: () -> Unit = {},
+    /** W6 T9：当前朗读句的底色高亮（独立 Decoration group，不与用户标注混）。 */
+    ttsHighlight: ReaderTtsDecoration? = null,
+    /** W6 T9：「点按正文跳转朗读位置」的单击信号（阅读页据当前可见位置重锚朗读位置）。 */
+    onBodyTap: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -151,6 +161,7 @@ internal fun ReadiumEpubView(
     val currentOnManualIntervention = rememberUpdatedState(onManualIntervention)
     val currentOnAutoAdvanceEnd = rememberUpdatedState(onAutoAdvanceEnd)
     val currentAnimatedTurns = rememberUpdatedState(animatedTurns)
+    val currentOnBodyTap = rememberUpdatedState(onBodyTap)
     // 高亮模板：alpha / 圆角 / 线宽按定稿五 §3（tint 由每条 Decoration 自带）。
     val decorationTemplates = remember {
         HtmlDecorationTemplates.defaultTemplates(
@@ -316,6 +327,27 @@ internal fun ReadiumEpubView(
             onDispose { currentNavigator?.removeDecorationListener(decorationListener) }
         }
 
+        // W6 T9（READER-33）：朗读句高亮——独立 group，整组替换；tint 已按模板 0.28 反解成 18% accent，
+        // 淡入由调用方量化 tint（本层只负责下发）。不可高亮（FXL）时直接跳过。
+        LaunchedEffect(navigator, ttsHighlight, decorationsSupported) {
+            val currentNavigator = navigator ?: return@LaunchedEffect
+            if (!decorationsSupported) return@LaunchedEffect
+            val decorations =
+                ttsHighlight?.let { highlight ->
+                    listOf(
+                        Decoration(
+                            EPUB_TTS_DECORATION_ID,
+                            highlight.locator,
+                            Decoration.Style.Highlight(highlight.tintArgb, true),
+                        )
+                    )
+                } ?: emptyList()
+            runCatching {
+                currentNavigator.applyDecorations(decorations, EPUB_TTS_DECORATION_GROUP)
+            }
+                .onFailure { Timber.w(it, "应用 TTS 句高亮失败") }
+        }
+
         // 创建 / 取消后收起原生选择手柄（工具栏自己的状态由调用方清）。
         LaunchedEffect(navigator, clearSelectionToken) {
             val currentNavigator = navigator ?: return@LaunchedEffect
@@ -408,6 +440,7 @@ internal fun ReadiumEpubView(
                     navigator?.clearSelection()
                     currentOnSelectionChanged.value(null)
                 } else {
+                    currentOnBodyTap.value()
                     when (readerTapAction(x, width, currentTapPolicy.value)) {
                         ReaderTapAction.PreviousPage ->
                             navigator?.goBackward(animated = animatedTurns)

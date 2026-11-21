@@ -56,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -63,6 +64,23 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.AndroidTtsEngine
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.READER_TTS_BAR_ENTER_MS
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.READER_TTS_BAR_EXIT_MS
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsBar
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsController
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsDecoration
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsHighlight
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsNotifier
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsSession
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsSheets
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsStartPoint
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsTextSource
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsUiState
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.TtsPlayback
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.TtsTimerOption
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.TtsVoiceOption
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.locateReadingPoint
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
@@ -92,15 +110,22 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Layout
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.services.search.SearchService
 import org.readium.r2.shared.publication.services.search.search
 import timber.log.Timber
+
+/** W6 T9：句高亮的 200ms 淡入量化档数（每档 50ms 重下发一次 Decoration，定稿八）。 */
+private const val TTS_HIGHLIGHT_FADE_STEPS = 4
+
+private const val TTS_HIGHLIGHT_FADE_STEP_MS = 50L
 
 /**
  * 阅读页（§9 Compose 落地）：外壳（顶栏 / 加载 / 错误态 / 设置面板）全部走 core 组件。
@@ -603,6 +628,256 @@ fun ReaderScreen(
         bookmarkNoticeToken++
     }
 
+    // ---- W6 T9：系统 TTS 听书（READER-32–36，定稿六）----
+    // 引擎 / 状态机 / 章节文本提取都在 reader/tts/；这里只接线：起点二选一、迷你控制条、句高亮参数、
+    // 跨章跟随、定时心跳与「点按正文跳转朗读位置」。
+    var ttsState by remember(bookKey) { mutableStateOf(ReaderTtsUiState()) }
+    var ttsShowStart by remember(bookKey) { mutableStateOf(false) }
+    var ttsShowSettings by remember(bookKey) { mutableStateOf(false) }
+    var ttsShowTimer by remember(bookKey) { mutableStateOf(false) }
+    var ttsVoices by remember(bookKey) { mutableStateOf<List<TtsVoiceOption>>(emptyList()) }
+    var ttsSelectedVoice by
+        remember(bookKey) {
+            mutableStateOf(
+                autoPreferences?.getValue(ReaderTtsPreferences.voice)?.takeIf { it.isNotBlank() }
+            )
+        }
+    var ttsTapFollowsReading by
+        remember(bookKey) {
+            mutableStateOf(
+                autoPreferences?.getValue(ReaderTtsPreferences.tapFollowsReading) ?: true
+            )
+        }
+    var ttsPauseOnTap by
+        remember(bookKey) {
+            mutableStateOf(autoPreferences?.getValue(ReaderTtsPreferences.pauseOnTap) ?: false)
+        }
+    // 最近一次上报位置：TTS 起点与「点按正文跳转朗读位置」都以可见位置为准。
+    var liveLocator by remember(bookKey) { mutableStateOf<Locator?>(null) }
+    var ttsReanchorPending by remember(bookKey) { mutableStateOf(false) }
+    var ttsFadeStep by remember(bookKey) { mutableIntStateOf(4) }
+    var ttsServiceRunning by remember(bookKey) { mutableStateOf(false) }
+    val ttsScope = rememberCoroutineScope()
+    val ttsEngine = remember(bookKey) { AndroidTtsEngine(context) }
+    val ttsTitleState = rememberUpdatedState(title)
+    // 章节标题解析随目录加载更新：用 rememberUpdatedState 让文本源始终读最新目录。
+    val ttsTocEntries = rememberUpdatedState(tocEntries)
+    val ttsSource =
+        remember(richDocument) {
+            richDocument?.let { document ->
+                ReaderTtsTextSource(document.publication) { href ->
+                    val target = href.substringBefore('#')
+                    ttsTocEntries.value
+                        .firstOrNull { it.href?.substringBefore('#') == target }
+                        ?.title
+                        .orEmpty()
+                }
+            }
+        }
+    val ttsChapterRequests = remember(bookKey) { MutableSharedFlow<Int>(extraBufferCapacity = 8) }
+    val ttsController =
+        remember(bookKey) {
+            ReaderTtsController(
+                engine = ttsEngine,
+                clock = { SystemClock.elapsedRealtime() },
+                onStateChanged = { next ->
+                    ttsState = next
+                    ReaderTtsSession.publish(next)
+                },
+                onRequestChapter = { index -> ttsChapterRequests.tryEmit(index) },
+            )
+        }
+    val stopTts: () -> Unit = { ttsController.stop() }
+    // 章节按需解析（跨章续播 / 指定章首）：IO 线程提取，结果回喂状态机。
+    LaunchedEffect(ttsController, ttsSource) {
+        ttsChapterRequests.collect { index ->
+            val source = ttsSource
+            val chapter = source?.let {
+                runCatching { withContext(Dispatchers.IO) { it.loadChapter(index) } }.getOrNull()
+            }
+            if (chapter == null) ttsController.onChapterUnavailable(index)
+            else ttsController.addChapter(chapter)
+        }
+    }
+    LaunchedEffect(ttsController) {
+        autoPreferences?.getValue(ReaderTtsPreferences.rate)?.let(ttsController::setRate)
+    }
+    // 引擎回调 → 状态机（onStart / onRangeStart 决定句高亮边界，READER-33/36）。
+    DisposableEffect(bookKey, ttsController) {
+        ttsEngine.callbacks =
+            object : AndroidTtsEngine.Callbacks {
+                override fun onStarted(utteranceId: String) {
+                    ttsController.onUtteranceStarted(utteranceId)
+                }
+
+                override fun onRangeStart(utteranceId: String, start: Int, end: Int) {
+                    ttsController.onRangeStart(utteranceId)
+                }
+
+                override fun onFinished(utteranceId: String) {
+                    ttsController.onUtteranceFinished(utteranceId)
+                }
+
+                override fun onFailed(utteranceId: String) {
+                    ttsController.onUtteranceFailed(utteranceId)
+                }
+            }
+        ReaderTtsSession.attach(
+            controls =
+                object : ReaderTtsSession.Controls {
+                    override fun play() = ttsController.resume()
+
+                    override fun pause() = ttsController.pause()
+
+                    override fun toggle() = ttsController.toggle()
+
+                    override fun next() = ttsController.next()
+
+                    override fun previous() = ttsController.previous()
+
+                    override fun stop() = stopTts()
+                },
+            title = ttsTitleState.value,
+            intent = null,
+        )
+        onDispose {
+            ttsEngine.callbacks = null
+            stopTts()
+            ReaderTtsSession.detach()
+            ReaderTtsNotifier.stop(context)
+            ttsEngine.shutdown()
+        }
+    }
+    // 播放态 ↔ 前台服务（通知 / 锁屏 / 耳机键）。
+    LaunchedEffect(ttsState.playback) {
+        when {
+            ttsState.playback == TtsPlayback.Idle && ttsServiceRunning -> {
+                ReaderTtsNotifier.stop(context)
+                ttsServiceRunning = false
+            }
+            ttsState.playback != TtsPlayback.Idle && !ttsServiceRunning -> {
+                ReaderTtsNotifier.start(context)
+                ttsServiceRunning = true
+            }
+        }
+    }
+    // 定时心跳：到点由状态机直接 stop（系统 TTS 无音量包络，定稿六 §4 记观察项）。
+    LaunchedEffect(ttsController, ttsState.timer) {
+        if (ttsState.timer == TtsTimerOption.Off) return@LaunchedEffect
+        while (true) {
+            delay(1_000L)
+            ttsController.onTick(SystemClock.elapsedRealtime())
+        }
+    }
+    // 停止原因复用 900ms 轻提示胶囊（与书签提示同一形态）。
+    LaunchedEffect(ttsState.message) {
+        val text = ttsState.message ?: return@LaunchedEffect
+        bookmarkNotice = text
+        bookmarkNoticeToken++
+    }
+    val jumpToTtsReading: () -> Unit = {
+        ttsState.active?.let { sentence ->
+            jumpToPosition(sentence.progression ?: currentProgression, sentence.locatorJson)
+        }
+    }
+    /** 点按正文 → 把朗读位置落到可见处继续读（设置「点按正文跳转朗读位置」默认开）。 */
+    val reanchorTtsToViewport: () -> Unit = {
+        val locator = liveLocator
+        if (locator != null && ttsState.playback != TtsPlayback.Idle) {
+            ttsController.relocate(
+                href = locator.href.toString(),
+                progression = locator.locations.totalProgression ?: locator.locations.progression,
+                pause = ttsPauseOnTap,
+            )
+        }
+    }
+    LaunchedEffect(liveLocator) {
+        if (!ttsReanchorPending) return@LaunchedEffect
+        ttsReanchorPending = false
+        reanchorTtsToViewport()
+    }
+    // 跨章自动衔接：当前朗读句换了资源就把视图跟过去（同章内不打扰用户翻页）。
+    LaunchedEffect(ttsState.active?.chapterIndex) {
+        val sentence = ttsState.active ?: return@LaunchedEffect
+        val currentHref =
+            liveLocator?.href?.toString()?.substringBefore('#') ?: return@LaunchedEffect
+        if (currentHref == sentence.href.substringBefore('#')) return@LaunchedEffect
+        jumpToPosition(sentence.progression ?: 0.0, sentence.locatorJson)
+    }
+    // 句高亮：真正开口后才显示；200ms 底色淡入按 4 档量化重下发（WebView 内无补间，定稿八）。
+    val ttsHighlightLocator =
+        remember(ttsState.active?.locatorJson, ttsState.highlightVisible) {
+            if (!ttsState.highlightVisible) null
+            else
+                ttsState.active?.locatorJson?.let { json ->
+                    runCatching { Locator.fromJSON(JSONObject(json)) }.getOrNull()
+                }
+        }
+    LaunchedEffect(ttsHighlightLocator) {
+        ttsFadeStep = 0
+        if (ttsHighlightLocator == null) return@LaunchedEffect
+        repeat(TTS_HIGHLIGHT_FADE_STEPS) { step ->
+            delay(TTS_HIGHLIGHT_FADE_STEP_MS)
+            ttsFadeStep = step + 1
+        }
+    }
+    val ttsDecoration =
+        remember(ttsHighlightLocator, ttsFadeStep, effectiveSettings, systemDark) {
+            ttsHighlightLocator?.let { locator ->
+                ReaderTtsDecoration(
+                    locator = locator,
+                    tintArgb =
+                        ReaderTtsHighlight.fadeTint(
+                            effectiveSettings.accentColor(systemDark).toArgb(),
+                            effectiveSettings.surfaceColor(systemDark).toArgb(),
+                            ttsFadeStep / TTS_HIGHLIGHT_FADE_STEPS.toFloat(),
+                        ),
+                )
+            }
+        }
+    /** 听书起点二选一（定稿六 §2）：当前位置 → 同资源最近句；章首 → 该章第一句。 */
+    val startTts: (ReaderTtsStartPoint) -> Unit = { point ->
+        ttsShowStart = false
+        val source = ttsSource
+        if (source == null) {
+            bookmarkNotice = "这本书暂不支持听书"
+            bookmarkNoticeToken++
+        } else {
+            controlsVisible = false
+            ttsScope.launch {
+                ttsEngine.initialize(ttsSelectedVoice)
+                if (!ttsEngine.awaitReady()) {
+                    bookmarkNotice = ttsEngine.initError ?: "系统 TTS 不可用"
+                    bookmarkNoticeToken++
+                    return@launch
+                }
+                ttsVoices = ttsEngine.voices()
+                val anchor = liveLocator ?: richDocument?.initialLocator
+                val href = anchor?.href?.toString()
+                val anchorChapter = href?.let { source.chapterIndexOfHref(it) } ?: 0
+                val chapter = runCatching {
+                    withContext(Dispatchers.IO) { source.loadChapter(anchorChapter) }
+                }
+                    .getOrNull()
+                if (chapter == null || chapter.sentences.isEmpty()) {
+                    bookmarkNotice = "这一章没有可朗读的文字"
+                    bookmarkNoticeToken++
+                    return@launch
+                }
+                val startSentence =
+                    if (point == ReaderTtsStartPoint.ChapterStart) {
+                        0
+                    } else {
+                        val progression =
+                            anchor?.locations?.totalProgression ?: anchor?.locations?.progression
+                        locateReadingPoint(listOf(chapter), chapter.href, progression)?.second ?: 0
+                    }
+                ttsController.addChapter(chapter)
+                ttsController.startAt(chapter.index, startSentence)
+            }
+        }
+    }
+
     CinefinTheme(
         domain = ContentDomain.Book,
         darkTheme = effectiveSettings.isDark(systemDark),
@@ -665,6 +940,8 @@ fun ReaderScreen(
                                                 locator.locations.totalProgression?.let {
                                                     liveProgression = it
                                                 }
+                                                // W6 T9：听书起点 / 点按重锚都以最近可见位置为准。
+                                                liveLocator = locator
                                                 if (manualPageTurnDetected()) {
                                                     autoAdvance.pauseForManualIntervention()
                                                 }
@@ -699,6 +976,16 @@ fun ReaderScreen(
                                                 autoAdvance.pauseForManualIntervention()
                                             },
                                             onAutoAdvanceEnd = onAutoAdvanceEnd,
+                                            // W6 T9：朗读句高亮（独立 Decoration group）+ 点按正文重锚。
+                                            ttsHighlight = ttsDecoration,
+                                            onBodyTap = {
+                                                if (
+                                                    ttsTapFollowsReading &&
+                                                        ttsState.playback != TtsPlayback.Idle
+                                                ) {
+                                                    ttsReanchorPending = true
+                                                }
+                                            },
                                             modifier = Modifier.fillMaxSize(),
                                         )
                                         epubSelection
@@ -971,6 +1258,28 @@ fun ReaderScreen(
                             bookmarks.getOrNull(index)?.let(onJumpToBookmark)
                         },
                     )
+
+                    // W6 T9（READER-32）：听书迷你控制条（高 56dp，容器同控制层底片）。
+                    // 控制层可见时让位给底片，两层不叠在同一底边。
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = ttsState.playback != TtsPlayback.Idle && !controlsVisible,
+                        enter = fadeIn(tween(READER_TTS_BAR_ENTER_MS)),
+                        exit = fadeOut(tween(READER_TTS_BAR_EXIT_MS)),
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                    ) {
+                        ReaderTtsBar(
+                            state = ttsState,
+                            darkChrome = effectiveSettings.isDark(systemDark),
+                            chromeColor = chromeColor,
+                            contentColor = contentColor,
+                            onToggle = ttsController::toggle,
+                            onPrevious = ttsController::previous,
+                            onNext = ttsController::next,
+                            onOpenSettings = { ttsShowSettings = true },
+                            onOpenTimer = { ttsShowTimer = true },
+                            onJumpToReading = jumpToTtsReading,
+                        )
+                    }
                 }
             }
 
@@ -1355,6 +1664,17 @@ fun ReaderScreen(
                                 onDownload = onDownload,
                             )
                         }
+                        // W6 T9（READER-32）：听书入口（定稿一 §2「更多」末位）。EPUB 走 Readium 文本提取，
+                        // PDF / CBZ 本波不提供（无 Readium 文本层），入口灰置。
+                        MoreActionRow(
+                            label = if (richDocument != null) "听书" else "听书（仅 EPUB）",
+                            contentColor = contentColor,
+                            enabled = richDocument != null,
+                            onClick = {
+                                showMore = false
+                                ttsShowStart = true
+                            },
+                        )
                     }
                 }
             }
@@ -1486,6 +1806,46 @@ fun ReaderScreen(
                         )
                 }
             }
+
+            // W6 T9：听书弹层（起点二选一 / 语速与音色 / 定时关闭）收在 reader/tts 内，这里一行调用。
+            ReaderTtsSheets(
+                showStart = ttsShowStart,
+                showSettings = ttsShowSettings,
+                showTimer = ttsShowTimer,
+                state = ttsState,
+                voices = ttsVoices,
+                selectedVoice = ttsSelectedVoice,
+                tapFollowsReading = ttsTapFollowsReading,
+                pauseOnTap = ttsPauseOnTap,
+                chromeColor = chromeColor,
+                contentColor = contentColor,
+                accent = accent,
+                onDismissStart = { ttsShowStart = false },
+                onStart = startTts,
+                onDismissSettings = { ttsShowSettings = false },
+                onRateChange = { value ->
+                    ttsController.setRate(value)
+                    autoPreferences?.setValue(ReaderTtsPreferences.rate, value)
+                },
+                onVoiceSelected = { name ->
+                    ttsSelectedVoice = name
+                    ttsEngine.setVoice(name)
+                    autoPreferences?.setValue(ReaderTtsPreferences.voice, name)
+                },
+                onTapFollowChange = { value ->
+                    ttsTapFollowsReading = value
+                    autoPreferences?.setValue(ReaderTtsPreferences.tapFollowsReading, value)
+                },
+                onPauseOnTapChange = { value ->
+                    ttsPauseOnTap = value
+                    autoPreferences?.setValue(ReaderTtsPreferences.pauseOnTap, value)
+                },
+                onDismissTimer = { ttsShowTimer = false },
+                onTimerSelected = { option ->
+                    ttsController.setTimer(option)
+                    ttsShowTimer = false
+                },
+            )
         }
     }
 }

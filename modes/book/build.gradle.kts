@@ -44,6 +44,8 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.lifecycle.viewmodel)
     implementation(libs.androidx.paging)
+    // W6 T9：听书通知 / 锁屏控制（MediaSessionCompat + MediaStyle），不跨模块依赖音乐域实现。
+    implementation("androidx.media:media:1.7.0")
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.jellyfin.core)

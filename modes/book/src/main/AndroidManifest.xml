@@ -8,6 +8,23 @@
             android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
             android:exported="false"
             android:label="阅读器" />
+
+        <!-- W6 T9（READER-32–36）：听书后台播放。播放本身在阅读页进程内，服务只做通知 /
+             锁屏控制镜像，故 exported=false、不可粘性重启。权限由 app 模块统一声明
+             （FOREGROUND_SERVICE / FOREGROUND_SERVICE_MEDIA_PLAYBACK / POST_NOTIFICATIONS）。 -->
+        <service
+            android:name="com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
+        <!-- 耳机 / 蓝牙媒体键：转发给当前活跃的 MediaSessionCompat。 -->
+        <receiver
+            android:name="androidx.media.session.MediaButtonReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>
