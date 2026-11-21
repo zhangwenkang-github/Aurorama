@@ -6,6 +6,9 @@
 ## 状态块（新会话先读这里）
 
 - 分支：`codex/v2-integration`；W6 开工基线 = W5 收官 HEAD（`4219fe7e`，以 git log 为准）。
+- **会话5b（2026-11-22，收官裁定落地）**：用户复核 T11 裁定后拍板——观察项③（TTS 停止按钮）与「本地书打开白等远程进度 2s」（S5 新证据，覆盖 loadNavigation 卡顿观察项主因）升级为**现在修**，立修复卡 T12/T13（卡面在文末）；其余 backlog/观察维持原裁定，落档 = 本文「T11 全量验收」裁定表 + 观察清单，W9 聚合机制已写入 `V2_REQUIREMENTS.md` §15。**两卡已收口并 K60 复验全绿**：
+  - T12 `c7ae02cf`：控制条最右「停止朗读」（复用 core `ic_close`，接退出页面同一 `ttsController.stop()`；顺带修 `ACTION_STOP` 误 detach 致页面内重启听书后通知键失效）。K60 实证：播放中点停止→句高亮终止+控制条收起+通知消失；更多→听书→从当前位置干净重启（句高亮 prog 0 重发）。377 单测绿。
+  - T13 `72cbb2b2` + T13r `d6dce158`：本地书 `getReadingProgress` 零网络调用。首版判据 `isLocalItem`（Room）对 FAB 导入书不生效（FAB 登记走 `LocalShelfRegistry` SharedPreferences 不写 Room）——真机抓出后返修裁定为 **`itemId.version()==3`**（本地 ID 全系 `UUID.nameUUIDFromBytes`=v3，服务器 GUID=v4；纯函数零 I/O，覆盖 FAB 与扫描两条来源）。K60 实证：打开 w6-test-utf8 进度 5ms/合计 122ms（原 2139ms），远程调用零命中。420 单测绿（含 T7 陈旧断言顺手修正 `7ebadfe0`）。
 - **会话5（2026-11-22，T11 收官，Kimi 亲自）**：全量验收判定 **48 条 = ✅41 / ⚠️7 / ❌0**（逐条证据见文末「T11 全量验收」节）。七条 ⚠️ 全部 MUST、全部裁定为 **backlog**（08 EPUB 覆盖/仿真、14/42 分页落盘缓存、16 内置字体、17 链接/高亮单独色、43 远程 PDF 流式、44 动态字体缩放）；会话4 四条观察项裁定：① JS 通路简化→backlog、② renderer 单崩→观察、③ TTS 页内停止按钮→backlog、④ MIUI action0 禁用→观察。代码收尾：`pageIndicatorText` 死代码连测试清除（门禁 ktfmt+book 单测+assembleDebug 绿）。K60 抽查（证据 `F:\Develop\code_data\qa\w6-s5\`，APK 含死代码清理）：打开 2139ms（远程进度超时→本地降级）/翻页/控制层/目录跳转/TTS 起播句高亮/停止清场全过；书架「最近阅读」行 w6-test-utf8 92% 居首。**W6 正式关闭，焦点移交 W7（下载域）**；W7 开工提示词在 `PROJECT_PLAN.md` 焦点节。
 - **会话4（2026-11-22）**：T6r2 修复合入 `b2bb8b60`（子代理，门禁 378 单测 + ktfmt + assembleDebug 绿，Kimi 抽查 diff 通过）；K60（`8e875894`）流式 logcat 复验完成，证据 `F:\Develop\code_data\qa\w6-s4\app-p17125.log`（PID 17125，314 行自动滚动 + 58 行 TTS 高亮；首段 PID 8075 在 `app.log`，含误操作考古，仅参考）。**复验判定**（✅=真机实证）：
   - T6r2① 书末停止 ✅：末章「本章到底→goForward 续接→第 1 次空转→第 2 次空转→判书末，停止」精确命中（00:07:15–00:07:18，key=`OEBPS/chapter-0012.xhtml`），停止后日志归零；中间章全程零空转；书末提示复用既有胶囊（`ReaderScreen.kt:624`「已到书末，自动阅读停止」）。
@@ -455,12 +458,32 @@ W5 参考口径（只读状态块，不通读）：docs/V2_W5_TASKS.md。
 |---|---|---|
 | ① 自动滚动 JS 通路疑似无效、原生兜底上屏正常且速度精确 | backlog「简化自动滚动执行通路」 | 功能与精度均达标；收官不动执行链路，简化需独立卡 + 真机回归 |
 | ② 分页切滚动 chromium renderer 崩 1 次（code -1） | 观察 | 单次未复现；再发抓 tombstone 定位 |
-| ③ TTS 阅读页内无停止按钮、通知停止被 MIUI 渲染禁用 | backlog | 平台不可控，但 App 内必须有自有停止路径：TTS 控制条补「停止」动作 |
+| ③ TTS 阅读页内无停止按钮、通知停止被 MIUI 渲染禁用 | ~~backlog~~ **已修（T12 `c7ae02cf`，会话5b）** | 用户拍板升级为现在修；控制条「停止朗读」K60 实证 |
 | ④ MIUI 媒体控件 action0（上一句）禁用 | 观察 | 平台渲染行为；action1「上一首」可用，App 侧 action 已注册 |
 
 ### 存量观察项（移交 W7 观察清单）
 
-- T2 `loadNavigation` 主线程 2.5s（S3，MIUIScout 大书首开）→ 观察；S5 补充证据：打开 2139ms 中远程进度等待 2009ms、文档解析仅 130ms，主因疑在远程进度同步等待而非解析。
+- T2 `loadNavigation` 主线程 2.5s（S3，MIUIScout 大书首开）→ **主因已修（T13r `d6dce158`，会话5b）**：S5 证据坐实远程进度等待 2009ms 是大头，T13r 后本地书打开 122ms；服务器书大书首开如有残留卡顿仍挂观察。
 - T4 平板方向锁定可能被 Android 16 忽略 → 观察（Pad 未复验）。
 - T1 上报偏差：glass `blur 24` 未实现 → 观察（沿用工程既有半透明无实时模糊口径）。
 - S5 附记：首页「继续阅读」行不含本地书，书架 Tab「最近阅读」行正常含且居首——首页行属既有服务器续播组件、不在 T10 范围，**非缺陷**，仅记录。
+
+## 修复卡 T12/T13（2026-11-22 会话5b，用户拍板「现在修」）
+
+### T12 · TTS 控制条补「停止」动作（观察项③升级）
+
+- **背景**：TTS 停止只能靠退出阅读页（通知「停止」被 MIUI 媒体控件渲染成禁用，平台不可控）。App 内必须有自有停止路径。
+- **目标**：听书迷你控制条（`ReaderTtsBar`）补「停止」入口：点击 = 完整停止（TTS 引擎 stop + 句高亮清空走既有状态驱动路径 + MediaSession/前台通知释放），控制条收起回到纯阅读态；不打断阅读位置。通知 action 维持现状（MIUI 渲染不处理）。按钮样式/入口位置若定稿六 §2 五入口放不下，由 Kimi 口径：停止放最右（「原文」并入长按或溢出前先用图标按钮，图标优先复用 core 既有 stop/close drawable），不得新造视觉样式。
+- **文件边界**：`modes/book/.../reader/tts/ReaderTtsBar.kt`、`ReaderTtsController.kt`（停止入口复用退出页面同款路径）、`ReaderScreen.kt`（接线）；不动 data、不动通知注册。
+- **验收要点**：停止后无重播、句高亮清空、通知消失；再点「听书」可干净重启；控制条布局不破（触控区 ≥44dp）；若有纯逻辑（label/状态切换）补单测。
+- **门禁**：modes/book 单测 + `ktfmtCheck` + `:app:phone:assembleDebug` 绿。
+- **证据清单**：构建/测试输出关键行、diff 摘要（新增回调/参数清单）、停止路径复用点（文件:行）。
+
+### T13 · 本地书打开跳过远程进度拉取（S5 新证据升级）
+
+- **背景**：`ReaderRepositoryImpl.getReadingProgress` 对本地书也打 `fetchRemoteProgress`（`getItemUserData` 本地 UUID 服务器不识别），等到 2s 超时上限才回退本地——K60 实测每次打开白等 2009ms（日志「远程阅读进度超时 / 失败」）。写路径已有守卫（`saveReadingProgress` 本地书 `pendingSync=false` 不回传，`ReaderRepositoryImpl.kt:258-269`）。
+- **目标**：读路径补同款守卫——`getReadingProgress` 先查 `LocalLibraryRepository.isLocalItem(itemId)`，本地书直接返回本地进度、零网络调用；服务器书行为不变（2s 超时上限保留）。`LocalLibraryRepository` 经 Hilt 注入（`ReaderRepositoryModule.kt` @Provides 加参数）。
+- **文件边界**：`data/.../ReaderRepositoryImpl.kt`、`ReaderRepositoryModule.kt`（+如需 data 层测试基建）；不动 modes/book、不动 `LocalLibraryRepository` 接口。
+- **验收要点**：本地书打开零远程调用（单测断言 isLocalItem=true 时不触碰 api 桩）；服务器书回归不变（isLocalItem=false 走原路径）；单测覆盖两路。
+- **门禁**：data 单测 + `ktfmtCheck` + `:app:phone:assembleDebug` 绿。
+- **证据清单**：构建/测试输出关键行、diff 摘要、新增单测名与断言点。

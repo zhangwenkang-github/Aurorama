@@ -32,7 +32,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 线 | 状态 | 文档 |
 |----|------|------|
 | 1.4.1 | 🟢 **已发布**（2026-11-18）：master=`76f5350b`、tag `v1.4.1`、GitHub Release 双 APK | 发布目录 `releases/1.4.1-signed-r34-2026-11-17/` |
-| 2.0.0 | 🟢 **W6 阅读域已收官**（2026-11-22 会话5，T11）：48 条 = ✅41/⚠️7/❌0，7 条 ⚠️ 全部 backlog、观察项全部裁定（逐条证据见 `V2_W6_TASKS.md`「T11 全量验收」）；**焦点移交 W7 下载域** | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · `V2_W6_TASKS.md` · `DOWNLOAD_PLAN.md` |
+| 2.0.0 | 🟢 **W6 阅读域已收官**（2026-11-22 会话5/5b，T11）：48 条 = ✅41/⚠️7/❌0，7 条 ⚠️ 全部 backlog；裁定落地两修复卡已修（T12 TTS 停止按钮 `c7ae02cf`、T13/T13r 本地书打开 2139→122ms `d6dce158`，均 K60 复验）；**焦点移交 W7 下载域** | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · `V2_W6_TASKS.md` · `DOWNLOAD_PLAN.md` |
 | 播放器 | 🟢 W2 架构重构完成；W4 开工（2026-11-19）：T0 现状核对 + 任务卡定稿（T1–T7）；retrySeek 跨条目重建已修（`ccdafefa`）；生产 TLS `-0x7280` 复验通过（服务器侧修复生效，K60 mpv 正常播放） | `docs/V2_W4_TASKS.md` · `docs/V2_ARCHITECTURE.md` §3 |
 | 下载/离线 | 🟢 1.4.1 回归全 PASS；口径类遗留列入 W7 | `docs/DOWNLOAD_PLAN.md` |
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
@@ -41,7 +41,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-22）
 
-1. **2.0.0 W6 阅读域收官（2026-11-22 会话5）**：T11 全量验收完成（48 条 = ✅41/⚠️7/❌0，逐条证据与 ⚠️/观察项裁定见 `V2_W6_TASKS.md`「T11 全量验收」）；`pageIndicatorText` 死代码已清（门禁绿）；K60 抽查全过（证据 `F:\Develop\code_data\qa\w6-s5\`）。**焦点移交 W7 下载域。**
+1. **2.0.0 W6 阅读域收官（2026-11-22 会话5/5b）**：T11 全量验收完成（48 条 = ✅41/⚠️7/❌0，逐条证据与 ⚠️/观察项裁定见 `V2_W6_TASKS.md`「T11 全量验收」）；`pageIndicatorText` 死代码已清（门禁绿）；会话5b 用户拍板两项「现在修」已收口并 K60 复验（T12 TTS 停止按钮、T13r 本地书打开 2139→122ms）。**焦点移交 W7 下载域。**
 2. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
 ### W7 会话1 开工提示词（新会话直接粘贴；格式遵循 AGENTS.md「开工提示词统一标准」，W6 开工提示词存档于 `V2_W6_TASKS.md` 状态块）
