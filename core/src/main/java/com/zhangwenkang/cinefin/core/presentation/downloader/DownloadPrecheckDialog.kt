@@ -51,7 +51,15 @@ fun DownloadPrecheckDialog(
     val colors = LocalCinefinColors.current
     val context = LocalContext.current
     val insufficient = space.insufficient
-    val confirmText = confirmLabel ?: stringResource(R.string.download_precheck_continue)
+    val confirmText =
+        confirmLabel
+            ?: stringResource(
+                if (networkPrompt == DownloadNetworkPrompt.CONFIRM_MOBILE_DATA) {
+                    R.string.download_precheck_continue
+                } else {
+                    R.string.download_precheck_confirm
+                }
+            )
     val openStorageSettings: () -> Unit = {
         runCatching { context.startActivity(Intent(Settings.ACTION_INTERNAL_STORAGE_SETTINGS)) }
         Unit

@@ -260,6 +260,7 @@
     <string name="snackbar_view">查看</string>
     <!-- W7-T1 下載前置檢查提示層（影片 / 音樂 / 書籍共用）。 -->
     <string name="download_precheck_continue">繼續下載</string>
+    <string name="download_precheck_confirm">下載</string>
     <string name="download_precheck_wifi_only">僅 Wi-Fi 下載</string>
     <string name="download_precheck_cleanup">去清理</string>
     <string name="download_precheck_video_original">原始檔案下載</string>

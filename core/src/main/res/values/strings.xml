@@ -274,6 +274,7 @@
     <string name="snackbar_view">View</string>
     <!-- W7-T1 下载前置检查提示层（视频 / 音乐 / 书籍共用）。 -->
     <string name="download_precheck_continue">Continue download</string>
+    <string name="download_precheck_confirm">Download</string>
     <string name="download_precheck_wifi_only">Wi-Fi only</string>
     <string name="download_precheck_cleanup">Free up space</string>
     <string name="download_precheck_video_original">Original file download</string>
