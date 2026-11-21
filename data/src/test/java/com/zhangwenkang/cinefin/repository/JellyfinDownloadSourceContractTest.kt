@@ -17,6 +17,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.Response
 import org.jellyfin.sdk.api.operations.LibraryApi
@@ -46,6 +47,80 @@ class JellyfinDownloadSourceContractTest {
                 container = "mkv",
                 mediaSources = listOf(mediaSource),
             )
+        val harness = harness(item, mediaSource)
+
+        val originItem = harness.repository.getItemForOrigin(ITEM_ID, ORIGIN)
+        val resolved = harness.repository.getMediaSourcesForOrigin(ITEM_ID, ORIGIN)
+
+        val itemSource = (originItem as FindroidMovie).sources.single()
+        val downloadSource = resolved.single()
+        listOf(itemSource, downloadSource).forEach { source ->
+            assertEquals(DOWNLOAD_URL, source.path)
+            assertEquals(MEDIA_SOURCE_ID, source.id)
+            assertEquals(12_345L, source.size)
+            assertEquals("mkv", source.container)
+            assertNull(source.transcodingPath)
+            assertEquals("DOWNLOAD_GET", source.downloadMarker?.protocol)
+            assertEquals(DownloadPathKind.OFFICIAL_DOWNLOAD, source.downloadMarker?.pathKind)
+        }
+        assertNull(itemSource.path.substringAfter('?', "").takeIf(String::isNotEmpty))
+        assertEquals(true, itemSource.path.endsWith("/Items/$ITEM_ID/Download"))
+        verify(exactly = 2) { harness.libraryApi.getDownloadUrl(ITEM_ID) }
+        coVerify(exactly = 0) { harness.mediaInfoApi.getPostedPlaybackInfo(any(), any()) }
+    }
+
+    @Test
+    fun `音乐下载源使用源文件容器的 stream 端点且不带凭据参数`() = runBlocking {
+        val mediaSource = mediaSource(container = "flac")
+        val item =
+            BaseItemDto(
+                id = ITEM_ID,
+                name = "download-contract.flac",
+                type = BaseItemKind.AUDIO,
+                canDownload = true,
+                container = "flac",
+                mediaSources = listOf(mediaSource),
+            )
+        val harness = harness(item, mediaSource)
+
+        val originItem = harness.repository.getItemForOrigin(ITEM_ID, ORIGIN)
+        val resolved = harness.repository.getMediaSourcesForOrigin(ITEM_ID, ORIGIN)
+
+        listOf((originItem as FindroidMovie).sources.single(), resolved.single()).forEach { source
+            ->
+            assertEquals("$BASE_URL/Audio/$ITEM_ID/stream.flac?static=true", source.path)
+            assertEquals(DownloadPathKind.OFFICIAL_DOWNLOAD, source.downloadMarker?.pathKind)
+        }
+        // 只带 static 一个协议参数：令牌不进 URL（鉴权靠下载引擎的 Authorization 头）
+        assertEquals(setOf("static"), resolved.single().path.toHttpUrl().queryParameterNames)
+    }
+
+    @Test
+    fun `音乐容器缺失时回退官方 Download 端点`() = runBlocking {
+        val mediaSource = mediaSource(container = null)
+        val item =
+            BaseItemDto(
+                id = ITEM_ID,
+                name = "download-contract-no-container",
+                type = BaseItemKind.AUDIO,
+                canDownload = true,
+                mediaSources = listOf(mediaSource),
+            )
+        val harness = harness(item, mediaSource)
+
+        val resolved = harness.repository.getMediaSourcesForOrigin(ITEM_ID, ORIGIN).single()
+
+        assertEquals(DOWNLOAD_URL, resolved.path)
+        assertEquals(DownloadPathKind.OFFICIAL_DOWNLOAD, resolved.downloadMarker?.pathKind)
+    }
+
+    private data class Harness(
+        val repository: JellyfinRepositoryImpl,
+        val libraryApi: LibraryApi,
+        val mediaInfoApi: MediaInfoApi,
+    )
+
+    private fun harness(item: BaseItemDto, mediaSource: MediaSourceInfo): Harness {
         val itemResponse = mockk<Response<BaseItemDto>>(relaxed = true)
         every { itemResponse.content } returns item
 
@@ -107,36 +182,18 @@ class JellyfinDownloadSourceContractTest {
                 metadataSnapshotStore = mockk(relaxed = true),
                 originApiFactory = { originApi },
             )
-
-        val originItem = repository.getItemForOrigin(ITEM_ID, ORIGIN)
-        val resolved = repository.getMediaSourcesForOrigin(ITEM_ID, ORIGIN)
-
-        val itemSource = (originItem as FindroidMovie).sources.single()
-        val downloadSource = resolved.single()
-        listOf(itemSource, downloadSource).forEach { source ->
-            assertEquals(DOWNLOAD_URL, source.path)
-            assertEquals(MEDIA_SOURCE_ID, source.id)
-            assertEquals(12_345L, source.size)
-            assertEquals("mkv", source.container)
-            assertNull(source.transcodingPath)
-            assertEquals("DOWNLOAD_GET", source.downloadMarker?.protocol)
-            assertEquals(DownloadPathKind.OFFICIAL_DOWNLOAD, source.downloadMarker?.pathKind)
-        }
-        assertNull(itemSource.path.substringAfter('?', "").takeIf(String::isNotEmpty))
-        assertEquals(true, itemSource.path.endsWith("/Items/$ITEM_ID/Download"))
-        verify(exactly = 2) { libraryApi.getDownloadUrl(ITEM_ID) }
-        coVerify(exactly = 0) { mediaInfoApi.getPostedPlaybackInfo(any(), any()) }
+        return Harness(repository, libraryApi, mediaInfoApi)
     }
 
-    private fun mediaSource(): MediaSourceInfo =
+    private fun mediaSource(container: String? = "mkv"): MediaSourceInfo =
         MediaSourceInfo(
             protocol = MediaProtocol.FILE,
             id = MEDIA_SOURCE_ID,
-            path = "/media/download-contract.mkv",
+            path = "/media/download-contract.$container",
             type = MediaSourceType.DEFAULT,
-            container = "mkv",
+            container = container,
             size = 12_345L,
-            name = "download-contract.mkv",
+            name = "download-contract.$container",
             isRemote = false,
             readAtNativeFramerate = false,
             ignoreDts = false,

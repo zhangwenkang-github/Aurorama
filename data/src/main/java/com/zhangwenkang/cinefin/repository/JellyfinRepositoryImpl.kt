@@ -5,6 +5,7 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import com.zhangwenkang.cinefin.api.JellyfinApi
+import com.zhangwenkang.cinefin.api.MusicDownloadUrl
 import com.zhangwenkang.cinefin.api.MusicStreamRequest
 import com.zhangwenkang.cinefin.api.MusicStreamUrl
 import com.zhangwenkang.cinefin.database.DownloadedEpisodeHierarchy
@@ -71,6 +72,7 @@ import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.ItemSortBy
+import org.jellyfin.sdk.model.api.MediaSourceInfo
 import org.jellyfin.sdk.model.api.MediaType
 import org.jellyfin.sdk.model.api.PlayAccess
 import org.jellyfin.sdk.model.api.PlayMethod
@@ -308,7 +310,14 @@ class JellyfinRepositoryImpl(
                 mediaSource.toOfficialDownloadSource(
                     baseUrl = bound.baseUrl,
                     itemId = itemId,
-                    downloadUrl = downloadUrl,
+                    downloadUrl =
+                        downloadUrlForMediaSource(
+                            item = dto,
+                            mediaSource = mediaSource,
+                            baseUrl = bound.baseUrl,
+                            itemId = itemId,
+                            officialDownloadUrl = downloadUrl,
+                        ),
                 )
             }
         return when (mapped) {
@@ -1778,7 +1787,14 @@ class JellyfinRepositoryImpl(
                 mediaSource.toOfficialDownloadSource(
                     baseUrl = bound.baseUrl,
                     itemId = itemId,
-                    downloadUrl = downloadUrl,
+                    downloadUrl =
+                        downloadUrlForMediaSource(
+                            item = item,
+                            mediaSource = mediaSource,
+                            baseUrl = bound.baseUrl,
+                            itemId = itemId,
+                            officialDownloadUrl = downloadUrl,
+                        ),
                 )
             }
         }
@@ -1842,6 +1858,36 @@ class JellyfinRepositoryImpl(
             )
             sources
         }
+
+    /**
+     * V2-DOWNLOAD 03：音乐下载走 `/Audio/{itemId}/stream.{container}`（容器取自媒体源元数据）， 视频 / 书籍仍走官方
+     * `/Items/{id}/Download`。容器缺失或非法时回退官方端点并记录日志，不静默失败。
+     */
+    private fun downloadUrlForMediaSource(
+        item: BaseItemDto,
+        mediaSource: MediaSourceInfo,
+        baseUrl: String,
+        itemId: UUID,
+        officialDownloadUrl: String,
+    ): String {
+        if (item.type != BaseItemKind.AUDIO) return officialDownloadUrl
+        val streamUrl =
+            MusicDownloadUrl.build(
+                baseUrl = baseUrl,
+                itemId = itemId,
+                container = mediaSource.container,
+            )
+        if (streamUrl == null) {
+            Timber.w(
+                "音乐媒体源缺少可用容器，回退官方下载端点：item=%s source=%s container=%s",
+                itemId,
+                mediaSource.id,
+                mediaSource.container,
+            )
+            return officialDownloadUrl
+        }
+        return streamUrl
+    }
 
     private suspend fun completedLocalSource(itemId: UUID): FindroidSource? =
         withContext(Dispatchers.IO) {

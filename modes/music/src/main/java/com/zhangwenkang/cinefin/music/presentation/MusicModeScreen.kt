@@ -276,6 +276,8 @@ fun MusicModeScreen(
     // W7-T1：下载前置检查提示层（单曲 / 专辑批量）；内容只用本地快照，先于任何网络请求出现。
     var songPrecheck by remember { mutableStateOf<MusicSong?>(null) }
     var albumPrecheckContent by remember { mutableStateOf<DownloadPrecheckContent?>(null) }
+    // W7-T2：歌单 / 曲库 / 专辑多选批量下载同样先过前置检查提示层。
+    var batchPrecheck by remember { mutableStateOf<MusicBatchPrecheck?>(null) }
 
     /** 单曲下载入口：已下载 / 队列中仍走原来的取消 / 删除语义，其余先过前置检查提示层。 */
     val requestSongDownload: (MusicSong) -> Unit = { song ->
@@ -289,9 +291,13 @@ fun MusicModeScreen(
         val content = viewModel.albumPrecheckContent()
         if (content == null) viewModel.downloadAlbum() else albumPrecheckContent = content
     }
+    val requestBatchDownload: () -> Unit = {
+        val precheck = viewModel.batchPrecheck()
+        if (precheck == null) viewModel.downloadSelected() else batchPrecheck = precheck
+    }
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // W60b：下载反馈统一（歌曲 / 专辑 / 批量）——「已加入下载队列 · N 首」+「查看」跳下载页。
+    // W60b：单曲 / 专辑下载反馈——「已受理下载 · N 首」+「查看」跳下载页（批量走下面 W7-T2 的三态反馈）。
     LaunchedEffect(viewModel) {
         viewModel.downloadQueued.collect { count ->
             val result =
@@ -300,6 +306,24 @@ fun MusicModeScreen(
                     actionLabel = "查看",
                     duration = DownloadSnackbarDuration,
                 )
+            if (result == SnackbarResult.ActionPerformed) onOpenDownloads()
+        }
+    }
+
+    // W7-T2：批量下载三态反馈（已加入 / 已在队列 / 已下载 + 超限推迟）；成功入队带「查看」。
+    LaunchedEffect(viewModel) {
+        viewModel.batchDownloadFeedback.collect { feedback ->
+            val message = musicBatchDownloadFeedbackMessage(feedback)
+            val result =
+                if (feedback.added > 0) {
+                    snackbarHostState.showSnackbar(
+                        message = message,
+                        actionLabel = "查看",
+                        duration = DownloadSnackbarDuration,
+                    )
+                } else {
+                    snackbarHostState.showSnackbar(message)
+                }
             if (result == SnackbarResult.ActionPerformed) onOpenDownloads()
         }
     }
@@ -676,7 +700,7 @@ fun MusicModeScreen(
                         albumsOnly = state.detail == null && state.tab == MusicTab.ALBUMS,
                         isEnabled = viewModel::batchEnabled,
                         onPlay = viewModel::playSelected,
-                        onDownload = viewModel::downloadSelected,
+                        onDownload = requestBatchDownload,
                         onFavorite = viewModel::favoriteSelected,
                         onDelete = { pendingBatchDelete = true },
                         onRemoveFromPlaylist = viewModel::removeSelectedFromPlaylist,
@@ -943,6 +967,31 @@ fun MusicModeScreen(
                     viewModel.downloadAlbum()
                 },
                 onDismiss = { albumPrecheckContent = null },
+            )
+        }
+        val precheckBatch = batchPrecheck
+        if (precheckBatch != null) {
+            DownloadPrecheckDialog(
+                content = precheckBatch.content,
+                space =
+                    DownloadPrecheckRules.spaceStatus(
+                        requiredBytes = null,
+                        availableBytes = DownloadPrecheckEnvironment.availableBytes(context, 0),
+                    ),
+                networkPrompt = DownloadPrecheckEnvironment.networkPrompt(context),
+                deferNote =
+                    precheckBatch.deferredByLimit
+                        .takeIf { it > 0 }
+                        ?.let { deferred -> "超出单次上限的 $deferred 首未加入" },
+                onConfirm = {
+                    batchPrecheck = null
+                    viewModel.downloadSelected()
+                },
+                onWifiOnly = {
+                    batchPrecheck = null
+                    viewModel.downloadSelected()
+                },
+                onDismiss = { batchPrecheck = null },
             )
         }
 

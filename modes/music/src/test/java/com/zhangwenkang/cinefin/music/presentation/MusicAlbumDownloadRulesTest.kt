@@ -173,6 +173,83 @@ class MusicAlbumDownloadRulesTest {
     }
 
     @Test
+    fun `歌单批量保持列表顺序 仅补齐缺失并跳过已下载与队列内`() {
+        val downloaded = song(1, "已在本地", serverId = "server-a", userId = "user-a")
+        val active = song(2, "队列中", serverId = "server-a", userId = "user-a")
+        val missingLater = song(9, "第三首", serverId = "server-a", userId = "user-a")
+        val missingEarly = song(3, "第四首", serverId = "server-a", userId = "user-a")
+        // 歌单顺序与音轨号不同：不得按音轨号重排。
+        val playlist = listOf(downloaded, missingLater, active, missingEarly)
+
+        val plan =
+            MusicAlbumDownloadRules.planSongs(
+                songs = playlist,
+                downloadedIdentities = setOf(downloaded.downloadIdentity()!!),
+                activeIdentities = setOf(active.downloadIdentity()!!),
+            )
+
+        assertEquals(listOf(missingLater, missingEarly), plan.targets)
+        assertEquals(1, plan.skippedDownloaded)
+        assertEquals(1, plan.skippedActive)
+        assertEquals(0, plan.skippedByLimit)
+    }
+
+    @Test
+    fun `歌单批量单次上限 100 首且同一曲目去重`() {
+        val first = song(1, "开场", serverId = "server-a", userId = "user-a")
+        val songs =
+            listOf(first) +
+                (2..120).map { index ->
+                    song(index, "track$index", serverId = "server-a", userId = "user-a")
+                } +
+                // 歌单里重复收录同一首（同 namespace 同 itemId）→ 只算一次。
+                listOf(
+                    song(
+                        1,
+                        "开场",
+                        itemId = first.itemId,
+                        serverId = "server-a",
+                        userId = "user-a",
+                    )
+                )
+
+        val plan =
+            MusicAlbumDownloadRules.planSongs(
+                songs = songs,
+                downloadedIdentities = emptySet(),
+                activeIdentities = emptySet(),
+            )
+
+        assertEquals(100, plan.targets.size)
+        // 120 首去重后取前 100，剩 20 首因上限推迟。
+        assertEquals(20, plan.skippedByLimit)
+        assertEquals("开场", plan.targets.first().name)
+        // 顺序保持传入顺序（先 index=1，再 2..100），不按音轨号重排。
+        assertEquals((1..100).toList(), plan.targets.map { it.indexNumber })
+    }
+
+    @Test
+    fun `歌单批量跳过本地媒体库曲目`() {
+        val local =
+            song(1, "本地曲目", serverId = "server-a", userId = "user-a")
+                .copy(
+                    localUri = "content://local/song",
+                    source = com.zhangwenkang.cinefin.music.data.MusicItemSource.LOCAL,
+                    localLibraryId = 7L,
+                )
+        val remote = song(2, "服务器曲目", serverId = "server-a", userId = "user-a")
+
+        val plan =
+            MusicAlbumDownloadRules.planSongs(
+                songs = listOf(local, remote),
+                downloadedIdentities = emptySet(),
+                activeIdentities = emptySet(),
+            )
+
+        assertEquals(listOf(remote), plan.targets)
+    }
+
+    @Test
     fun `单条 unknown 保持独立不按 itemId 跳过`() {
         val legacy = song(1)
 

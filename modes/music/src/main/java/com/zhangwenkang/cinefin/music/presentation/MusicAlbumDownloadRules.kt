@@ -11,6 +11,8 @@ import java.util.IdentityHashMap
  *
  * 用户口径（2026-10-04）：专辑详情的「下载专辑」**只补齐缺失**（跳过已下载 / 已在队列）， 与详情页整剧下载同一口径并保留**单次上限 100 首**；专辑列表长按多选 →
  * 批量下载整张时同样走这里的合并计划。
+ *
+ * W7-T2：歌单 / 曲库多选批量下载复用同一份合并口径（[planSongs]），只是顺序保持调用方给的列表序（歌单顺序）， 不按音轨号重排。
  */
 object MusicAlbumDownloadRules {
 
@@ -48,6 +50,38 @@ object MusicAlbumDownloadRules {
         downloadedIdentities: Set<DownloadCanonicalIdentity>,
         activeIdentities: Set<DownloadCanonicalIdentity>,
         maxTracks: Int = MAX_TRACKS_PER_REQUEST,
+    ): Plan =
+        merge(
+            ordered =
+                albums.flatMap { album ->
+                    album.songs.sortedWith(
+                        compareBy<MusicSong> { it.indexNumber ?: Int.MAX_VALUE }.thenBy { it.name }
+                    )
+                },
+            downloadedIdentities = downloadedIdentities,
+            activeIdentities = activeIdentities,
+            maxTracks = maxTracks,
+        )
+
+    /** 任意曲目集合（歌单详情 / 曲库多选）：**保持传入顺序**（歌单顺序即用户看到的顺序）， 跳过已下载 / 已在队列、同一曲目去重、整批上限 [maxTracks]。 */
+    fun planSongs(
+        songs: List<MusicSong>,
+        downloadedIdentities: Set<DownloadCanonicalIdentity>,
+        activeIdentities: Set<DownloadCanonicalIdentity>,
+        maxTracks: Int = MAX_TRACKS_PER_REQUEST,
+    ): Plan =
+        merge(
+            ordered = songs,
+            downloadedIdentities = downloadedIdentities,
+            activeIdentities = activeIdentities,
+            maxTracks = maxTracks,
+        )
+
+    private fun merge(
+        ordered: List<MusicSong>,
+        downloadedIdentities: Set<DownloadCanonicalIdentity>,
+        activeIdentities: Set<DownloadCanonicalIdentity>,
+        maxTracks: Int,
     ): Plan {
         val limit = maxTracks.coerceAtLeast(0)
         var skippedDownloaded = 0
@@ -55,32 +89,25 @@ object MusicAlbumDownloadRules {
         val candidates = mutableListOf<MusicSong>()
         val seenCompleteNamespaces = mutableSetOf<String>()
         val seenUnknownRows = Collections.newSetFromMap(IdentityHashMap<MusicSong, Boolean>())
-        for (album in albums) {
-            val ordered =
-                album.songs.sortedWith(
-                    compareBy<MusicSong> { it.indexNumber ?: Int.MAX_VALUE }.thenBy { it.name }
-                )
-            for (song in ordered) {
-                if (song.localUri != null) continue
-                val identity = song.downloadIdentity()
-                val completeKey = identity?.foldKey
-                if (
-                    if (completeKey != null) {
-                        !seenCompleteNamespaces.add(completeKey)
-                    } else {
-                        !seenUnknownRows.add(song)
-                    }
-                ) {
-                    continue
+        for (song in ordered) {
+            if (song.localUri != null) continue
+            val identity = song.downloadIdentity()
+            val completeKey = identity?.foldKey
+            if (
+                if (completeKey != null) {
+                    !seenCompleteNamespaces.add(completeKey)
+                } else {
+                    !seenUnknownRows.add(song)
                 }
-                when {
-                    identity != null &&
-                        downloadedIdentities.any { it.matchesProvenance(identity) } ->
-                        skippedDownloaded++
-                    identity != null && activeIdentities.any { it.matchesProvenance(identity) } ->
-                        skippedActive++
-                    else -> candidates += song
-                }
+            ) {
+                continue
+            }
+            when {
+                identity != null && downloadedIdentities.any { it.matchesProvenance(identity) } ->
+                    skippedDownloaded++
+                identity != null && activeIdentities.any { it.matchesProvenance(identity) } ->
+                    skippedActive++
+                else -> candidates += song
             }
         }
         val targets = candidates.take(limit)

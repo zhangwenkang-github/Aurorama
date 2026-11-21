@@ -122,6 +122,31 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
+/** W7-T2：音乐批量下载受理结果（歌单 / 曲库 / 专辑多选），三态口径与视频详情页一致： 已加入队列 / 已在队列 / 已下载；另带单次上限推迟数。 */
+data class MusicBatchDownloadFeedback(
+    val added: Int = 0,
+    val alreadyQueued: Int = 0,
+    val alreadyDownloaded: Int = 0,
+    val deferredByLimit: Int = 0,
+)
+
+/** W7-T2：批量下载反馈文案（纯函数；只拼非零项，全零时给「没有可下载的曲目」）。 */
+internal fun musicBatchDownloadFeedbackMessage(feedback: MusicBatchDownloadFeedback): String {
+    val parts = buildList {
+        if (feedback.added > 0) add("已加入下载队列 · ${feedback.added} 首")
+        if (feedback.alreadyQueued > 0) add("已在队列 ${feedback.alreadyQueued} 首")
+        if (feedback.alreadyDownloaded > 0) add("已下载 ${feedback.alreadyDownloaded} 首")
+        if (feedback.deferredByLimit > 0) add("超出单次上限 ${feedback.deferredByLimit} 首")
+    }
+    return if (parts.isEmpty()) "没有可下载的曲目" else parts.joinToString("；")
+}
+
+/** W7-T2：批量下载前置检查（提示层内容 + 因单次上限推迟的曲目数）。 */
+data class MusicBatchPrecheck(
+    val content: DownloadPrecheckContent,
+    val deferredByLimit: Int,
+)
+
 /**
  * 音乐模式 ViewModel（W1 R2 最小闭环，W2 R2 扩到四维浏览 + 队列操作）。
  *
@@ -205,6 +230,10 @@ constructor(
     /** W60b：下载反馈（已加入队列 · N 首）→ 音乐页 Snackbar（带「查看」跳下载页）。 */
     private val downloadQueuedChannel = Channel<Int>(Channel.BUFFERED)
     val downloadQueued = downloadQueuedChannel.receiveAsFlow()
+
+    /** W7-T2：批量下载三态反馈（已加入 / 已在队列 / 已下载）→ 音乐页 Snackbar。 */
+    private val batchDownloadFeedbackChannel = Channel<MusicBatchDownloadFeedback>(Channel.BUFFERED)
+    val batchDownloadFeedback = batchDownloadFeedbackChannel.receiveAsFlow()
 
     private val playlistExchangeFeedbackChannel =
         Channel<PlaylistExchangeFeedback>(Channel.BUFFERED)
@@ -1523,6 +1552,40 @@ constructor(
         )
     }
 
+    /** W7-T2：批量下载计划（专辑多选 = 多专辑合并；曲目多选 / 歌单 = 保序合并）——只补齐缺失 + 单次 100 首上限。 */
+    private fun batchDownloadPlan(): MusicAlbumDownloadRules.Plan {
+        val downloadState = _downloadState.value
+        return if (albumBatchScope()) {
+            MusicAlbumDownloadRules.planAlbums(
+                albums = selectedAlbums(),
+                downloadedIdentities = downloadState.downloadedIdentities(),
+                activeIdentities = downloadState.activeStatuses.keys,
+            )
+        } else {
+            MusicAlbumDownloadRules.planSongs(
+                songs = selectedSongs(),
+                downloadedIdentities = downloadState.downloadedIdentities(),
+                activeIdentities = downloadState.activeStatuses.keys,
+            )
+        }
+    }
+
+    /** W7-T2：批量下载前置确认内容；没有待入队曲目返回 null（此时直接给三态反馈，不弹提示层）。 */
+    fun batchPrecheck(): MusicBatchPrecheck? {
+        val plan = batchDownloadPlan()
+        if (plan.targets.isEmpty()) return null
+        return MusicBatchPrecheck(
+            content =
+                DownloadPrecheckContent(
+                    kind = DownloadPrecheckKind.AUDIO_BATCH,
+                    title =
+                        _uiState.value.detail?.title ?: if (albumBatchScope()) "已选专辑" else "已选曲目",
+                    itemCount = plan.targets.size,
+                ),
+            deferredByLimit = plan.skippedByLimit,
+        )
+    }
+
     private fun selectedSongs(): List<MusicSong> {
         val selection = _batchSelectionState.value.selection.selectedIds
         return visibleSongs().filter { it.playlistSelectionKey() in selection }
@@ -1606,26 +1669,24 @@ constructor(
     }
 
     /**
-     * 批量下载（W58 曲目多选 / W59 专辑多选共用）：跳过已下载 / 已在队列的曲目。
+     * 批量下载（W58 曲目多选 / W59 专辑多选 / W7-T2 歌单共用）：跳过已下载 / 已在队列的曲目。
      *
-     * 专辑多选 = 多张专辑合并计划（按专辑顺序 + 音轨序、去重、单次 100 首上限），走同一条入队链路。
+     * 专辑多选 = 多张专辑合并计划（按专辑顺序 + 音轨序）；曲目多选 / 歌单 = 保持列表顺序；两者都去重并受单次 100 首上限约束， 结果统一走三态反馈（已加入 / 已在队列 /
+     * 已下载）。
      */
     fun downloadSelected() {
-        val downloadState = _downloadState.value
-        val plan: MusicAlbumDownloadRules.Plan
-        if (albumBatchScope()) {
-            plan =
-                MusicAlbumDownloadRules.planAlbums(
-                    albums = selectedAlbums(),
-                    downloadedIdentities = downloadState.downloadedIdentities(),
-                    activeIdentities = downloadState.activeStatuses.keys,
-                )
-        } else {
-            val targets = batchDownloadTargets(batchCapabilities(selectedSongs(), downloadState))
-            plan = MusicAlbumDownloadRules.Plan(targets, 0, 0, 0)
-        }
-        if (plan.targets.isEmpty()) return
+        val plan = batchDownloadPlan()
         viewModelScope.launch {
+            if (plan.targets.isEmpty()) {
+                // 三态反馈：没有待入队曲目时不能静默无反应（已下载 / 已在队列）。
+                batchDownloadFeedbackChannel.send(
+                    MusicBatchDownloadFeedback(
+                        alreadyQueued = plan.skippedActive,
+                        alreadyDownloaded = plan.skippedDownloaded,
+                    )
+                )
+                return@launch
+            }
             val receipt = runCatching {
                 downloader.receiveMusicBatch(plan.targets.toIntentRequests())
             }
@@ -1633,16 +1694,15 @@ constructor(
                     showBatchFailure("下载受理失败", it.message ?: "请稍后重试")
                     return@launch
                 }
-            if (receipt.acceptedIds.isNotEmpty()) {
-                downloadQueuedChannel.send(receipt.acceptedIds.size)
-            }
-            refreshDownloadState()
-            if (plan.skippedByLimit > 0) {
-                showBatchFailure(
-                    "单次上限 ${MusicAlbumDownloadRules.MAX_TRACKS_PER_REQUEST} 首",
-                    "已加入前 ${plan.targets.size} 首，剩余 ${plan.skippedByLimit} 首请再次下载",
+            batchDownloadFeedbackChannel.send(
+                MusicBatchDownloadFeedback(
+                    added = receipt.acceptedIds.size,
+                    alreadyQueued = plan.skippedActive,
+                    alreadyDownloaded = plan.skippedDownloaded,
+                    deferredByLimit = plan.skippedByLimit,
                 )
-            }
+            )
+            refreshDownloadState()
         }
     }
 
