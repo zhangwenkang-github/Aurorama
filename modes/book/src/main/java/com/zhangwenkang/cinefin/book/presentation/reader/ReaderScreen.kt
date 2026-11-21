@@ -1277,6 +1277,7 @@ fun ReaderScreen(
                             onOpenSettings = { ttsShowSettings = true },
                             onOpenTimer = { ttsShowTimer = true },
                             onJumpToReading = jumpToTtsReading,
+                            onStop = stopTts,
                         )
                     }
                 }

@@ -81,7 +81,8 @@ class ReaderTtsService : Service() {
             ACTION_PREVIOUS -> ReaderTtsSession.controls?.previous()
             ACTION_STOP -> {
                 ReaderTtsSession.controls?.stop()
-                ReaderTtsSession.detach()
+                // 不 detach：控制条「停止」（W6 T12）与定时到点都走这里，阅读页仍在场，
+                // 保留 controls 才能从「更多 → 听书」干净重启（页面退出时由 onDispose detach）。
                 stopSelfSafely()
                 return START_NOT_STICKY
             }

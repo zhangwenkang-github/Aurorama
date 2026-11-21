@@ -321,6 +321,35 @@ class ReaderTtsControllerTest {
     }
 
     @Test
+    fun `停止后清空高亮且不再开口，可干净重启`() {
+        val engine = FakeEngine()
+        val harness = Harness(engine, VirtualClock())
+        harness.controller.addChapter(chapter(0, "一。", "二。"))
+        harness.controller.startAt(0)
+        harness.controller.setTimer(TtsTimerOption.Fifteen)
+        harness.controller.onUtteranceStarted(engine.lastUtteranceId!!)
+        assertTrue(harness.state.highlightVisible)
+
+        harness.controller.stop()
+
+        // 控制条据此收起：playback = Idle、无当前句、高亮不可见。
+        assertEquals(TtsPlayback.Idle, harness.state.playback)
+        assertNull(harness.state.active)
+        assertFalse(harness.state.highlightVisible)
+        assertNull(harness.state.timerRemainingMs)
+        assertEquals(1, engine.stopped)
+        // 停止后残留的引擎回调不再触发开口（无残留回调 / 无重播）。
+        val spokenAfterStop = engine.spoken.size
+        harness.controller.onUtteranceFinished("tts-0-0")
+        assertEquals(spokenAfterStop, engine.spoken.size)
+
+        // 再点「更多 → 听书」：从章首重新起步。
+        harness.controller.startAt(0)
+        assertEquals(TtsPlayback.Playing, harness.state.playback)
+        assertEquals(spokenAfterStop + 1, engine.spoken.size)
+    }
+
+    @Test
     fun `引擎不可用进入错误态且不自动重试`() {
         val engine = FakeEngine()
         val harness = Harness(engine, VirtualClock())

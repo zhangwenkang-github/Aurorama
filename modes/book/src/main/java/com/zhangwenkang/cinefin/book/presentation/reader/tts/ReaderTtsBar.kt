@@ -58,7 +58,7 @@ import java.util.Locale
 /** 迷你控制条内容高度（定稿六 §2：高 56dp）。 */
 private val READER_TTS_BAR_HEIGHT = 56.dp
 
-/** 条上按钮触控区：56dp 内放 6 个入口，图标 / 文字各 44dp。 */
+/** 条上按钮触控区：56dp 内放 7 个入口，图标 / 文字各 44dp。 */
 private val READER_TTS_BUTTON = 44.dp
 
 /** 容器同控制层底片：只上圆角（定稿一 §2 / 定稿六 §2）。 */
@@ -73,8 +73,8 @@ private val ReaderTtsBarShape =
 /**
  * 听书迷你控制条（W6 T9 / READER-32，定稿六 §2）。
  *
- * `⏮ 上一句 | ▶/⏸ | ⏭ 下一句 | 语速 | 定时` + 「原文」（READER-34 的「回到原文」，跳回当前朗读句）。 容器同控制层底片：深色 / OLED = 玻璃，纸色 /
- * 护眼 = 页色 96%；控制层唤出时由调用方隐藏本条。
+ * `⏮ 上一句 | ▶/⏸ | ⏭ 下一句 | 语速 | 定时` + 「原文」（READER-34 的「回到原文」，跳回当前朗读句） + 「停止」（W6 T12，与退出阅读页同一条停止路径）。
+ * 容器同控制层底片：深色 / OLED = 玻璃，纸色 / 护眼 = 页色 96%；控制层唤出时由调用方隐藏本条。
  */
 @Composable
 internal fun ReaderTtsBar(
@@ -88,6 +88,7 @@ internal fun ReaderTtsBar(
     onOpenSettings: () -> Unit,
     onOpenTimer: () -> Unit,
     onJumpToReading: () -> Unit,
+    onStop: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalCinefinColors.current
@@ -141,6 +142,14 @@ internal fun ReaderTtsBar(
                 label = "回到朗读位置",
                 contentColor = contentColor,
                 onClick = onJumpToReading,
+            )
+            // W6 T12：停止放在最右（定稿六 §2 五入口之外的补充入口）。图标复用 core 的 close，
+            // 点击走与退出阅读页同一个 stopTts（TTS 停 + 句高亮清空 + Service / 通知释放）。
+            TtsIconButton(
+                iconRes = CoreR.drawable.ic_close,
+                label = "停止朗读",
+                contentColor = contentColor,
+                onClick = onStop,
             )
         }
     }
