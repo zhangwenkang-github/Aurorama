@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import com.zhangwenkang.cinefin.api.JellyfinApi
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
+import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.network.JellyfinAuth
 import com.zhangwenkang.cinefin.network.buildCertificateAwareOkHttpClient
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
@@ -48,6 +49,7 @@ class ReaderRepositoryImpl(
     context: Context,
     private val jellyfinApi: JellyfinApi,
     private val appPreferences: AppPreferences,
+    private val localLibrary: LocalLibraryRepository,
 ) : ReaderRepository {
     private val appContext = context.applicationContext
     private val progressStore =
@@ -227,29 +229,13 @@ class ReaderRepositoryImpl(
 
     override suspend fun getReadingProgress(itemId: UUID): ReadingProgress? =
         withContext(Dispatchers.IO) {
-            val local = progressStore.load(itemId)
-            // 飞行模式 / 无网络时不发请求：直接用本地 locator 打开，避免打开阅读页先卡超时。
-            // W64：网络活跃但服务器偶发慢时，远程进度查询会拖住打开首帧（用户感知"打开偶尔很慢"）；
-            // 加 2s 上限，超时按"没有远程进度"处理，本地进度照常打开。
-            val remote =
-                if (!hasActiveNetwork()) {
-                    null
-                } else {
-                    withTimeoutOrNull(REMOTE_PROGRESS_TIMEOUT_MS) {
-                            runCatching { fetchRemoteProgress(itemId) }
-                                .onFailure { error ->
-                                    if (error is CancellationException) throw error
-                                    Timber.w(error, "读取阅读进度失败，回退本地进度")
-                                }
-                                .getOrNull()
-                        }
-                        .also { result ->
-                            if (result == null) {
-                                Timber.i("远程阅读进度超时 / 失败（%s），本次用本地进度", itemId)
-                            }
-                        }
-                }
-            resolveReadingProgress(itemId, local, remote)
+            resolveReadingProgressWithRemote(
+                itemId = itemId,
+                local = progressStore.load(itemId),
+                isLocalItem = localLibrary.isLocalItem(itemId),
+                hasActiveNetwork = hasActiveNetwork(),
+                fetchRemote = { fetchRemoteProgress(itemId) },
+            )
         }
 
     override suspend fun listReadingProgress(limit: Int): List<ReadingProgress> =
@@ -412,11 +398,48 @@ class ReaderRepositoryImpl(
         val manager = appContext.getSystemService(ConnectivityManager::class.java) ?: return true
         return manager.activeNetwork != null
     }
+}
 
-    private companion object {
-        /** 打开书籍时远程进度查询的等待上限：超时回退本地进度（W64 打开耗时优化）。 */
-        const val REMOTE_PROGRESS_TIMEOUT_MS = 2_000L
-    }
+/**
+ * 打开书籍时远程进度查询的等待上限：超时回退本地进度（W64 打开耗时优化）。
+ *
+ * W6-T13：本地媒体库条目的 itemId 是本地 URI 推导出的 UUID，服务器不认识，这类条目直接跳过远程分支（零请求、零超时）。
+ */
+internal const val REMOTE_PROGRESS_TIMEOUT_MS = 2_000L
+
+/**
+ * 合并本地与远程阅读进度前的远程查询门控。
+ *
+ * 本地书（[isLocalItem]）整段远程分支跳过：不发请求，也不记超时日志。服务器书保持原语义—— 飞行模式 / 无网络不请求，有网最多等
+ * [timeoutMillis]，超时或失败按"没有远程进度"处理。
+ */
+internal suspend fun resolveReadingProgressWithRemote(
+    itemId: UUID,
+    local: ReadingProgress?,
+    isLocalItem: Boolean,
+    hasActiveNetwork: Boolean,
+    fetchRemote: suspend () -> ReadingProgress,
+    timeoutMillis: Long = REMOTE_PROGRESS_TIMEOUT_MS,
+): ReadingProgress? {
+    val remote =
+        if (isLocalItem || !hasActiveNetwork) {
+            null
+        } else {
+            withTimeoutOrNull(timeoutMillis) {
+                    runCatching { fetchRemote() }
+                        .onFailure { error ->
+                            if (error is CancellationException) throw error
+                            Timber.w(error, "读取阅读进度失败，回退本地进度")
+                        }
+                        .getOrNull()
+                }
+                .also { result ->
+                    if (result == null) {
+                        Timber.i("远程阅读进度超时 / 失败（%s），本次用本地进度", itemId)
+                    }
+                }
+        }
+    return resolveReadingProgress(itemId, local, remote)
 }
 
 @EntryPoint
