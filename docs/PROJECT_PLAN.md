@@ -44,24 +44,22 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 1. **2.0.0 W6 阅读域开工完成（2026-11-21，会话1）**：T0 现状核对（✅9/⚠️17/❌22）+ 设计定稿八节 + 任务卡 T1–T11 定稿（`docs/V2_W6_TASKS.md`，含两条 ⚠️ 预案：EPUB 仿真/覆盖翻页→backlog、EPUB 划词→T8 spike 前置）。**下一步：按依赖派 T1（沉浸控制层与手势重排），T7（TXT）与 T8-spike 可首批并行。**
 2. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
-### W6 会话2 开工提示词（新会话直接粘贴；W6 原始开工提示词已存档于 `V2_W6_TASKS.md` 状态块）
+### W6 会话2 开工提示词（新会话直接粘贴；格式遵循 AGENTS.md「开工提示词统一标准」，W6 原始开工提示词存档于 `V2_W6_TASKS.md` 状态块）
 
 ```
-继续 Aurorama 2.0.0 W6 阅读域实现会话。你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
+你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
 工作区：F:\Develop\code_data\work_tree\Aurorama\v2-merge-141（分支 codex/v2-integration）。
-开工读序：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V2_W6_TASKS.md 状态块 + 任务卡
-→ docs/V2_REQUIREMENTS.md §5 → 记忆库 MEMORY.md。
-现状：T0 现状核对完成（§5 全 48 条 = ✅9/⚠️17/❌22），设计定稿八节与任务卡 T1–T11 已定稿
-（HEAD 以 git log 为准）。两条 ⚠️ 预案已锁定：EPUB 仿真/覆盖翻页→backlog（EPUB 只给滑动/无动画），
-EPUB 划词→T8 spike 前置（≤半天，结论写回状态块再实现）。
-本会话任务：按依赖派卡。首批：T1（沉浸控制层与手势重排，modes/book）必发；
-T7（TXT 支持与导入）与 T8-spike（Readium 选择/Decoration 能力验证）可与 T1 并行；
-T2–T6 待 T1 合入后派。
-设计决策一律以 V2_W6_TASKS.md「设计定稿」八节为准，deepseek 零设计权。
-纪律：每任务一子代理一 commit；子代理禁 adb，只模块单测+ktfmtCheck+构建（--max-workers=2）；
-核心链路 K60（8e875894）真机取证由 Kimi 做（流式 adb logcat --pid 落盘；装机前核对 APK mtime）；
-设备用后停播放（state=NONE + force-stop）。
-红线：生产 jellyfins.zhangwenkang.com 永久只读；只删自己创建的文件。
+开工读序：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V2_W6_TASKS.md 状态块与任务卡
+→ 记忆库 MEMORY.md（读序外文件按需，不通读）。
+现状：W6 已开工——T0 核对 §5 全 48 条 = ✅9/⚠️17/❌22，设计定稿八节 + 任务卡 T1–T11 定稿
+（HEAD 以 git log 为准）；两条 ⚠️ 预案已锁定（EPUB 仿真翻页→backlog、EPUB 划词→T8 spike 前置）。
+本会话任务（1–2 卡）：
+① T1 沉浸控制层与手势重排（modes/book，卡面见 V2_W6_TASKS.md）；
+② 并行：T8-spike（Readium 3.4.0 选择/Decoration 能力验证，≤半天，结论写回状态块再定 T8 路线）。
+   T7（TXT 导入）视上下文余量并行，否则移交下会话。
+设计分权：以 V2_W6_TASKS.md「设计定稿」八节为准，deepseek 零设计权。
+门禁与纪律：见 AGENTS.md 质量门/红线（子代理禁 adb；K60 真机取证 Kimi 做；设备用后停播放）。
+交接：收口按 AGENTS.md 五件事，提示词按统一标准填槽更新。
 ```
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）
