@@ -32,7 +32,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 线 | 状态 | 文档 |
 |----|------|------|
 | 1.4.1 | 🟢 **已发布**（2026-11-18）：master=`76f5350b`、tag `v1.4.1`、GitHub Release 双 APK | 发布目录 `releases/1.4.1-signed-r34-2026-11-17/` |
-| 2.0.0 | 🟡 **W8 进行中（T1/T1r/T2/T3' 已验收）**（2026-11-22 会话2-3）：T1 写错误模型 `ea8b9c10`+T1r 补同步 `e98632b4`、T2 权限门控 `a98b4566`、T3' 评分徽标 `a56cb0ec`（T3 个人评分写入经用户裁定转向，备份 `backup/w8-t3-personal-rating` 并 revert）；12 条判定 03/09 转 ✅；下一步 T4 服务端播放列表；W9-T0 聚合顺延 | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · `V2_W8_TASKS.md` · `V2_W7_TASKS.md` |
+| 2.0.0 | 🟡 **W8 进行中（T1/T1r/T2/T3'/T4 已验收）**（2026-11-22 会话4）：T4 服务端歌单创建/加入 `77143ae0` Pad 真机三用例通过（含 id 无连字符解析缺陷修复）；T5 阻塞——「其他」库对 zhangwenkang 0 可删条目，待用户补样本；deleteItem 端点契约探针已留存（204×4）；W9-T0 聚合顺延 | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · `V2_W8_TASKS.md` · `V2_W7_TASKS.md` |
 | 播放器 | 🟢 W2 架构重构完成；W4 开工（2026-11-19）：T0 现状核对 + 任务卡定稿（T1–T7）；retrySeek 跨条目重建已修（`ccdafefa`）；生产 TLS `-0x7280` 复验通过（服务器侧修复生效，K60 mpv 正常播放） | `docs/V2_W4_TASKS.md` · `docs/V2_ARCHITECTURE.md` §3 |
 | 下载/离线 | 🟢 W7 已收官（2026-11-22）：55 条 = ✅51/⚠️4/❌0；修复卡 F1b 音乐重下载删档绕过 / F2 PENDING 滞留 / F4 音乐离线冷路径 / F5 书籍通知 / F6 作者折叠 / F7 引擎空转热循环，全登记 W9 聚合（F1 引擎层与 F3 已修销项） | `docs/V2_W7_TASKS.md` · `docs/DOWNLOAD_PLAN.md` |
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
@@ -41,26 +41,26 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-22）
 
-1. **2.0.0 W8 服务器写进行中（2026-11-22 会话2-3）**：T1 写错误模型（`ea8b9c10`）+T1r 补同步（`e98632b4`）、T2 权限门控（`a98b4566`）、T3' 评分徽标（`a56cb0ec`）全部交付并 Pad 真机验收。**T3 转向**：个人评分写入系需求理解错误（原始需求无评分条目），用户裁定评分=服务器元数据展示——已交付实现备份 `backup/w8-t3-personal-rating`、主干 revert（`6d09a52d`），启用与否登记 W9。**12 条判定**：03/09 ❌→✅，04/05/08/10 →⚠️（详见 V2_W8_TASKS 状态块）。**关键事实**：T2 实证元数据编辑=仅管理员（RequiresElevation，T6 门控依据）；设备 K60 连生产服（禁写）、Pad 连测试服（W8 验证机）；w8limited 已在测试服就绪（动漫+书籍、无删除权）；uiautomator dump 与 input tap 在对话框上有 ~50px 坐标偏差（取证按 +50 修正）。T1r 末环已闭合（补同步自动翻转+还原 ✓）。证据 `F:\Develop\code_data\qa\w8-t1\`。
+1. **2.0.0 W8 服务器写进行中（2026-11-22 会话4）**：T1 写错误模型（`ea8b9c10`）+T1r 补同步（`e98632b4`）、T2 权限门控（`a98b4566`）、T3' 评分徽标（`a56cb0ec`）、**T4 服务端歌单创建/加入（`77143ae0`）** 全部交付并 Pad 真机验收。T4 验收抓出并修复真缺陷：`PlaylistCreationResult.id` 为 32 位无连字符裸 String，直接 `UUID.fromString` 必抛（契约测试成功用例已改真实线格式）。**T5 阻塞待用户**：「其他」库（`12c75549…`）对唯一有删除权的 zhangwenkang 只显示空文件夹「隐藏影库」、0 可删条目（admin 被服务端拒访该库）；请往 `/medi/下载完成/隐藏影库` 补可弃样本并扫描，清单由 Kimi 列快照后经用户确认执行。deleteItem 契约探针已留存（zhangwenkang 删自有 W8-TEST-* 歌单 204×4）。T4 证据 `F:\Develop\code_data\qa\w8-t4\`。
 2. **W7 下载域已收官（2026-11-22 会话4，HEAD `da4791d5`）**：55 条 = ✅51/⚠️4/❌0；⚠️ 全裁定（F1b/F2/F4/F5/F6/F7 + L1–L3 + O1 + S1，见 `V2_W7_TASKS.md`「裁定登记」）；F3（`d8ee43af`）与 F1 引擎层（`d5e8b119`）已修；F1b/F7 根因已定位、修复卡就绪（优先候选）；W9-T0 聚合顺延至 W8 收官后。
 3. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
-### W8 会话4 开工提示词（新会话直接粘贴；格式遵循 AGENTS.md「开工提示词统一标准」）
+### W8 会话5 开工提示词（新会话直接粘贴；格式遵循 AGENTS.md「开工提示词统一标准」）
 
 ```
 你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
 工作区：F:\Develop\code_data\work_tree\Aurorama\v2-merge-141（分支 codex/v2-integration）。
 开工读序：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V2_W8_TASKS.md 状态块
 → 记忆库 MEMORY.md（读序外文件按需，不通读）。
-现状：T1/T1r/T2/T3' 已交付验收（ea8b9c10/e98632b4/a98b4566/a56cb0ec）；T3
-个人评分写入经用户裁定转向（评分=服务器元数据展示），备份 backup/
-w8-t3-personal-rating；T2 实证元数据编辑=仅管理员；设备 Pad 连测试服（W8
-验证机）、K60 连生产服（禁写）；w8limited 测试服就绪；HEAD 以 git log 为准。
-本会话任务（1–2 卡，派 deepseek）：W8-T4 服务端播放列表——createPlaylist/
-addToPlaylist（音乐域，移除已有接 T1 错误模型），测试歌单 W8-TEST-* 用后删；
-视容量续 W8-T5 条目删除——itemsApi.deleteItem + 二次确认（WRITE-06）+ T2
-权限门控，仅测试服「其他」库已播完样本、≤5 条、删前快照登记、清单经用户
-确认。T4/T5 设计细节按 V2_W8_TASKS.md 任务卡，UI 样式以 V2_DESIGN.md 为准。
+现状：T1/T1r/T2/T3'/T4 已交付验收（ea8b9c10/e98632b4/a98b4566/a56cb0ec/
+77143ae0）；T5 阻塞——「其他」库对 zhangwenkang 0 可删条目，待用户补样本
+（/medi/下载完成/隐藏影库）；deleteItem 契约探针已留存（204×4）；T2 实证元数据
+编辑=仅管理员；设备 Pad 连测试服、K60 连生产服（禁写）；HEAD 以 git log 为准。
+本会话任务（1–2 卡）：若用户已补 T5 样本→W8-T5 条目删除（itemsApi.deleteItem
++二次确认 WRITE-06+T2 权限门控，仅测试服「其他」库已播完样本、≤5 条、删前快照
+登记、清单经用户确认，派 deepseek）；否则→W8-T6 条目元数据编辑（itemUpdateApi
+.updateItem，名称/简介/SortName，仅管理员入口走 T2 canEditMetadata，快照→写→
+回读→还原闭环，派 deepseek）。设计细节按 V2_W8_TASKS.md 任务卡。
 设计分权：设计以 docs/V2_DESIGN.md 为准，deepseek 零设计权。
 门禁与纪律：见 AGENTS.md 质量门/红线；子代理禁 adb；真机取证 Kimi 做（W8
 用 Pad=43af8627，对话框坐标按 dump+50 修正）。写验证只打测试服、优先已播

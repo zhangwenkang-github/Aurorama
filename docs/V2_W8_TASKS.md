@@ -1,6 +1,6 @@
 # 2.0 W8 · 服务器写（任务卡）
 
-> 状态：`T1/T1r/T2/T3' 已交付验收，待派 T4`（2026-11-22 会话2-3：T1 ea8b9c10+T1r e98632b4、T2 a98b4566、T3' a56cb0ec；T3 个人评分写入经用户裁定转向，备份 backup/w8-t3-personal-rating 并 revert 6d09a52d；12 条判定最新见下方「T2/T3' 后判定变化」）
+> 状态：`T1/T1r/T2/T3'/T4 已交付验收，待派 T5（阻塞：其他库无可删样本，待用户补料）/T6`（2026-11-22 会话4：T4 77143ae0；T1 ea8b9c10+T1r e98632b4、T2 a98b4566、T3' a56cb0ec；T3 个人评分写入经用户裁定转向，备份 backup/w8-t3-personal-rating 并 revert 6d09a52d；12 条判定最新见下方「T2/T3' 后判定变化」）
 > 依据：`docs/V2_REQUIREMENTS.md` §6（V2-WRITE 全 12 条）与 §15 波次表（W8 ← W3，依赖已满足）；设计唯一权威 `docs/V2_DESIGN.md`。
 
 ## 状态块（新会话先读这里）
@@ -49,8 +49,8 @@
 | 阅读进度回写 | `itemsApi.updateItemUserData` | ✅ | — | ✅ | 保持 |
 | 评分元数据显示（CommunityRating/OfficialRating） | 读字段（`ItemFields.COMMUNITY_RATING` 等） | ✅ | ✅ | ⚠️ 仅详情页（W75 #12） | **T3'**（2026-11-22 用户裁定：评分=服务器元数据展示；个人评分写入备份 `backup/w8-t3-personal-rating`、登记 W9） |
 | 喜欢（Likes） | 同上(likes) | web 无 | ❌ | ❌ | 不纳入（L535 未列，裁定 W9 候选登记） |
-| 歌单创建 | `playlistsApi.createPlaylist` | ✅ | ❌ | ❌（歌单=本地歌单） | **T4** |
-| 歌单加入 | `playlistsApi.addToPlaylist` | ✅ | ❌ | ❌ | **T4** |
+| 歌单创建 | `playlistsApi.createPlaylist` | ✅ | ❌ | ✅ **T4** | 保持（移除条目随既有实现） |
+| 歌单加入 | `playlistsApi.addToPlaylist`（SDK 方法名 `addItemToPlaylist`） | ✅ | ❌ | ✅ **T4** | 保持 |
 | 歌单移除条目 | `playlistsApi.removeItemFromPlaylist` | ✅ | ❌ | ✅ | 保持，接 T1 错误模型 |
 | 歌单删除 | `itemsApi.deleteItem` | ✅ | ❌ | ❌ | 随 **T5** |
 | 条目删除 | `itemsApi.deleteItem`（需 EnableContentDeletion） | ✅ | ❌ | ❌ | **T5** |
@@ -112,13 +112,12 @@ jellyfin-test.zhangwenkang.com 已获用户可写授权（可删除/改元数据
 - **验收记录（Pad）**：首页走廊四卡 ★7.8/7.0/7.6/8.7（告白实行委员会等，左下角）；电影库网格乔西的虎与鱼 ★8.3（8.266→8.3 一位小数正确）、告白 ★7.8；无评分条目（测试服 AURA/被狙击的学园，API 实证 CommunityRating=None）**正确不显示**——K60 早前所见 AURA ★6.4 系生产服元数据，非缺陷。收藏页为空态（还原后无收藏），与网格同为 ItemCard 覆盖。
 - **遗留**：①横版卡 48dp 抬升按标题块估算，真机目检通过（走廊证据在案）；②黄铜直接引用 TV 遗留 `ColorDark.tertiaryDark`（phone `CinefinColors` 未暴露评分槽位）——主题感知评分色登记 W9；③音乐域评分显示（T3b）登记 W9 backlog。
 
-### T4 服务端播放列表：创建 + 加入（派 deepseek，1 卡）
+### T4 服务端播放列表：创建 + 加入 ✅（2026-11-22，`77143ae0`，Pad 真机验证通过）
 
-- **目标**：音乐域服务端歌单——`playlistsApi.createPlaylist` 创建、`addToPlaylist` 加入（单曲/批量复用现有批量选择）；移除条目已有（`MusicRepository.kt:319`，本卡接入 T1 错误模型）；歌单删除随 T5。
-- **文件边界**：`modes/music`（`MusicRepository.kt`、歌单 UI/ViewModel）、`data` 如需新增仓库方法。
-- **验收要点**：①创建歌单→服务端回读出现；②加入曲目→歌单详情回读含新曲目；③失败可见；④契约测试覆盖 create/add 端点。
-- **写边界与还原声明**：新建歌单统一命名 `W8-TEST-*`；验证后删除（随 T5 或网页端手动），不留测试歌单。
-- **真机取证点**：创建+加入后网页端/回读双侧确认。依赖 T1；与 T3 可并行。
+- **交付**：`createServerPlaylist`（`playlistsApi.createPlaylist`，CreatePlaylistDto name/ids/userId/`MediaType.AUDIO`/isPublic=false）+ `addToPlaylist`（SDK 实际方法名 `addItemToPlaylist`），统一走 T1 写边界 `musicServerWrite`（泛型化带回值），成功才失效歌单卡片缓存；`ServerPlaylistCreateOutcome`（Created(id)/Failed）新模型。UI（全复用既有组件零新样式）：歌单页「新建服务器歌单」按钮 + PlaylistNameDialog；`AddToPlaylistDialog` 同列本地/服务器歌单（服务器行「 · 服务器」后缀、含本地曲目时禁用）；批量条新增 `ADD_TO_PLAYLIST`。14 条新单测（9 契约 + 6 规则），模块 390 测试全绿。
+- **真机验收记录（Pad=43af8627，zhangwenkang 测试服）**：①新建 `W8-TEST-PAD1` → forceRefresh 服务端回读出列表（WRITE-05 非乐观）；②单曲加入 → 服务端回读含目标曲；③批量加入 2 首 → 回读共 3 首；④歌单详情「共 3 首曲目」与服务端一致；⑤详情内 6 按钮批量条渲染无重叠、删除按规则禁用。**验收抓出真缺陷并修复**：服务端 `PlaylistCreationResult.id` 为 32 位无连字符十六进制（SDK 该字段是裸 String，未走 UUID 序列化器），初版直接 `UUID.fromString` 必抛 → 兜底「无法写入服务器歌单」；修复为宽容解析（契约测试成功用例改真实线格式 id）。
+- **写边界与还原声明（执行记录）**：测试歌单统一 `W8-TEST-*`；验证后全部删除（`DELETE /Items/{id}` ×4 全 204、回读仅剩既有「测试播放列表」），该删除同时作 T5 deleteItem 端点契约探针（zhangwenkang 对自有歌单 204 实证）。测试曲目均为已播完音频，非破坏操作。
+- **遗留**：①6 按钮批量条仅 Pad 宽屏目检，360dp 竖屏挤压风险登记（W9 或 K60 只读目检）；②本地曲目禁用态无本地库可验，以 `ServerPlaylistRulesTest` 单测口径为准；③新建/加入后 `refresh` 连曲库重拉，粒度可后拆。
 
 ### T5 条目删除（含歌单删除）（派 deepseek，1 卡）
 
@@ -127,6 +126,7 @@ jellyfin-test.zhangwenkang.com 已获用户可写授权（可删除/改元数据
 - **验收要点**：①`zhangwenkang` 仅「其他」库可见删除入口（权限实证）；②二次确认文案含影响范围（服务器文件删除、不可还原）；③删除后回读 404/列表消失；④403 按 T1 模型呈权限失败不重试。
 - **写边界与还原声明**：**删除不可还原**——仅删测试服「其他」库已播完样本，总量 ≤5 条；每条删除前登记快照（名称/ID/路径）入任务证据，清单经用户确认后执行。歌单删除 = 删 `W8-TEST-*` 测试歌单。
 - **真机取证点**：删除 → 回读消失 + 网页端确认。依赖 T1+T2。
+- **阻塞与前置证据（2026-11-22 会话4 盘点）**：①「其他」库对唯一有删除权的 zhangwenkang **仅显示空文件夹「隐藏影库」，0 个可见可删条目**（admin 反被服务端拒访该库）——**待用户往 `/medi/下载完成/隐藏影库` 补可弃样本并扫描后方可执行**；②端点契约探针已留存：zhangwenkang 对自有 W8-TEST-* 歌单 `DELETE /Items/{id}` ×4 全 204、回读消失（T4 清理记录）。
 
 ### T6 条目元数据编辑（派 deepseek，1 卡）
 
