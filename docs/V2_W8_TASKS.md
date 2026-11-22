@@ -1,6 +1,6 @@
 # 2.0 W8 · 服务器写（任务卡）
 
-> 状态：`T1+T1r 已交付（K60/Pad 真机验证通过），待派 T2`（2026-11-22 会话2：T1 写错误模型 ea8b9c10 + T1r 排队补同步 e98632b4；12 条判定 ✅1/⚠️7/❌4；任务卡 T1–T7 定稿）
+> 状态：`T1/T1r/T2/T3' 已交付验收，待派 T4`（2026-11-22 会话2-3：T1 ea8b9c10+T1r e98632b4、T2 a98b4566、T3' a56cb0ec；T3 个人评分写入经用户裁定转向，备份 backup/w8-t3-personal-rating 并 revert 6d09a52d；12 条判定最新见下方「T2/T3' 后判定变化」）
 > 依据：`docs/V2_REQUIREMENTS.md` §6（V2-WRITE 全 12 条）与 §15 波次表（W8 ← W3，依赖已满足）；设计唯一权威 `docs/V2_DESIGN.md`。
 
 ## 状态块（新会话先读这里）
@@ -13,6 +13,9 @@
   - ⏳ 补同步最后一环（网络恢复→worker 执行→服务端翻转）因 Pad 路由器 captive portal 掉线未收官；排队行 (1,0,1) 安全留存，网络恢复后 worker 应自动补传——**下会话开机先回读该行/服务端确认，并做最终还原（取消收藏）**。
   - **设备事实（重要）**：**K60=8e875894 的 App 连的是生产服**（servers 库只有 jellyfins URL）；**Pad=43af8627 的 App 连测试服**。W8 写验证一律用 Pad，K60 禁止写操作。WAL 陷阱：读设备 DB 必须连 `-wal` 一起拉，否则看到的是陈旧主文件。
   - T1r 遗留登记（非 T1r 引入）：①KEEP 竞态——排队时若同名家任务正运行且已越过该行，需下一次触发才补传（接受口径）；②**SyncWorker 只扫 movies/episodes 两表——季/剧的排队写不会被补传**（WRITE-08 既有缺口，T7 或新卡评估扩展）。
+- **T2 交付（2026-11-22，`a98b4566`）**：`UserPolicyStore`（按 serverId+userId 键控、StateFlow、fail-closed、切号不串）+ 纯函数 `canDeleteContent`（admin∥全局许可∥库白名单）/`canEditMetadata`（**仅管理员**——T2 实测：Jellyfin 12 `ItemUpdateController` 整体 RequiresElevation，zhangwenkang 全库 403、admin 204；T6 据此门控）；启动 READY 时刷新一次，同进程切号由写入口 `ensureLoaded()` 兜底。实测：w8limited 仅见动漫+书籍 2 库（服务端强制，App 零代码）。Pad 冒烟：冷启动 `GET /Users/Me` ×2 实证。15 条新单测全绿。
+- **T3 转向记录（2026-11-22 用户裁定）**：原「个人评分写入」系需求理解错误（原始需求文档无评分条目），正确需求 = 显示服务器评分元数据。已交付的 T3（`618c005a`，14 单测+测试服实测：7.5 精确回读、清除须走 `DELETE /UserItems/{id}/Rating`、写评分会顺带翻转服务端 Likes）已备份 `backup/w8-t3-personal-rating` 并主干 revert（`6d09a52d`），是否启用登记 W9。Pad 复验副产物：评分星条"off-by-one"实为 **uiautomator dump 与 input tap ~50px 坐标系偏差**（点击目标按 dump 坐标 +50 命中），对话框实现正确、无缺陷。新 T3' = 列表卡片评分徽标（定稿见任务卡）。
+- **T2/T3' 后 12 条判定变化**：03（失败可见）❌→✅（T1 已修并真机验证）；04（权限门控）❌→⚠️（基础设施就绪，UI 门控随 T5/T6 落地）；09（403 区分）❌→✅（T1 错误模型）；05/08 ⚠️→⚠️+（T1/T1r 服务器先行+排队补同步已闭环，SyncWorker 季/剧缺口遗留）；10 ❌→⚠️（受限用户 w8limited 就绪，覆盖测试随 T5–T7）。
 - **范围锚点**：V2-WRITE-01 = 写能力对齐官方客户端可比完备度；02–12 为横切纪律（端点依据官方 spec/源码 02；写失败用户可见且区分可重试 03；权限不足入口前置隐藏/禁用 04；禁乐观更新、以服务端确认为准 05/08；危险操作二次确认 06；用户级写=本人身份 07；403 不当网络错误重试 09；受限账号测试覆盖 10；多服务器隔离+环境可见 11；交付标准=成功/被拒/失败三态可见，不以「接口调通」为完成 12）。
 - **测试服务器政策（2026-11-22 用户拍板）**：`jellyfin-test.zhangwenkang.com`（Jellyfin 12.4.0）为独立可写测试服——资源可删除、可改元数据；优先操作已播放完内容。凭据位置 `F:\Develop\codex_work\Documents\Codex\资源.txt`（值不得进仓库/日志/报告/记忆/截图）。生产 `jellyfins.zhangwenkang.com` 依旧永久只读。
 - **测试服盘点（T0 实测，2026-11-22）**：
@@ -44,7 +47,7 @@
 | 已看/未看 | `playStateApi.markPlayedItem/markUnplayedItem` | ✅ | ✅ | ✅ | 保持，接 T1 错误模型 |
 | 播放进度上报 | `playStateApi.reportPlayback*` | ✅ | ✅ | ✅ | 保持 |
 | 阅读进度回写 | `itemsApi.updateItemUserData` | ✅ | — | ✅ | 保持 |
-| 评分（PersonalRating） | `userLibraryApi.updateUserItemData(rating)`（jar 实证含 rating/likes 字段） | API 支持，web 无原生入口 | ❌ | ❌ | **T3** |
+| 评分元数据显示（CommunityRating/OfficialRating） | 读字段（`ItemFields.COMMUNITY_RATING` 等） | ✅ | ✅ | ⚠️ 仅详情页（W75 #12） | **T3'**（2026-11-22 用户裁定：评分=服务器元数据展示；个人评分写入备份 `backup/w8-t3-personal-rating`、登记 W9） |
 | 喜欢（Likes） | 同上(likes) | web 无 | ❌ | ❌ | 不纳入（L535 未列，裁定 W9 候选登记） |
 | 歌单创建 | `playlistsApi.createPlaylist` | ✅ | ❌ | ❌（歌单=本地歌单） | **T4** |
 | 歌单加入 | `playlistsApi.addToPlaylist` | ✅ | ❌ | ❌ | **T4** |
@@ -103,13 +106,11 @@ jellyfin-test.zhangwenkang.com 已获用户可写授权（可删除/改元数据
 - **真机取证点**：两账号分别登录，`uiautomator dump` 取证入口有无。
 - **前置依赖**：受限用户创建为完整矩阵前置；未就绪可先交 ①② 两轮。
 
-### T3 评分：PersonalRating（派 deepseek，1 卡）
+### T3' 评分元数据显示 ✅（2026-11-22，`a56cb0ec`，Pad 真机验证通过）
 
-- **目标**：条目评分读写——`userLibraryApi.updateUserItemData(rating)`（SDK jar 实证字段存在；端点/参数核实记录入代码注释或任务证据，WRITE-02）。范围：影视详情（电影/单集）+ 音乐曲目；UI 位置与交互按 `V2_DESIGN.md`。
-- **文件边界**：`data/repository`（新增 rating 读写方法 + `UserDataEvents` 广播位）、`modes/film`、`modes/music` 对应 ViewModel/UI。
-- **验收要点**：①写后回读一致（禁乐观更新）；②清除评分（rating=null）可用；③失败走 T1 错误模型；④契约测试覆盖 rating 字段映射。
-- **写边界与还原声明**：对测试服已播完电影/音频评分；还原 = 评分置 null（回读验证 null）。
-- **真机取证点**：评分 → 回读值正确；清评分 → 回读 null。依赖 T1 完成。
+- **交付**：`CommunityRatingBadge`（`BaseBadge` + `communityRatingText()` 唯一口径 + 黄铜 `ColorDark.tertiaryDark` token，仅非 null 渲染）挂入 `PosterItemCard`/`LandscapeItemCard`/`ItemCard`/`EpisodeCard` 海报左下角；`FindroidSeason` 补 `communityRating` 字段与映射；覆盖走廊/海报行/媒体库网格/收藏页/搜索/季页单集列表（复用关系实测清单在交付报告）；数据链路实测确认列表查询默认返回 CommunityRating（SDK ItemFields 无该枚举、不受门控），零额外请求、零服务器写。新增单测 5 条，三模块单测全绿。
+- **验收记录（Pad）**：首页走廊四卡 ★7.8/7.0/7.6/8.7（告白实行委员会等，左下角）；电影库网格乔西的虎与鱼 ★8.3（8.266→8.3 一位小数正确）、告白 ★7.8；无评分条目（测试服 AURA/被狙击的学园，API 实证 CommunityRating=None）**正确不显示**——K60 早前所见 AURA ★6.4 系生产服元数据，非缺陷。收藏页为空态（还原后无收藏），与网格同为 ItemCard 覆盖。
+- **遗留**：①横版卡 48dp 抬升按标题块估算，真机目检通过（走廊证据在案）；②黄铜直接引用 TV 遗留 `ColorDark.tertiaryDark`（phone `CinefinColors` 未暴露评分槽位）——主题感知评分色登记 W9；③音乐域评分显示（T3b）登记 W9 backlog。
 
 ### T4 服务端播放列表：创建 + 加入（派 deepseek，1 卡）
 
@@ -129,7 +130,7 @@ jellyfin-test.zhangwenkang.com 已获用户可写授权（可删除/改元数据
 
 ### T6 条目元数据编辑（派 deepseek，1 卡）
 
-- **目标**：`itemUpdateApi.updateItem` 元数据编辑——字段裁剪：名称/简介/SortName；权限模型实测记录（Jellyfin 12 元数据写权限，WRITE-02）；快照→写→回读→还原闭环。
+- **目标**：`itemUpdateApi.updateItem` 元数据编辑——字段裁剪：名称/简介/SortName；**权限模型已实证（T2，2026-11-22）**：Jellyfin 12 `ItemUpdateController` 整体 RequiresElevation=**仅管理员可编辑**（zhangwenkang 全库 403、admin 204），非管理员入口一律隐藏（走 T2 `canEditMetadata()`）；快照→写→回读→还原闭环。
 - **文件边界**：`data/repository`、`app/phone`/`modes/film` 详情页编辑入口。
 - **验收要点**：①编辑→回读新值；②还原→回读原值；③无权限账号入口隐藏（T2）；④契约测试覆盖 updateItem 字段映射。
 - **写边界与还原声明**：仅改测试服已播完电影/单集的名称/简介/SortName；每次编辑前快照原值入任务证据，验证后写回原值并回读确认，不留改动。
