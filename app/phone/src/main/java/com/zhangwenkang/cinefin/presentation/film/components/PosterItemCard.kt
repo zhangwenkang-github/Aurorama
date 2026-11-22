@@ -136,6 +136,9 @@ fun PosterItemCard(
                 cornerPadding = CinefinSpacing.Space2,
             )
 
+            // W8-T3'：评分徽标压在海报左下角（进度条上方），与右上角标区不冲突。
+            CommunityRatingBadge(item = item, cornerPadding = CinefinSpacing.Space2)
+
             if (resumeFraction > 0f) {
                 Box(
                     modifier =

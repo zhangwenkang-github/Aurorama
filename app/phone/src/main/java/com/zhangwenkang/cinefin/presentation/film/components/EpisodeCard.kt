@@ -85,6 +85,11 @@ fun EpisodeCard(
                 if (episode.isDownloaded()) DownloadedBadge()
                 ItemStatusBadge(episode)
             }
+            // W8-T3'：评分徽标在海报左下角（单集卡没有进度条，贴角即可）。
+            CommunityRatingBadge(
+                item = episode,
+                cornerPadding = MaterialTheme.spacings.small,
+            )
         }
         Spacer(Modifier.width(MaterialTheme.spacings.default / 2))
         Box(modifier = Modifier.fillMaxHeight()) {

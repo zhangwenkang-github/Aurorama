@@ -123,6 +123,13 @@ fun ItemCard(
                 downloadBadge = downloadBadge,
                 cornerPadding = CinefinSpacing.Space3,
             )
+            // W8-T3'：评分徽标在海报左下角；横版卡 / 续播卡的进度条占位时抬 12dp（进度条 + 间距）。
+            CommunityRatingBadge(
+                item = item,
+                cornerPadding = CinefinSpacing.Space3,
+                bottomInset =
+                    if (direction == Direction.HORIZONTAL || showResumeProgress) 12.dp else 0.dp,
+            )
             if (direction == Direction.HORIZONTAL || showResumeProgress) {
                 ProgressBar(
                     item = item,

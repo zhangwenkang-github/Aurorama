@@ -25,6 +25,8 @@ data class FindroidSeason(
     override val unplayedItemCount: Int?,
     override val images: FindroidImages,
     override val chapters: List<FindroidChapter> = emptyList(),
+    /** W8-T3'：服务器社区评分（`BaseItemDto.CommunityRating`）；离线合成条目没有该字段，保持 null。 */
+    val communityRating: Float? = null,
 ) : FindroidItem
 
 fun BaseItemDto.toFindroidSeason(jellyfinRepository: JellyfinRepository): FindroidSeason {
@@ -44,6 +46,7 @@ fun BaseItemDto.toFindroidSeason(jellyfinRepository: JellyfinRepository): Findro
         seriesId = seriesId!!,
         seriesName = seriesName.orEmpty(),
         images = toFindroidImages(jellyfinRepository),
+        communityRating = communityRating,
     )
 }
 

@@ -164,6 +164,13 @@ fun LandscapeItemCard(
             bottomEndExtraBottom = 48.dp,
         )
 
+        // W8-T3'：评分徽标在海报左下角；左下角是标题 / 元信息文字块，按同款 48dp 规则抬到文字块上方。
+        CommunityRatingBadge(
+            item = item,
+            cornerPadding = CinefinSpacing.Space3,
+            bottomInset = 48.dp,
+        )
+
         Column(
             modifier =
                 Modifier.align(Alignment.BottomStart)
