@@ -44,7 +44,9 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
 import com.zhangwenkang.cinefin.core.presentation.components.DownloadSnackbarDuration
 import com.zhangwenkang.cinefin.core.presentation.components.rememberMultiSelectState
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckDialog
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckEnvironment
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckRules
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummySeason
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
@@ -53,6 +55,7 @@ import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadState
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadViewModel
+import com.zhangwenkang.cinefin.film.presentation.detail.MediaBatchPrecheck
 import com.zhangwenkang.cinefin.film.presentation.season.SeasonAction
 import com.zhangwenkang.cinefin.film.presentation.season.SeasonState
 import com.zhangwenkang.cinefin.film.presentation.season.SeasonViewModel
@@ -90,6 +93,8 @@ fun SeasonScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val viewLabel = stringResource(CoreR.string.snackbar_view)
     var batchDialogVisible by remember { mutableStateOf(false) }
+    /** W7-F3：多选「下载」的前置检查快照（null = 不显示提示层），与 W7-T1b 媒体库多选共用同一提示层。 */
+    var precheck by remember { mutableStateOf<MediaBatchPrecheck?>(null) }
     /** W63：季详情集列表长按多选（复用 W58 core 框架，与库网格同一交互）。 */
     var batchSelection by rememberMultiSelectState()
 
@@ -161,10 +166,16 @@ fun SeasonScreen(
             }
             if (targets.isEmpty()) {
                 detailDownloadViewModel.reportSkipped(selection)
+                batchSelection = batchSelection.clear()
             } else {
-                detailDownloadViewModel.enqueueBatch(targets)
+                // W7-F3：先弹前置检查（空间 / 网络 / 媒体类型确认），确认后才入队；只带装得下的子集。
+                precheck =
+                    DetailDownloadRules.mediaBatchPrecheck(
+                        items = targets,
+                        availableBytes = DownloadPrecheckEnvironment.availableBytes(context, 0),
+                        title = context.getString(CoreR.string.detail_action_download),
+                    )
             }
-            batchSelection = batchSelection.clear()
         },
         onDownloadClick = {
             val selection =
@@ -214,6 +225,41 @@ fun SeasonScreen(
             onDismiss = { batchDialogVisible = false },
             availableBytes = DownloadPrecheckEnvironment.availableBytes(context, 0),
             networkPrompt = DownloadPrecheckEnvironment.networkPrompt(context),
+        )
+    }
+
+    precheck?.let { snapshot ->
+        DownloadPrecheckDialog(
+            content = snapshot.content,
+            space = snapshot.space,
+            networkPrompt = DownloadPrecheckEnvironment.networkPrompt(context),
+            deferNote =
+                if (snapshot.truncated) {
+                    stringResource(
+                        CoreR.string.download_precheck_batch_items_truncated,
+                        snapshot.items.size,
+                        DownloadPrecheckRules.formatBytes(snapshot.requiredBytes),
+                        snapshot.deferredCount,
+                    )
+                } else {
+                    null
+                },
+            onConfirm = {
+                detailDownloadViewModel.enqueueBatch(snapshot.items)
+                precheck = null
+                batchSelection = batchSelection.clear()
+            },
+            // 「仅 Wi-Fi 下载」= 同样入队，由 W57 网络策略等待 Wi-Fi / 以太网。
+            onWifiOnly = {
+                detailDownloadViewModel.enqueueBatch(snapshot.items)
+                precheck = null
+                batchSelection = batchSelection.clear()
+            },
+            // 取消：退出提示层并清空多选（与改动前「点下载即清空」的交互一致）。
+            onDismiss = {
+                precheck = null
+                batchSelection = batchSelection.clear()
+            },
         )
     }
 }
