@@ -21,8 +21,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** W8-T1：写行为——权限拒绝不落本地、网络 / 5xx 保留补偿并返回排队语义。 */
+/** W8-T1：写行为——权限拒绝不落本地、网络 / 5xx 保留补偿并返回排队语义。W8-T1r：补同步调度与标志清理。 */
 class UserDataWriteBehaviorTest {
+    private val scheduler = CountingUserDataSyncScheduler()
     private val database = mockk<ServerDatabaseDao>(relaxed = true)
     private val userLibraryApi = mockk<UserLibraryApi>(relaxed = true)
     private val playStateApi = mockk<PlayStateApi>(relaxed = true)
@@ -51,6 +52,7 @@ class UserDataWriteBehaviorTest {
             appPreferences = AppPreferences(preferences),
             localLibrary = mockk<LocalLibraryRepository>(relaxed = true),
             metadataSnapshotStore = mockk(relaxed = true),
+            userDataSyncScheduler = scheduler,
         )
 
     @Test
@@ -65,6 +67,7 @@ class UserDataWriteBehaviorTest {
         assertEquals(403, (failure as UserDataWriteFailure.PermissionDenied).status)
         coVerify(exactly = 0) { database.setFavorite(any(), any(), any()) }
         coVerify(exactly = 0) { database.setUserDataToBeSynced(any(), any(), any()) }
+        assertEquals(0, scheduler.calls)
     }
 
     @Test
@@ -80,6 +83,7 @@ class UserDataWriteBehaviorTest {
         )
         coVerify(exactly = 0) { database.setFavorite(any(), any(), any()) }
         coVerify(exactly = 0) { database.setUserDataToBeSynced(any(), any(), any()) }
+        assertEquals(0, scheduler.calls)
     }
 
     @Test
@@ -91,6 +95,7 @@ class UserDataWriteBehaviorTest {
         assertEquals(UserDataWriteOutcome.QueuedForSync, outcome)
         coVerify(exactly = 1) { database.setFavorite(USER_ID, ITEM_ID, true) }
         coVerify(exactly = 1) { database.setUserDataToBeSynced(USER_ID, ITEM_ID, true) }
+        assertEquals(1, scheduler.calls)
     }
 
     @Test
@@ -102,6 +107,7 @@ class UserDataWriteBehaviorTest {
         assertEquals(UserDataWriteOutcome.QueuedForSync, outcome)
         coVerify(exactly = 1) { database.setPlayed(USER_ID, ITEM_ID, true) }
         coVerify(exactly = 1) { database.setUserDataToBeSynced(USER_ID, ITEM_ID, true) }
+        assertEquals(1, scheduler.calls)
     }
 
     @Test
@@ -113,6 +119,7 @@ class UserDataWriteBehaviorTest {
         assertEquals(UserDataWriteOutcome.QueuedForSync, outcome)
         coVerify(exactly = 1) { database.setPlayed(USER_ID, ITEM_ID, false) }
         coVerify(exactly = 1) { database.setUserDataToBeSynced(USER_ID, ITEM_ID, true) }
+        assertEquals(1, scheduler.calls)
     }
 
     @Test
@@ -125,20 +132,33 @@ class UserDataWriteBehaviorTest {
         assertEquals(UserDataWriteOutcome.QueuedForSync, outcome)
         coVerify(exactly = 1) { database.setPlayed(USER_ID, ITEM_ID, true) }
         coVerify(exactly = 1) { database.setUserDataToBeSynced(USER_ID, ITEM_ID, true) }
+        assertEquals(1, scheduler.calls)
     }
 
     @Test
-    fun `服务器确认后落本地且不标待同步`() = runBlocking {
+    fun `服务器确认后落本地并清除排队标志`() = runBlocking {
         val outcome = repository.markAsPlayed(ITEM_ID)
 
         assertEquals(UserDataWriteOutcome.Confirmed, outcome)
         coVerify(exactly = 1) { database.setPlayed(USER_ID, ITEM_ID, true) }
         coVerify(exactly = 1) { playStateApi.markPlayedItem(ITEM_ID) }
-        coVerify(exactly = 0) { database.setUserDataToBeSynced(any(), any(), any()) }
+        // W8-T1r：成功路径清掉可能残留的排队标志（true 从未被写入）。
+        coVerify(exactly = 1) { database.setUserDataToBeSynced(USER_ID, ITEM_ID, false) }
+        coVerify(exactly = 0) { database.setUserDataToBeSynced(any(), any(), true) }
+        assertEquals(0, scheduler.calls)
     }
 
     private companion object {
         val USER_ID: UUID = UUID.fromString("11111111-1111-4111-8111-111111111111")
         val ITEM_ID: UUID = UUID.fromString("22222222-2222-4222-8222-222222222222")
+    }
+}
+
+private class CountingUserDataSyncScheduler : UserDataSyncScheduler {
+    var calls: Int = 0
+        private set
+
+    override fun schedule() {
+        calls++
     }
 }

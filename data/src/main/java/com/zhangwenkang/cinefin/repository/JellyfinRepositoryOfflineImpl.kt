@@ -60,6 +60,8 @@ class JellyfinRepositoryOfflineImpl(
     private val appPreferences: AppPreferences,
     /** W37：本地媒体库（离线模式同样可播本机文件夹里的媒体）。 */
     private val localLibrary: LocalLibraryRepository,
+    /** W8-T1r：离线排队写同样要触发补同步（WorkManager 实现由 app 层注入；默认空实现供单测）。 */
+    private val userDataSyncScheduler: UserDataSyncScheduler = UserDataSyncScheduler.NoOp,
 ) : JellyfinRepository, CatalogReadPort {
     private var offlineMovieMapper: suspend (FindroidMovieDto, UUID) -> FindroidMovie =
         { dto, userId ->
@@ -521,6 +523,8 @@ class JellyfinRepositoryOfflineImpl(
                 )
             } else {
                 persist(userId)
+                // W8-T1r：离线写本来就是「排队」，立刻触发一次带网络约束的补同步。
+                userDataSyncScheduler.schedule()
                 UserDataWriteOutcome.QueuedForSync
             }
         }

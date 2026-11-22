@@ -42,6 +42,7 @@ import com.zhangwenkang.cinefin.utils.Downloader
 import com.zhangwenkang.cinefin.work.MpvCleanupWorker
 import com.zhangwenkang.cinefin.work.ReaderProgressSyncWorker
 import com.zhangwenkang.cinefin.work.SyncWorker
+import com.zhangwenkang.cinefin.work.WorkManagerUserDataSyncScheduler
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -177,7 +178,7 @@ class BaseApplication : Application(), Configuration.Provider, SingletonImageLoa
             OneTimeWorkRequestBuilder<SyncWorker>().setConstraints(constraints).build()
 
         workManager.enqueueUniqueWork(
-            uniqueWorkName = "syncUserData",
+            uniqueWorkName = WorkManagerUserDataSyncScheduler.SYNC_USER_DATA_WORK_NAME,
             existingWorkPolicy = ExistingWorkPolicy.KEEP,
             request = syncWorkRequest,
         )

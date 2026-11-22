@@ -74,13 +74,17 @@ private fun InvalidStatusException.toUserDataWriteFailure(): UserDataWriteFailur
 /**
  * 统一写事务（V2-WRITE-05/09）。
  *
- * 先请求服务器、成功后才落本地——权限拒绝时本地库保持原样，不会出现「已收藏但服务器从未接受」的假状态。 网络 / 5xx 失败保留既有补偿语义：本地落库 + 标记待同步，返回
+ * 先请求服务器、成功后才落本地——权限拒绝时本地库保持原样，不会出现「已收藏但服务器从未接受」的假状态。 网络 / 5xx 失败保留既有补偿语义：本地落库 + 标记待同步 + 调度一次补同步，返回
  * [UserDataWriteOutcome.QueuedForSync]。
+ *
+ * 成功路径同时清掉该行可能残留的 `toBeSynced`（先排队、后在线操作成功的脏状态，W8-T1r）。
  */
 internal suspend fun runUserDataWrite(
     remote: suspend () -> Unit,
     persistLocal: suspend () -> Unit,
     markForSync: suspend () -> Unit,
+    clearForSync: suspend () -> Unit,
+    scheduleSync: () -> Unit,
 ): UserDataWriteOutcome {
     try {
         remote()
@@ -91,8 +95,10 @@ internal suspend fun runUserDataWrite(
         if (!failure.retryable) return UserDataWriteOutcome.Failed(failure)
         persistLocal()
         markForSync()
+        scheduleSync()
         return UserDataWriteOutcome.QueuedForSync
     }
     persistLocal()
+    clearForSync()
     return UserDataWriteOutcome.Confirmed
 }

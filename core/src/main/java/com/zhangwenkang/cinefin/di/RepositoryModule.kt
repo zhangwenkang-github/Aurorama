@@ -9,6 +9,7 @@ import com.zhangwenkang.cinefin.repository.JellyfinRepositoryImpl
 import com.zhangwenkang.cinefin.repository.JellyfinRepositoryOfflineImpl
 import com.zhangwenkang.cinefin.repository.MetadataPreloader
 import com.zhangwenkang.cinefin.repository.MetadataSnapshotStore
+import com.zhangwenkang.cinefin.repository.UserDataSyncScheduler
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import dagger.Module
 import dagger.Provides
@@ -29,6 +30,7 @@ object RepositoryModule {
         appPreferences: AppPreferences,
         localLibrary: LocalLibraryRepository,
         metadataSnapshotStore: MetadataSnapshotStore,
+        userDataSyncScheduler: UserDataSyncScheduler,
     ): JellyfinRepositoryImpl {
         println("Creating new jellyfinRepositoryImpl")
         return JellyfinRepositoryImpl(
@@ -38,6 +40,7 @@ object RepositoryModule {
             appPreferences,
             localLibrary,
             metadataSnapshotStore,
+            userDataSyncScheduler,
         )
     }
 
@@ -54,6 +57,7 @@ object RepositoryModule {
         serverDatabase: ServerDatabaseDao,
         appPreferences: AppPreferences,
         localLibrary: LocalLibraryRepository,
+        userDataSyncScheduler: UserDataSyncScheduler,
     ): JellyfinRepositoryOfflineImpl {
         println("Creating new jellyfinRepositoryOfflineImpl")
         return JellyfinRepositoryOfflineImpl(
@@ -62,6 +66,7 @@ object RepositoryModule {
             serverDatabase,
             appPreferences,
             localLibrary,
+            userDataSyncScheduler,
         )
     }
 

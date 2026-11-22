@@ -95,6 +95,8 @@ class JellyfinRepositoryImpl(
     /** W37：本地媒体库（合成 LOCAL 源，播放链路零改动复用）。 */
     private val localLibrary: LocalLibraryRepository,
     metadataSnapshotStore: MetadataSnapshotStore,
+    /** W8-T1r：排队写的补同步调度（WorkManager 实现由 app 层注入；默认空实现供单测）。 */
+    private val userDataSyncScheduler: UserDataSyncScheduler = UserDataSyncScheduler.NoOp,
 ) : JellyfinRepository, OriginScopedJellyfinRepository, CatalogReadPort {
     private var downloadedMovieMapper: suspend (FindroidMovieDto, UUID?) -> FindroidMovie =
         { dto, userId ->
@@ -2062,59 +2064,68 @@ class JellyfinRepositoryImpl(
     override suspend fun markAsFavorite(itemId: UUID): UserDataWriteOutcome {
         // W69：收藏状态内嵌在各列表的条目里，本地落库后直接失效会话缓存（下一次读取静默取新值）。
         invalidateMetadataCache()
-        return withContext(Dispatchers.IO) {
-            val userId = jellyfinApi.userId!!
-            val outcome =
-                runUserDataWrite(
-                    remote = { jellyfinApi.userLibraryApi.markFavoriteItem(itemId) },
-                    persistLocal = { database.setFavorite(userId, itemId, true) },
-                    markForSync = { database.setUserDataToBeSynced(userId, itemId, true) },
-                )
-            // W60b：单一数据源广播（本地状态已落库，详情 / 列表 / 收藏页统一靠它刷新）。
-            if (outcome.localStateChanged) UserDataEvents.notifyFavoriteChanged()
-            outcome
-        }
+        val outcome =
+            writeUserData(
+                itemId = itemId,
+                remote = { jellyfinApi.userLibraryApi.markFavoriteItem(itemId) },
+                persistLocal = { userId -> database.setFavorite(userId, itemId, true) },
+            )
+        // W60b：单一数据源广播（本地状态已落库，详情 / 列表 / 收藏页统一靠它刷新）。
+        if (outcome.localStateChanged) UserDataEvents.notifyFavoriteChanged()
+        return outcome
     }
 
     override suspend fun unmarkAsFavorite(itemId: UUID): UserDataWriteOutcome {
         invalidateMetadataCache()
-        return withContext(Dispatchers.IO) {
-            val userId = jellyfinApi.userId!!
-            val outcome =
-                runUserDataWrite(
-                    remote = { jellyfinApi.userLibraryApi.unmarkFavoriteItem(itemId) },
-                    persistLocal = { database.setFavorite(userId, itemId, false) },
-                    markForSync = { database.setUserDataToBeSynced(userId, itemId, true) },
-                )
-            // W60b：单一数据源广播（取消收藏同样通知所有展示方刷新）。
-            if (outcome.localStateChanged) UserDataEvents.notifyFavoriteChanged()
-            outcome
-        }
+        val outcome =
+            writeUserData(
+                itemId = itemId,
+                remote = { jellyfinApi.userLibraryApi.unmarkFavoriteItem(itemId) },
+                persistLocal = { userId -> database.setFavorite(userId, itemId, false) },
+            )
+        // W60b：单一数据源广播（取消收藏同样通知所有展示方刷新）。
+        if (outcome.localStateChanged) UserDataEvents.notifyFavoriteChanged()
+        return outcome
     }
 
     override suspend fun markAsPlayed(itemId: UUID): UserDataWriteOutcome {
         invalidateMetadataCache()
-        return withContext(Dispatchers.IO) {
-            val userId = jellyfinApi.userId!!
-            runUserDataWrite(
-                remote = { jellyfinApi.playStateApi.markPlayedItem(itemId) },
-                persistLocal = { database.setPlayed(userId, itemId, true) },
-                markForSync = { database.setUserDataToBeSynced(userId, itemId, true) },
-            )
-        }
+        return writeUserData(
+            itemId = itemId,
+            remote = { jellyfinApi.playStateApi.markPlayedItem(itemId) },
+            persistLocal = { userId -> database.setPlayed(userId, itemId, true) },
+        )
     }
 
     override suspend fun markAsUnplayed(itemId: UUID): UserDataWriteOutcome {
         invalidateMetadataCache()
-        return withContext(Dispatchers.IO) {
+        return writeUserData(
+            itemId = itemId,
+            remote = { jellyfinApi.playStateApi.markUnplayedItem(itemId) },
+            persistLocal = { userId -> database.setPlayed(userId, itemId, false) },
+        )
+    }
+
+    /**
+     * W8-T1：用户数据写（收藏 / 已看）的统一落点。
+     *
+     * W8-T1r：排队时触发一次带网络约束的补同步；服务器确认时顺手清掉该行残留的 `toBeSynced` 标志。
+     */
+    private suspend fun writeUserData(
+        itemId: UUID,
+        remote: suspend () -> Unit,
+        persistLocal: suspend (userId: UUID) -> Unit,
+    ): UserDataWriteOutcome =
+        withContext(Dispatchers.IO) {
             val userId = jellyfinApi.userId!!
             runUserDataWrite(
-                remote = { jellyfinApi.playStateApi.markUnplayedItem(itemId) },
-                persistLocal = { database.setPlayed(userId, itemId, false) },
+                remote = remote,
+                persistLocal = { persistLocal(userId) },
                 markForSync = { database.setUserDataToBeSynced(userId, itemId, true) },
+                clearForSync = { database.setUserDataToBeSynced(userId, itemId, false) },
+                scheduleSync = { userDataSyncScheduler.schedule() },
             )
         }
-    }
 
     override fun getBaseUrl() = jellyfinApi.api.baseUrl.orEmpty()
 
