@@ -1,16 +1,16 @@
 # 2.0 W7 · 下载域（任务卡）
 
-> 状态：`IN_PROGRESS`（2026-11-22 **W7 会话2**：T1/T2 收口（代码 + K60 真机取证通过），下接 T3）
+> 状态：`DONE`（2026-11-22 **W7 会话4（T6 全量验收，Kimi 亲自）**：§8 全 55 条终判 = ✅50 / ⚠️5 / ❌0，⚠️ 全部裁定去向（见「T6 全量验收」节）；K60 全链路矩阵绿，设备已还原，证据 `F:\Develop\code_data\qa\w7-s4\`）
 > 依据：`docs/V2_REQUIREMENTS.md` §8（V2-DOWNLOAD 全 55 条）与 §15 波次（W7 ← W3）；设计唯一权威 `docs/V2_DESIGN.md`；下载线历史 `docs/DOWNLOAD_PLAN.md`（1.4.x W32–W80 + 1.4.1 验收整改 R1，只读追溯）。
 
 ## 状态块（新会话先读这里）
 
-- 分支：`codex/v2-integration`；W7 开工基线 = W6 收官 HEAD（`1562fb48`，以 git log 为准）。
+- 分支：`codex/v2-integration`；W7 收官 HEAD = `648b4b82`（以 git log 为准）。
+- **会话4（2026-11-22，T6 全量验收，Kimi 亲自 + deepseek 子代理辅助）**：**55 条终判 = ✅50 / ⚠️5 / ❌0**（逐条表与裁定见「T6 全量验收」节）。质量门全绿：ktfmtCheck（T5b KDoc 格式修复 `648b4b82`）+ 全仓单测 3272 条 0 失败（9 模块）+ assembleDebug。K60 全链路矩阵：提示层（MKV/602.4MB/空间预检）→ 入队 → 暂停残片保留（273MB）→ 同文件 Range 续传（→307MB）→ 完成 → **视频完成通知点击直达 PlayerActivity PLAYING（T5 未验项闭合）** → 断网离线播放 ✓；设备还原 72372KB/4 文件 + force-stop + 网络恢复（Kimi 复核）。**新发现 2 修复卡**：⑥季页集多选绕过提示层（`SeasonScreen.kt:147` 直接 enqueueBatch，需求 06 → ⚠️）；⑦已下载音乐离线冷路径断（冷启动索引 songs=0、点击仍发 Items 请求，需求 28 → ⚠️；T5b 修的是 DataSource 暖路径，非回归）。T5 未验项全裁定：书籍完成通知缺失 → 立项 backlog；权限引导条维持单测口径（4 条）。观察项裁定：①COMPLETED 重复入队 FILE_ERROR = 引擎缺陷修复卡（`DownloaderImpl.kt:858-886` 幂等跳过集不含 COMPLETED）；②PENDING 滞留 = W76-B9 遗留④立项修；③书籍无服务端样本 → 申请样本窗口；⑤多选大小恒未知 = OUT-接受（零网络口径固有取舍，`MusicModeViewModel.kt:1872` 注释明示）。backlog/观察项登记见「T6 全量验收」末节，供 W9-T0 聚合。
 - **会话2 续3（同日，Kimi 派单 + K60 取证）**：T5（`13692252`，通知直达/500ms/权限引导）+ **T5b（`5779ac29`，Kimi 红线直改）** 收口。T5 真机：音乐完成通知（id=7603「下载完成/夜曲」）点击 → MainActivity → 音乐起播（`PlaybackStart item=cc3b8c4b` 即夜曲）✓；下载页进度 8 连采持续递增（与 500ms 一致，采样间隔 1.7s 无法排他区分，以代码常量 `POLL_INTERVAL_MS=500` 为准）✓。**T5b（既有缺陷，K60 取证揪出）**：已下载音乐离线起播 = `MalformedURLException: no protocol`（sources 表 LOCAL 裸路径被 `ServerAuthDataSource` 当 HTTP URL）→ 起播失败按 T8 容错自动跳曲；W36 只验过视频/阅读、音乐离线播放从未被真实执行（T0-53 仅验导航）。修复 = `ServerAuthDataSource` 对非 http(s) 委托 `FileDataSource`（`player/local` 红线，Kimi 申报直改）；修复后夜曲离线起播 PLAYING 0:09/3:46 不跳曲 ✓。**T5 未验项转 T6**：视频/书籍完成通知点击落点（S1E1 完成通知在取证时未点验即清理）；权限引导条（禁改系统设置不可构造，4 条单测覆盖）；书籍完成通知不存在（书籍链走 BookDownloadManager 不经 DownloadNotifications，T5 卡外，T6 裁定是否立项）。**观察项②（PENDING 滞留=W76-B9 遗留④）当日第二次复现**（清理后补下一路生花再滞留，重启 recoverOnStartup 恢复并 Range 续传完成 16465673→28367204，顺带再证 W50 续传）——T6 建议立项修。
 - **会话2 续2（同日，Kimi 派单 + K60 取证）**：T4（`e716aede`，13 文件 +1290 行）收口。K60 取证：排序入口（页签行）+ 四档菜单（默认/名称/下载时间/大小）+ 选择交互无回归 ✓；「已完成 0→1」初判回归实为 W63 两阶段加载时延（DB 1 行 = 页面 1 行，正确）。无样本三组记 ⚠️（单测覆盖判定逻辑，T6/样本窗口补真机）：SP「其他」组（生产只读造不出 SP 剧集）、无季专项文案（无无季 Show 样本）、书籍徽标/分区（无服务端书籍）。排序真实重排单一条目不可目测，纯函数 4 条排序单测覆盖。T4 偏差记录：排序菜单设第四档「默认」（回退分组排序）；书籍分区仅「书籍」筛选下渲染（ALL 混排不插分区头）；SP 判定只看季名别名表（不用 seasonIndex==0）。
 - **会话2 续（同日，Kimi 派单）**：T1b（`c038b001`，媒体库多选接提示层，K60 快验过）+ T3（`081bd69a`，书籍链路状态机对齐）收口。T3：书籍 `PENDING/RUNNING/PAUSED/COMPLETED/FAILED` 五态 + 暂停保留残片/恢复 Range 续传/FAILED 手动重试/重启按 `isAutoResumeOnRestore` 恢复（PAUSED 保持用户意图），有声书 `BookAudioRules` 识别 + 时长投影（识别不了不造数据，章节数 backlog）；Room schema 未动（status String 列）；**真机验证受样本限制**（服务器 books 库为空，W80 记录延续）——暂停/续传/重试以 `LocalRangeServer` + 真实 `BookDownloadRangeTransfer` 契约级单测作证（断言 `Range: bytes=N-`/`If-Range`/字节拼接），真机四项推迟至 T6 或样本窗口。W80 语义（主动下载后台继续、按需落盘页面取消）不回归。
 - **会话2（2026-11-22，Kimi 派单 + K60 取证）**：T1（`cc7b88a1`）+ T2（`d0b52cf5`）+ T1b（`c038b001`）收口，Kimi 文案修正 `c03e56cf`（提示层 Wi-Fi 场景主行动「下载」）。T1 真机：视频/音乐提示层文案逐项命中口径、提示先于网络（点击零 OkHttp）、整剧批量「共约 13.63 GB + 空间预检行」、入队→真实落盘→App 内删除→占用回基线全闭环。T2 真机：单曲×2 原文件落盘（ID3+fLaC 字节验证）、歌单批量「将下载 7 首→已加入 7 首」、下载页专辑分组；引擎无 URL 日志，`/Audio/{id}/stream` 端点以契约测试 8 条 + 代码链路 + 字节验证组合取证。**T1b（媒体库多选接提示层）**：三处入口（Favorites/Library/VideoScreen）统一 `GENERIC_BATCH` 面板「将下载 N 项」+ 空间截断前 N 项；K60 快验：多选 2 项 → 提示层 → 主行动「下载」（Wi-Fi 文案修正真机生效）→「已加入下载队列 · 2 项」→ 清理回基线。证据根 `F:\Develop\code_data\qa\w7-s2\`（EVIDENCE.md 汇总）。**观察项登记 T6**：①跨版本遗留 COMPLETED 记录批量未跳过 → 97% FILE_ERROR（rename 撞既有文件）；②批量删除后新入队 PENDING 滞留、重启恢复（顺带验证 W50 启动恢复）——**会话2 末已定性：即 W76-B9 已知遗留④「删除任务后再次入队偶发不立即启动」的再现**（`DownloadEngineScheduleRules` 头注释有案）；W76-Q7 加固只修了「运行中 worker 退出竞态」，本次实例 = 删除链取消 worker → WM 指数退避重排（ENQUEUED）→ 新入队 `ensureEngineRunning` 决策 WAIT/节流，等退避窗（分钟级）才起传；T6 裁定是否立项修；③书籍提示层无服务端样本（W80 记录延续）；⑤库网格条目不带 sources，多选批量大小恒「未知」（零网络口径的固有取舍）。空间不足/移动数据场景设备上不可构造，由 `DetailDownloadRulesTest` 单测覆盖判定逻辑。
-- **会话1（2026-11-22，Kimi 亲自）**：T0 现状核对完成（对照 §8 全 55 条，逐条归证见下文「T0 现状核对」）；判定 **55 条 = ✅34 / ⚠️9 / ❌12**。缺口聚为五簇：①提示层（06/07/08/10/11/12/13/50/55，最大缺口，视频/音乐点击直接入队无前置检查）；②音乐端点与播放列表批量（03/33）；③书籍链路状态机（21–24 书籍侧无暂停/续传/重试）；④下载中心展示项（37/39/44/45/46/51）；⑤反馈细节（09/25/27）。任务卡 **T1–T6 定稿待派**（见文末「任务卡」）；1.4.1 两条口径类遗留（GB/GiB、ETA 公式）经核对**已收敛判 ✅**，无需修（归并结论见 T0 末节）。
 - **现状基线（T0 要点）**：下载引擎 = 1.4.x W50 自研 OkHttp Range 引擎（`core/utils/DownloaderImpl.kt` 6280 行；WM 长时 worker `DownloadEngineWorker` 托管前台通知；Room `sources` 表 v12 六列）；任务状态机 6 态（`DownloadTaskRules`，PENDING/RUNNING/PAUSED/COMPLETED/FAILED/DELETING）；入口与反馈 = W51 粒度（整剧/全季/单集）+ W60b 徽标与 Snackbar 三态；下载页 = W59 钻取式 IA + W63 两阶段加载；删除链路 = 1.4.1 整改 R1 代次收敛（`DownloadDeleteBatch`/`DownloadControlPlane`）；音乐批量 = W59 专辑多选 + 专辑详情「下载专辑」；书籍 = W80 独立 `bookDownloadTasks` 链路（仅 RUNNING/FAILED/COMPLETED 三态）。**缺口集中在「前置条件检查提示层」与若干展示/端点细节，引擎主体不需重做。**
 - **设计分权**：一切视觉/交互规格以 `V2_DESIGN.md` + 本文任务卡内的「设计口径（Kimi 定稿）」为准，deepseek 零设计权；组件一律复用既有 Lumen 面板语言（`LumenCardFrame` / `CinefinButton` / `CinefinSnackbarHost`，参照 `BatchDownloadDialog`）。
 - **取证纪律**（沿用 W6）：① K60（`8e875894`）行为日志一律流式 `adb logcat --pid=<pid>` 落盘；② 装机前核对 APK mtime 晚于目标合并；③ 设备用后停播放 + force-stop 兜底；④ 测试下载任务验收后必须经 App 内删除流程清空（`files/downloads` 归零、占用回基线）；⑤ 生产 jellyfins 永久只读（App 下载链路自身请求除外）。
@@ -130,7 +130,112 @@
 
 **T0 汇总：55 条 = ✅34 / ⚠️9 / ❌12**——✅ 34 条（01/02/04/05/14/15/16/17/18/19/20/21/22/23/24/26/28/29/30/31/32/35/36/38/40/41/42/43/47/48/49/52/53/54，其中 15 为「引擎分类鉴权」裁定），⚠️ 9 条（07/09/25/27/33/34/37/39/44），❌ 12 条（03/06/08/10/11/12/13/45/46/50/51/55）。
 
-## 任务卡（T1–T6，定稿待派）
+## T6 全量验收（2026-11-22 会话4，Kimi 亲自）
+
+门禁：ktfmtCheck ✅（含 T5b KDoc 修复 `648b4b82`）/ 全仓单测 3272 条 0 失败（9 模块）/ `:app:phone:assembleDebug` ✅。K60 全链路矩阵与 T5 未验项证据：`F:\Develop\code_data\qa\w7-s4\EVIDENCE.md`。终判合计 **✅50 / ⚠️5 / ❌0**（⚠️ = 06/11/27/28/44，去向见末节裁定登记）。
+
+### §8.1 能力边界与提示层（01–13）
+
+| ID | 终判 | 证据与裁定 |
+|---|---|---|
+| 01 | ✅ | T0 ✅ + T1 提示层全入口（K60：视频/音乐/整剧/库网格多选）；Snackbar 三态不回归 |
+| 02 | ✅ | T0：官方原始端点 `GET /Items/{id}/Download`，无转码参数 |
+| 03 | ✅ | T2：`MusicDownloadUrl`（`/Audio/{id}/stream.{container}`）契约测试 8 条 + 落盘原文件字节验证（w7-s2 ID3/fLaC） |
+| 04 | ✅ | T0：书籍原始文件直取，格式白名单在阅读/导入侧 |
+| 05 | ✅ | T0：客户端按 Content-Length/Content-Range 自算 |
+| 06 | ⚠️ | T1 提示层覆盖视频单集/电影/整剧/全季/音乐/库网格多选（K60 验）；**季页集多选入口遗漏**（`SeasonScreen.kt:147` 直接 `enqueueBatch`，w7-s4 发现⑥）→ 修复卡 F3 |
+| 07 | ✅ | T1：点击时前置空间检查「需要 vs 可用」+ 不足禁确认 + 去清理（K60 显示行验；不足场景不可构造，`DetailDownloadRulesTest` 覆盖） |
+| 08 | ✅ | T1：移动数据 + 仅 Wi-Fi → 双选项（禁改系统设置不可构造，单测 + 代码裁定） |
+| 09 | ✅ | T5：通知权限引导条（`DownloadsNotificationNudgeTest` 4 条单测口径）；存储半条天然满足 |
+| 10 | ✅ | T1 + K60：原始文件下载 / 大小 602.4MB / 容器 MKV |
+| 11 | ⚠️ | 曲名/艺术家/格式/时长达标（K60）；**大小恒「未知」** = 零网络口径固有取舍（`MusicModeViewModel.kt:1872` 注释明示）→ OUT-接受 O1 |
+| 12 | ✅（契约） | 书籍提示层 = 格式 + 离线打开方式、有声书时长（可识别时）、sidecar 行；无服务端样本（观察项③）以代码 + 单测作证 → 样本窗口 S1 补验 |
+| 13 | ✅ | T1 + K60：点击 → 提示层期间零 OkHttp（w7-s2 logcat 02:46–02:49 段） |
+
+### §8.2 流程、状态机与反馈（14–31）
+
+| ID | 终判 | 证据与裁定 |
+|---|---|---|
+| 14 | ✅ | T0：DownloadTask + Room sources v12 + sidecar |
+| 15 | ✅ | T0 裁定：快照先于队列行；鉴权交引擎 401/403 分类 |
+| 16 | ✅ | T0 + T1 提示层三态拦截；K60 幂等不重复入队（观察项①为 COMPLETED 代次缺陷，见 F1，不影响活动态幂等） |
+| 17 | ✅ | T0：WM 长时 worker + setForeground + 并发偏好 |
+| 18 | ✅ | T0：64KB 流式落盘 + 4s fsync |
+| 19 | ✅ | T0：外部字幕/trickplay/图片附属阶段 |
+| 20 | ✅ | T0 + K60：rename 置 COMPLETED（`Worker result SUCCESS` 11:44:43） |
+| 21 | ✅ | K60 复验：暂停残片 273MB 保留（mtime 冻结）；书籍侧 T3 契约（`BookDownloadPauseResumeTest` 4 条 LocalRangeServer） |
+| 22 | ✅ | K60 复验：同一 `.download` 文件 273→307MB 续增（Range 语义，无归零无新分片）；书籍侧契约断言 `Range`/`If-Range`/字节拼接 |
+| 23 | ✅ | T0：`canRetry(FAILED)` + `resumeStrategy` 分流；书籍 FAILED 重试契约 |
+| 24 | ✅ | 6 态状态机（超需求 5 态）；T3 书籍对齐五态 |
+| 25 | ✅ | T5：`POLL_INTERVAL_MS=500`（w7-s2 8 连采递增）；徽标监控 1500ms 裁定豁免已记录 |
+| 26 | ✅ | T0 + K60：组头聚合 x/y + 字节 + 速度 + ETA |
+| 27 | ⚠️ | 视频/音乐完成通知直达真机验（音乐 w7-s2 起播、视频 w7-s4 点击 → `PlayerActivity` PLAYING）；**书籍链无完成/失败通知** → 修复卡 F5 |
+| 28 | ⚠️ | 视频离线打开 K60 验（断网 `PlayerActivity` PLAYING 本地 g1，position 前进）；书籍 W36 验；**音乐离线冷路径断**（w7-s4 发现⑦：冷启动索引 songs=0、已完成点击仍发 `Items` 请求）→ 修复卡 F4 |
+| 29 | ✅ | T0 + w7-s2 观察项②两次复现均 `recoverOnStartup` 恢复续传完成（顺带再证 W50） |
+| 30 | ✅ | T0 + K60：残片字节数与文件一致 |
+| 31 | ✅ | T0：Room 单一数据源三路投影 |
+
+### §8.3 媒体类型适配（32–35）
+
+| ID | 终判 | 证据与裁定 |
+|---|---|---|
+| 32 | ✅ | T0 + K60 全链路复验（原始文件/暂停续传/sidecar） |
+| 33 | ✅ | T2：歌单批量 K60 验（「将下载 7 首 → 已加入 7 首」）；封面保存 `files/images`；歌词离线保存核对登记 L2（W5 链） |
+| 34 | ✅（契约） | T3：`BookAudioRules` 有声书识别 + 时长投影（识别不了不造数据）；章节数 backlog 延续 L3；无样本契约作证 → S1 |
+| 35 | ✅ | T0：`DownloadMediaKind` 显式分支 |
+
+### §8.4 层级结构（36–45）
+
+| ID | 终判 | 证据与裁定 |
+|---|---|---|
+| 36 | ✅ | T0：有季分层/无季平铺 |
+| 37 | ✅（契约） | T4：SP/无季集 → 显式「其他」折叠组（契约单测 2 条：合并/别名表）；生产只读无 SP 样本 → S1 |
+| 38 | ✅ | T0：Series/Season/Episode 三层批量入口 |
+| 39 | ✅ | T4：无季专项文案（`BatchDownloadDialog` `seasonlessShow` + `ShowScreen.kt:211` 判定，与「其他」分桶同源）；无无季 Show 样本，代码裁定 |
+| 40 | ✅ | T0：专辑组头聚合 x/y + 体积 |
+| 41 | ✅ | T0：曲目平铺 Track 行 |
+| 42 | ✅ | T0 + K60：单曲只入队该 Track |
+| 43 | ✅ | T0：层级 = 导航上下文属性 |
+| 44 | ⚠️ | T4：类型分区（电子书/有声书/漫画，契约单测）已实现；**按作者折叠未实现**（展示层无 author 逻辑）→ F6 |
+| 45 | ✅（契约） | T4：格式徽标取扩展名、未知不显示（契约单测）；无书籍服务端样本 → S1 |
+
+### §8.5 下载中心与边界（46–55）
+
+| ID | 终判 | 证据与裁定 |
+|---|---|---|
+| 46 | ✅ | T4：类型筛选 chips = 分区载体，折叠/选择按类型隔离（契约单测 2 条）+ K60 排序/筛选无回归 |
+| 47 | ✅ | T0：队列视图与离线库视图分离 |
+| 48 | ✅ | T0：媒体类型徽标常驻 |
+| 49 | ✅ | T0 + K60：聚合进度 + 钻取叶子单独暂停/重试/删除 |
+| 50 | ✅ | T1：批次总大小 + 空间预检 + 前 N 集截断（K60 整剧「共约 13.63 GB」预检行；截断纯函数单测） |
+| 51 | ✅ | T4：三档排序同级生效不跨层（契约单测 4 条 + K60 菜单真机） |
+| 52 | ✅ | T0：队列只存叶子 + 展示分组字段 |
+| 53 | ✅ | T0 + w7-s2 音乐通知直达起播复证（`MusicItemRoute` 全屏，不进视频界面） |
+| 54 | ✅ | T0（R1 代次删除管线）+ K60 组删除流畅回基线 |
+| 55 | ✅ | T1：视频详情主入口提示层 K60 验（季页集多选遗漏归入 06 ⚠️ / F3，主入口满足） |
+
+### 裁定登记（供 W9-T0 聚合）
+
+**修复卡（backlog-fix）**：
+- **F1**（观察项①）enqueue 幂等跳过集补 COMPLETED + 最终文件存在校验（`DownloaderImpl.kt:858-886`；现象 = 遗留 COMPLETED 记录重复入队重下至 97% rename 撞文件 FILE_ERROR）。
+- **F2**（观察项② = W76-B9 遗留④，立项修）删除链取消 worker → WM 指数退避重排（ENQUEUED）→ 新入队 `ensureEngineRunning` 决策 WAIT/节流，PENDING 滞留至退避窗；两次复现，重启 `recoverOnStartup` 可恢复。
+- **F3**（w7-s4 发现⑥，需求 06）`SeasonScreen` 集多选接 `GENERIC_BATCH` 提示层（复用 T1b 模式）。
+- **F4**（w7-s4 发现⑦，需求 28）音乐离线冷路径：离线媒体库索引不含已下载音乐（重读 songs=0）+ 已完成音乐点击绕行网络 `Items` 请求；T5b 已修 DataSource 暖路径，本卡在加载/导航层。
+- **F5**（需求 27）书籍链（BookDownloadManager）完成/失败通知接入 + 直达阅读器（现状全程无通知）。
+- **F6**（需求 44）下载中心书籍按作者折叠。
+
+**backlog-low**：
+- **L1**（w7-s4 发现⑧）下载页已完成分组行整行可点（现仅缩略图区域响应）。
+- **L2**（需求 33 附注）已下载音乐的歌词离线保存核对（W5 链）。
+- **L3**（需求 34 附注，T3 延续）有声书章节数投影。
+
+**OUT-接受（已知限制）**：
+- **O1**（观察项⑤ + 需求 11）列表/网格条目无 sources 时大小恒「未知」：零网络口径固有取舍（提示层不得发网络请求），代码注释明示；如未来允许详情已加载 sources 时回填大小，可再评估。
+
+**样本窗口申请**：
+- **S1**（观察项③）书籍/有声书服务端样本 + SP 剧集/无季 Show 样本：补验 12、21–24 书籍侧、34、44、45 真机项与 37「其他」组（生产只读造不出，需用户在可写测试服务器建样本或开放窗口）。
+
+## 任务卡（T1–T6，全部收口）
 
 通用约束（每卡继承，不在卡内复述）：构建 `./gradlew.bat :app:phone:assembleDebug --console=plain --max-workers=2` + 根 `ktfmtCheck` + 相关模块单测绿；每任务一子代理一 commit；子代理禁 adb；红线见 `AGENTS.md`（`settings.gradle.kts` / `libs.versions.toml` / `NavigationRoot.kt` / `AppPreferences.kt` / `AndroidManifest.xml` / `player:*` 动前申报；生产服务器只读）；设计以 `V2_DESIGN.md` + 卡内「设计口径」为准，子代理不得自由发挥样式；证据清单 = 构建/测试输出关键行 + diff 摘要，核心链路另需 K60 真机文本取证（Kimi 执行）。
 
