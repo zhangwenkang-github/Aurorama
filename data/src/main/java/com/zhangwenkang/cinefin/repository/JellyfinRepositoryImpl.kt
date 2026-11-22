@@ -64,6 +64,13 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonObject
+import org.jellyfin.sdk.api.client.HttpMethod
+import org.jellyfin.sdk.api.client.RawResponse
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.DeviceOptionsDto
@@ -2148,19 +2155,30 @@ class JellyfinRepositoryImpl(
     /**
      * W8-T6：读取条目元数据快照（名称 / 简介 / 排序名称）。
      *
-     * 直连服务器而不走会话缓存：对话框要展示的是服务器当前值，编辑后以服务端为准。任何异常都返回 null，入口据此禁用提交。
+     * 走原始 JSON 通道（`GET /Items/{id}` 的字节原文）而不是 SDK 类型化 DTO：SDK 的 DateTime 序列化器会把服务端的
+     * `0001-01-01T00:00:00.0000000Z`（DateTime.MinValue）重写成设备时区的历史 LMT 偏移（如 `+08:05:43`）， 服务端
+     * System.Text.Json 无法解析，写路径会稳定 400（见 [updateItemMetadata]）。
      *
-     * 排序名称取 `forcedSortName ?: sortName`：`sortName` 是服务器按库存 / 标题派生的只读回显值，只有 `forcedSortName`
-     * 才是用户自定义项（Jellyfin 12.4.0 `ItemUpdateController` 只消费后者）。预填显示当前生效的排序名：有自定义显自定义，无自定义显示派生值。
+     * 排序名称取 `ForcedSortName ?: SortName`：`SortName` 是服务器派生的只读回显值，只有 `ForcedSortName`
+     * 才是用户自定义项（Jellyfin 12.4.0 `ItemUpdateController` 只消费后者）。预填显示当前生效的排序名。
+     *
+     * 任何失败（HTTP 异常 / 非 200 / JSON 解析失败）都返回 null（fail-closed），入口据此禁用提交。
      */
     override suspend fun fetchItemMetadataSnapshot(itemId: UUID): ItemMetadataSnapshot? =
         withContext(Dispatchers.IO) {
+            val raw = rawItemJson(itemId) ?: return@withContext null
             try {
-                currentItemDto(itemId).toMetadataSnapshot()
+                val json = Json.parseToJsonElement(raw).jsonObject
+                ItemMetadataSnapshot(
+                    itemId = itemId,
+                    name = json.stringOrNull("Name").orEmpty(),
+                    overview = json.stringOrNull("Overview"),
+                    sortName = json.stringOrNull("ForcedSortName") ?: json.stringOrNull("SortName"),
+                )
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (error: Exception) {
-                Timber.w(error, "读取条目 %s 的元数据快照失败", itemId)
+                Timber.w(error, "解析条目 %s 的元数据快照失败", itemId)
                 null
             }
         }
@@ -2168,10 +2186,16 @@ class JellyfinRepositoryImpl(
     /**
      * W8-T6：编辑条目元数据（`POST /Items/{itemId}`）。
      *
-     * 服务器按提交的 DTO 覆盖更新，因此先 GET 完整 DTO、只 `copy` 三个可编辑字段再提交；网络 / 5xx / 403 都不做本地改动
-     * （不排队补偿），成功后失效会话缓存并广播内容变更，由详情页重新加载。
+     * 根因：SDK 的 `userLibraryApi.getItem` + `itemUpdateApi.updateItem` 组合会把 `BaseItemDto`
+     * 重新序列化，DateTime 字段按设备时区重写（`0001-01-01T00:00:00Z` → `0001-01-01T08:05:43+08:05:43`），服务端无法解析 →
+     * 稳定 400； 现代日期也会被改写成 `+08:00`，同样篡改了服务端原值。因此写路径不再经过类型化 DTO，而是取 GET 的 JSON 原文、只替换三个键 后原样
+     * POST（其余键值保持服务端格式）。
      *
-     * 排序名称写 `forcedSortName`：服务端只认这个字段（`sortName` 是派生只读回显值，提交后被忽略）；传 null 等于清除自定义排序名，回落到派生值。
+     * 三个键：`Name`、`Overview`、`ForcedSortName`（服务端只认它，`SortName` 是派生的只读回显值）；传 null 等于清除自定义
+     * 排序名，服务端回落到派生值。
+     *
+     * 失败语义与 T1 一致：`ApiClient.request` 对非 2xx 抛 `InvalidStatusException`，403 → 权限拒绝、5xx → 服务端错误、 IO
+     * / 超时 → 网络失败；不排队补偿，本地不做任何改动。
      */
     override suspend fun updateItemMetadata(
         itemId: UUID,
@@ -2181,10 +2205,14 @@ class JellyfinRepositoryImpl(
     ): UserDataWriteOutcome =
         withContext(Dispatchers.IO) {
             try {
-                val current = currentItemDto(itemId)
-                jellyfinApi.itemUpdateApi.updateItem(
-                    itemId,
-                    current.copy(name = name, overview = overview, forcedSortName = sortName),
+                val original =
+                    Json.parseToJsonElement(rawItemResponse(itemId).body.decodeToString())
+                        .jsonObject
+                jellyfinApi.api.request(
+                    method = HttpMethod.POST,
+                    pathTemplate = "/Items/$itemId",
+                    queryParameters = emptyMap(),
+                    requestBody = metadataUpdateBody(original, name, overview, sortName),
                 )
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -2196,16 +2224,42 @@ class JellyfinRepositoryImpl(
             UserDataWriteOutcome.Confirmed
         }
 
-    private suspend fun currentItemDto(itemId: UUID): BaseItemDto =
-        jellyfinApi.userLibraryApi.getItem(itemId = itemId, userId = jellyfinApi.userId!!).content
-
-    private fun BaseItemDto.toMetadataSnapshot(): ItemMetadataSnapshot =
-        ItemMetadataSnapshot(
-            itemId = id,
-            name = name.orEmpty(),
-            overview = overview,
-            sortName = forcedSortName ?: sortName,
+    /** `GET /Items/{id}` 的原始响应（2xx 才返回；非 2xx 由 SDK 抛 `InvalidStatusException`，沿用 T1 异常映射）。 */
+    private suspend fun rawItemResponse(itemId: UUID): RawResponse =
+        jellyfinApi.api.request(
+            method = HttpMethod.GET,
+            pathTemplate = "/Items/$itemId",
+            queryParameters = mapOf("userId" to jellyfinApi.userId),
         )
+
+    /** 同 [rawItemResponse]，但任何失败都返回 null（读快照是 fail-closed）。 */
+    private suspend fun rawItemJson(itemId: UUID): String? =
+        try {
+            val response = rawItemResponse(itemId)
+            if (response.status == 200) response.body.decodeToString() else null
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: Exception) {
+            Timber.w(error, "读取条目 %s 的原始 JSON 失败", itemId)
+            null
+        }
+
+    /** 只替换三个可编辑键，其余键值按服务端原文保留（键顺序不变）。 */
+    private fun metadataUpdateBody(
+        original: JsonObject,
+        name: String,
+        overview: String?,
+        sortName: String?,
+    ): String {
+        val fields = original.toMutableMap()
+        fields["Name"] = JsonPrimitive(name)
+        fields["Overview"] = overview?.let(::JsonPrimitive) ?: JsonNull
+        fields["ForcedSortName"] = sortName?.let(::JsonPrimitive) ?: JsonNull
+        return JsonObject(fields).toString()
+    }
+
+    private fun JsonObject.stringOrNull(key: String): String? =
+        (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
 
     /**
      * W8-T1：用户数据写（收藏 / 已看）的统一落点。
