@@ -32,7 +32,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 线 | 状态 | 文档 |
 |----|------|------|
 | 1.4.1 | 🟢 **已发布**（2026-11-18）：master=`76f5350b`、tag `v1.4.1`、GitHub Release 双 APK | 发布目录 `releases/1.4.1-signed-r34-2026-11-17/` |
-| 2.0.0 | 🟡 **W8 进行中（T1–T6 全部交付并 Pad 验收通过，剩 T7 全量验收矩阵）**（2026-11-23 会话7）：T6 复验收官——电影《乔西的虎与鱼》+单集《结婚了。》S1E1 双成功闭环全绿、测试服无残留（T6=`425e155b`+`ef53444e`+`8a5eac2a`+`b9ce45fc`）；W9-T0 聚合顺延 | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · `V2_W8_TASKS.md` · `V2_W7_TASKS.md` |
+| 2.0.0 | 🟡 **W8 进行中（T1–T6 全部交付并 Pad 验收通过；T7 会话8 半程：admin 侧 5/5 绿+T1r 末环闭环+WRITE-11 审计闭环，zhangwenkang/w8limited 真机格 BLOCKED 于 Pad 蜂窝断连）**（2026-11-23）；W9-T0 聚合顺延 | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · `V2_W8_TASKS.md` · `V2_W7_TASKS.md` |
 | 播放器 | 🟢 W2 架构重构完成；W4 开工（2026-11-19）：T0 现状核对 + 任务卡定稿（T1–T7）；retrySeek 跨条目重建已修（`ccdafefa`）；生产 TLS `-0x7280` 复验通过（服务器侧修复生效，K60 mpv 正常播放） | `docs/V2_W4_TASKS.md` · `docs/V2_ARCHITECTURE.md` §3 |
 | 下载/离线 | 🟢 W7 已收官（2026-11-22）：55 条 = ✅51/⚠️4/❌0；修复卡 F1b 音乐重下载删档绕过 / F2 PENDING 滞留 / F4 音乐离线冷路径 / F5 书籍通知 / F6 作者折叠 / F7 引擎空转热循环，全登记 W9 聚合（F1 引擎层与 F3 已修销项） | `docs/V2_W7_TASKS.md` · `docs/DOWNLOAD_PLAN.md` |
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
@@ -41,31 +41,34 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-22）
 
-1. **2.0.0 W8 服务器写进行中（2026-11-23 会话7）**：T1–T6 全部交付并 Pad 真机验收通过。**T6 复验收官**：Pad 设备遗留（localhost:18080 抓包地址致全请求发死地址、入口 fail-closed 隐藏）已按「删服务器条目重建」处置（删前核查 T1 排队行=0），现直连测试服 admin、流量实证全走直连；电影《乔西的虎与鱼》（编辑→服务端回读→API 还原→回读原值）与单集《结婚了。》S1E1（**全 App 内闭环**，含 App 内还原）双双全绿，测试服无 T6 残留。会话7 观察登记（非 T6 缺陷，移交 T7/W9）：全局搜索结果区不渲染（API 12 条正常）、`ServerAddressesViewModel` 删当前地址无 UI 反馈。下一步 **T7 全量验收矩阵+多服务器隔离核查**（W8 收官卡，w8limited 已在测试服就绪）。
+1. **2.0.0 W8 服务器写进行中（2026-11-23 会话8）**：T7 收官卡半程。**已绿**：admin 侧 5/5（收藏/已看双向+回读+还原、歌单创建+加入+清理、失败可见弹窗、删除/元数据复用 T5/T6）；T1r 排队末环代码闭环（`SyncWorker.kt:77-89` 仅写成功才清行，会话7 排队行=0 即铁证）；WRITE-11 审计闭环（写路径身份/Room 键控/policy/详情缓存安全，UserDataEvents 理论级；新发现无身份 60s TTL 封面/曲目缓存轻缺口登记 W9）；admin 侧终态无残留。**BLOCKED**：Pad 的 ZTE RedCap CPE 蜂窝掉注册（飞行模式测试触发，47 分钟未自愈）——**Pad 飞行模式写测试自此禁用**；zhangwenkang 复核 + w8limited App 侧（密码已重置 `w8limited-t7`，样本 邻座的怪同学 OAD `c05b69e1`）+ 会话7 搜索复核待网络续跑，脚本就绪 `F:\Develop\code_data\qa\w8-t7\`。
 2. **W7 下载域已收官（2026-11-22 会话4，HEAD `da4791d5`）**：55 条 = ✅51/⚠️4/❌0；⚠️ 全裁定（F1b/F2/F4/F5/F6/F7 + L1–L3 + O1 + S1，见 `V2_W7_TASKS.md`「裁定登记」）；F3（`d8ee43af`）与 F1 引擎层（`d5e8b119`）已修；F1b/F7 根因已定位、修复卡就绪（优先候选）；W9-T0 聚合顺延至 W8 收官后。
 3. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
-### W8 会话8 开工提示词（新会话直接粘贴；格式遵循 AGENTS.md「开工提示词统一标准」）
+### W8 会话9 开工提示词（新会话直接粘贴；格式遵循 AGENTS.md「开工提示词统一标准」）
 
 ```
 你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
 工作区：F:\Develop\code_data\work_tree\Aurorama\v2-merge-141（分支 codex/v2-integration）。
 开工读序：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V2_W8_TASKS.md 状态块
 → 记忆库 MEMORY.md（读序外文件按需，不通读）。
-现状：W8 T1–T6 全部交付并 Pad 真机验收通过（T6=425e155b/ef53444e/8a5eac2a/
-b9ce45fc 双成功闭环）；测试服无 W8 残留；Pad=43af8627 现处直连测试服 admin；
-HEAD 以 git log 为准。会话7 观察登记：全局搜索结果区不渲染、ServerAddresses
-删当前地址无 UI 反馈（移交 T7/W9）。
-本会话任务（1 卡，Kimi 主导真机）：W8-T7 收官——WRITE-12 三态全量验收矩阵
-（admin / zhangwenkang / w8limited × 收藏/已看/歌单创建加入/条目删除/元数据
-编辑：权限正确成功、不足被拒且 UI 合理、失败可见）+ WRITE-11 多服务器隔离
-核查（UserDataEvents 全局单例、切服缓存/事件串扰）+ 测试服终态核对无残留
-+ W9 backlog 移交（T0 裁定 LATER：Likes/合集/刷新元数据/图片 + 会话7 两观察
-项），W8 状态置收官。
+现状：W8 T1–T6 全部交付并 Pad 验收通过；T7 会话8 半程——admin 侧 5/5 绿、
+T1r 末环闭环、WRITE-11 审计闭环、admin 侧终态无残留（矩阵全文与 API 脚本
+在 F:\Develop\code_data\qa\w8-t7\）；HEAD 以 git log 为准；Pad=43af8627 直连
+测试服 admin。会话8 BLOCKED 项：Pad 的 ZTE CPE 蜂窝断连致 zhangwenkang/
+w8limited 真机格未跑——开工先 curl 探测 https://jellyfin-test.zhangwenkang.com
+/System/Info/Public 是否 200；**Pad 飞行模式写测试禁用**（会杀死 CPE 蜂窝）。
+本会话任务（1 卡，Kimi 主导真机）：W8-T7 续跑收官——①zhangwenkang App 登录
+复核反向门控（详情页无编辑/删除入口 dump 取证）；②w8limited App 登录（密码
+w8limited-t7，会话8 已 API 重置）：仅见动漫+书籍 2 库取证、收藏/已看双向
++回读+还原（样本 邻座的怪同学 OAD c05b69e1，起始 False/False）、删除/编辑
+入口隐藏 dump、音乐/歌单入口可见性口径；③会话7 全局搜索不渲染复核（代码
+指针 SearchState.kt:38-52）；④终态核对无残留；⑤W9 backlog 移交（matrix.md
+「观察登记」12 条）后 W8 状态置收官。若网络仍不通：只收口文档、不动真机。
 设计分权：设计以 docs/V2_DESIGN.md 为准，deepseek 零设计权。
 门禁与纪律：见 AGENTS.md 质量门/红线；子代理禁 adb；真机取证 Kimi 做（Pad=
-43af8627，对话框坐标按 dump+50 修正；Pad 无中文输入，中文还原走 API）；
-w8limited 已在测试服（动漫+书籍 2 库、无删除权）；K60 连生产服禁写。
+43af8627，对话框坐标按 dump+50 修正或 Tab+Enter 键盘导航；Pad 无中文输入）；
+K60 连生产服禁写。
 交接：收口按 AGENTS.md 五件事，提示词按统一标准填槽更新。
 ```
 
