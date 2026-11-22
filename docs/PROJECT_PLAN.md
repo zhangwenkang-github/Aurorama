@@ -45,22 +45,21 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 2. **W7 下载域已收官（2026-11-22 会话4，HEAD `da4791d5`）**：55 条 = ✅51/⚠️4/❌0；⚠️ 全裁定（F1b/F2/F4/F5/F6/F7 + L1–L3 + O1 + S1，见 `V2_W7_TASKS.md`「裁定登记」）；F3（`d8ee43af`）与 F1 引擎层（`d5e8b119`）已修；F1b/F7 根因已定位、修复卡就绪（优先候选）；W9-T0 聚合顺延至 W8 收官后。
 3. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
-### W8 会话5 开工提示词（新会话直接粘贴；格式遵循 AGENTS.md「开工提示词统一标准」）
+### W8 会话6 开工提示词（新会话直接粘贴；格式遵循 AGENTS.md「开工提示词统一标准」）
 
 ```
 你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
 工作区：F:\Develop\code_data\work_tree\Aurorama\v2-merge-141（分支 codex/v2-integration）。
 开工读序：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V2_W8_TASKS.md 状态块
 → 记忆库 MEMORY.md（读序外文件按需，不通读）。
-现状：T1/T1r/T2/T3'/T4 已交付验收（ea8b9c10/e98632b4/a98b4566/a56cb0ec/
-77143ae0）；T5 阻塞——「其他」库对 zhangwenkang 0 可删条目，待用户补样本
-（/medi/下载完成/隐藏影库）；deleteItem 契约探针已留存（204×4）；T2 实证元数据
-编辑=仅管理员；设备 Pad 连测试服、K60 连生产服（禁写）；HEAD 以 git log 为准。
-本会话任务（1–2 卡）：若用户已补 T5 样本→W8-T5 条目删除（itemsApi.deleteItem
-+二次确认 WRITE-06+T2 权限门控，仅测试服「其他」库已播完样本、≤5 条、删前快照
-登记、清单经用户确认，派 deepseek）；否则→W8-T6 条目元数据编辑（itemUpdateApi
-.updateItem，名称/简介/SortName，仅管理员入口走 T2 canEditMetadata，快照→写→
-回读→还原闭环，派 deepseek）。设计细节按 V2_W8_TASKS.md 任务卡。
+现状：T1/T1r/T2/T3'/T4/T5 已交付验收（ea8b9c10/e98632b4/a98b4566/a56cb0ec/
+77143ae0/91d8d73b）；12 条判定 03/06/09 已转 ✅；T2 实证元数据编辑=仅管理员
+（ItemUpdateController RequiresElevation）；设备 Pad 连测试服、K60 连生产服
+（禁写）；HEAD 以 git log 为准。
+本会话任务（1–2 卡）：W8-T6 条目元数据编辑（itemUpdateApi.updateItem，字段裁
+剪=名称/简介/SortName，非管理员入口隐藏走 T2 canEditMetadata，快照→写→回读→
+还原闭环，仅改测试服已播完电影/单集，派 deepseek）；视容量续 W8-T7 全量验收
+矩阵+多服务器隔离核查（Kimi 主导）。设计细节按 V2_W8_TASKS.md 任务卡。
 设计分权：设计以 docs/V2_DESIGN.md 为准，deepseek 零设计权。
 门禁与纪律：见 AGENTS.md 质量门/红线；子代理禁 adb；真机取证 Kimi 做（W8
 用 Pad=43af8627，对话框坐标按 dump+50 修正）。写验证只打测试服、优先已播
