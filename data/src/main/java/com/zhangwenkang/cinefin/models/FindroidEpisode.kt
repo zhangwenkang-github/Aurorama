@@ -35,6 +35,8 @@ data class FindroidEpisode(
     override val images: FindroidImages,
     override val chapters: List<FindroidChapter>,
     override val trickplayInfo: Map<String, FindroidTrickplayInfo>?,
+    /** W8-T5：服务端按当前用户 policy 计算的条目级删除权；null / 缺失一律按不可删处理。 */
+    val canDelete: Boolean = false,
 ) : FindroidItem, FindroidSources
 
 suspend fun BaseItemDto.toFindroidEpisode(
@@ -85,6 +87,7 @@ suspend fun BaseItemDto.toFindroidEpisode(
             chapters = toFindroidChapters(),
             trickplayInfo =
                 trickplay?.mapValues { it.value[it.value.keys.max()]!!.toFindroidTrickplayInfo() },
+            canDelete = canDelete == true,
         )
     } catch (_: NullPointerException) {
         null
@@ -137,5 +140,7 @@ suspend fun FindroidEpisodeDto.toFindroidEpisode(
         images = toLocalFindroidImages(itemId = id),
         chapters = chapters ?: emptyList(),
         trickplayInfo = trickplayInfos,
+        // 本地 DTO 投影没有服务端 canDelete 字段：离线 / 本地条目一律不可删。
+        canDelete = false,
     )
 }

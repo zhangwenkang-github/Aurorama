@@ -22,8 +22,10 @@ import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -46,6 +48,8 @@ import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyVideoMetadata
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
+import com.zhangwenkang.cinefin.film.presentation.detail.DetailDeleteRules
+import com.zhangwenkang.cinefin.film.presentation.detail.DetailWriteEvent
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieAction
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieState
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieViewModel
@@ -56,6 +60,8 @@ import com.zhangwenkang.cinefin.player.local.domain.PlayerMediaInfoFormat
 import com.zhangwenkang.cinefin.presentation.components.DetailSkeleton
 import com.zhangwenkang.cinefin.presentation.downloads.DownloadStatusViewModel
 import com.zhangwenkang.cinefin.presentation.film.components.ActorsRow
+import com.zhangwenkang.cinefin.presentation.film.components.DeleteServerFileButton
+import com.zhangwenkang.cinefin.presentation.film.components.DeleteServerFileDialog
 import com.zhangwenkang.cinefin.presentation.film.components.DetailBodyMode
 import com.zhangwenkang.cinefin.presentation.film.components.DetailHero
 import com.zhangwenkang.cinefin.presentation.film.components.DetailLoadError
@@ -146,6 +152,19 @@ fun MovieScreen(
         }
     }
 
+    // W8-T5：删除服务器文件成功后关闭详情页；权限拒绝 / 失败走同一条 Snackbar 通道。
+    LaunchedEffect(Unit) {
+        viewModel.deleteEvents.collect { event ->
+            if (event == DetailWriteEvent.Confirmed) {
+                navigateBack()
+            } else {
+                detailWriteEventMessage(context, event)?.let { message ->
+                    snackbarHostState.showSnackbar(message = message)
+                }
+            }
+        }
+    }
+
     MovieScreenLayout(
         state = state,
         scrollKey = "movie:$movieId",
@@ -177,6 +196,8 @@ fun MovieScreen(
         },
         onDownloaderAction = { action -> downloaderViewModel.onAction(action) },
         onRetry = { viewModel.loadMovie(movieId = movieId) },
+        offlineMode = isOfflineMode,
+        onDeleteConfirmed = { viewModel.deleteItem() },
     )
 }
 
@@ -195,6 +216,8 @@ private fun MovieScreenLayout(
     onAction: (MovieAction) -> Unit,
     onDownloaderAction: (DownloaderAction) -> Unit,
     onRetry: () -> Unit = {},
+    offlineMode: Boolean = false,
+    onDeleteConfirmed: () -> Unit = {},
 ) {
     val safePadding = rememberSafePadding()
     val gutter = rememberPageGutter()
@@ -210,6 +233,7 @@ private fun MovieScreenLayout(
 
     val scrollState = rememberScrollMemoryState(scrollKey)
     val bodyMode = detailBodyMode(hasContent = state.movie != null, hasError = state.error != null)
+    var deleteServerDialogOpen by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         state.movie
@@ -263,6 +287,17 @@ private fun MovieScreenLayout(
                             modifier = Modifier.fillMaxWidth(),
                             heroLayout = heroLayout,
                         )
+                        if (
+                            DetailDeleteRules.shouldShowDeleteAction(
+                                canDelete = movie.canDelete,
+                                offlineMode = offlineMode,
+                            )
+                        ) {
+                            DeleteServerFileButton(
+                                onClick = { deleteServerDialogOpen = true },
+                                modifier = Modifier.padding(top = CinefinSpacing.Space2),
+                            )
+                        }
                     }
 
                     Column(modifier = Modifier.padding(start = paddingStart, end = paddingEnd)) {
@@ -351,6 +386,19 @@ private fun MovieScreenLayout(
             onBackClick = { onAction(MovieAction.OnBackClick) },
             onHomeClick = { onAction(MovieAction.OnHomeClick) },
         )
+
+        if (deleteServerDialogOpen) {
+            state.movie?.let { movie ->
+                DeleteServerFileDialog(
+                    itemName = movie.name,
+                    onDelete = {
+                        deleteServerDialogOpen = false
+                        onDeleteConfirmed()
+                    },
+                    onDismiss = { deleteServerDialogOpen = false },
+                )
+            }
+        }
 
         CinefinSnackbarHost(
             hostState = snackbarHostState,

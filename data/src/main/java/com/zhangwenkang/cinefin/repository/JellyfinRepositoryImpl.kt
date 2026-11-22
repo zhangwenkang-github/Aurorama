@@ -2107,6 +2107,45 @@ class JellyfinRepositoryImpl(
     }
 
     /**
+     * W8-T5：删除服务器条目（`DELETE /Items/{itemId}`）。
+     *
+     * 与用户数据写不同，删除**不存在排队补偿**：网络 / 5xx / 403 都在本地保持原样；只有服务器确认后才清本地缓存与下载记录。
+     */
+    override suspend fun deleteItem(itemId: UUID): UserDataWriteOutcome =
+        withContext(Dispatchers.IO) {
+            try {
+                jellyfinApi.libraryApi.deleteItem(itemId)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                return@withContext UserDataWriteOutcome.Failed(error.toUserDataWriteFailure())
+            }
+            // 服务器已删除：本地清理是尽力而为，失败也不能把已完成的删除报告成失败。
+            try {
+                clearDeletedItemLocalState(itemId)
+            } catch (error: Exception) {
+                Timber.w(error, "Local cleanup after deleting item %s failed", itemId)
+            }
+            // 列表 / 详情都可能缓存了该条目，统一失效（含磁盘快照），下次读取直接打服务器。
+            invalidateMetadataCache()
+            UserDataEvents.notifyContentChanged()
+            UserDataWriteOutcome.Confirmed
+        }
+
+    /** 删除服务器条目后的本地清理：条目行、用户数据、来源（含媒体流级联）、下载意图。 */
+    private suspend fun clearDeletedItemLocalState(itemId: UUID) {
+        // 同一 itemId 只可能落在 movies 或 episodes 之一；两条都删无害，避免客户端再猜条目类型。
+        database.deleteMovie(itemId)
+        database.deleteEpisode(itemId)
+        database.deleteUserData(itemId)
+        database.getSources(itemId).forEach { source ->
+            database.deleteMediaStreamsBySourceId(source.id)
+            database.deleteSource(source.id)
+        }
+        database.deleteDownloadIntent(itemId)
+    }
+
+    /**
      * W8-T1：用户数据写（收藏 / 已看）的统一落点。
      *
      * W8-T1r：排队时触发一次带网络约束的补同步；服务器确认时顺手清掉该行残留的 `toBeSynced` 标志。

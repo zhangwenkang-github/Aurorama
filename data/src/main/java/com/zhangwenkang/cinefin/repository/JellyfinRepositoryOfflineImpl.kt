@@ -508,6 +508,15 @@ class JellyfinRepositoryOfflineImpl(
             database.setUserDataToBeSynced(userId, itemId, true)
         }
 
+    /**
+     * W8-T5：删除服务器条目是纯在线操作，离线模式没有可补偿的本地语义（删本地缓存不代表服务器文件被删，反而会丢失再看的机会）， 因此明确返回
+     * [UserDataWriteOutcome.Failed]（Unknown），由界面按「保存失败」提示；不做任何本地改动。
+     */
+    override suspend fun deleteItem(itemId: UUID): UserDataWriteOutcome =
+        UserDataWriteOutcome.Failed(
+            UserDataWriteFailure.Unknown(status = null, message = "offline delete unsupported")
+        )
+
     /** 无账号离线模式没有可写用户：明确给出失败，而不是无声地什么都不做。 */
     private suspend fun offlineUserDataWrite(
         persist: suspend (userId: UUID) -> Unit

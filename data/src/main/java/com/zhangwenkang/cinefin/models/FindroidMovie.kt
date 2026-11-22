@@ -35,6 +35,8 @@ data class FindroidMovie(
     override val trickplayInfo: Map<String, FindroidTrickplayInfo>?,
     /** 服务器原始条目类型（例如 `AUDIO` / `VIDEO` / `MOVIE`）；本地合成条目为 null。 */
     val kind: String? = null,
+    /** W8-T5：服务端按当前用户 policy 计算的条目级删除权；null / 缺失一律按不可删处理。 */
+    val canDelete: Boolean = false,
 ) : FindroidItem, FindroidSources
 
 suspend fun BaseItemDto.toFindroidMovie(
@@ -78,6 +80,7 @@ suspend fun BaseItemDto.toFindroidMovie(
         trickplayInfo =
             trickplay?.mapValues { it.value[it.value.keys.max()]!!.toFindroidTrickplayInfo() },
         kind = type?.name,
+        canDelete = canDelete == true,
     )
 }
 
@@ -122,5 +125,7 @@ suspend fun FindroidMovieDto.toFindroidMovie(
         images = toLocalFindroidImages(itemId = id),
         chapters = chapters ?: emptyList(),
         trickplayInfo = trickplayInfos,
+        // 本地 DTO 投影没有服务端 canDelete 字段：离线 / 本地条目一律不可删。
+        canDelete = false,
     )
 }

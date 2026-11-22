@@ -2,10 +2,13 @@ package com.zhangwenkang.cinefin.presentation.film
 
 import android.content.SharedPreferences
 import com.zhangwenkang.cinefin.film.domain.VideoMetadataParser
+import com.zhangwenkang.cinefin.film.presentation.detail.DetailWriteEvent
 import com.zhangwenkang.cinefin.film.presentation.episode.EpisodeViewModel
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidImages
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.UserDataWriteFailure
+import com.zhangwenkang.cinefin.repository.UserDataWriteOutcome
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import java.lang.reflect.Proxy
 import java.util.UUID
@@ -50,13 +53,69 @@ class EpisodeViewModelTest {
         assertEquals("prefs failed", settled.error?.message)
     }
 
-    private fun repository(episode: FindroidEpisode): JellyfinRepository =
+    @Test
+    fun `删除成功映射为 Confirmed 供屏幕关闭详情页`() = runBlocking {
+        val episodeId = UUID.randomUUID()
+        val viewModel = deletingViewModel(episodeId, UserDataWriteOutcome.Confirmed)
+
+        viewModel.deleteItem()
+        val event = withTimeout(5_000) { viewModel.deleteEvents.first() }
+
+        assertEquals(DetailWriteEvent.Confirmed, event)
+    }
+
+    @Test
+    fun `删除权限拒绝映射为 PermissionDenied`() = runBlocking {
+        val episodeId = UUID.randomUUID()
+        val viewModel =
+            deletingViewModel(
+                episodeId,
+                UserDataWriteOutcome.Failed(UserDataWriteFailure.PermissionDenied(403, null)),
+            )
+
+        viewModel.deleteItem()
+        val event = withTimeout(5_000) { viewModel.deleteEvents.first() }
+
+        assertEquals(DetailWriteEvent.PermissionDenied, event)
+    }
+
+    @Test
+    fun `删除其他失败映射为 Failed`() = runBlocking {
+        val episodeId = UUID.randomUUID()
+        val viewModel =
+            deletingViewModel(
+                episodeId,
+                UserDataWriteOutcome.Failed(UserDataWriteFailure.Unknown(null, "boom")),
+            )
+
+        viewModel.deleteItem()
+        val event = withTimeout(5_000) { viewModel.deleteEvents.first() }
+
+        assertEquals(DetailWriteEvent.Failed, event)
+    }
+
+    private fun deletingViewModel(
+        episodeId: UUID,
+        outcome: UserDataWriteOutcome,
+    ): EpisodeViewModel =
+        EpisodeViewModel(
+                repository = repository(episode(episodeId), deleteOutcome = outcome),
+                appPreferences = failingPreferences(),
+                videoMetadataParser = VideoMetadataParser,
+            )
+            .also { viewModel -> viewModel.episodeId = episodeId }
+
+    private fun repository(
+        episode: FindroidEpisode,
+        deleteOutcome: UserDataWriteOutcome? = null,
+    ): JellyfinRepository =
         Proxy.newProxyInstance(
             JellyfinRepository::class.java.classLoader,
             arrayOf(JellyfinRepository::class.java),
         ) { proxy, method, args ->
             when (method.name) {
                 "getEpisode" -> episode
+                "deleteItem" -> deleteOutcome ?: throw AssertionError("Unexpected deleteItem call")
                 "toString" -> "EpisodeViewModelTestRepository"
                 "hashCode" -> System.identityHashCode(proxy)
                 "equals" -> proxy === args?.firstOrNull()

@@ -85,4 +85,7 @@
     <string name="write_permission_denied">No permission to change this item</string>
     <string name="write_failed">Could not save this change</string>
     <string name="batch_write_queued">%1$d item(s) saved — will sync when online</string>
+    <string name="detail_delete_server_action">Delete server file</string>
+    <string name="detail_delete_server_message">This deletes “%1$s” from the server. The file cannot be recovered. Local cache and download records will also be cleaned up.</string>
+    <string name="detail_delete_server_confirm">Delete</string>
 </resources>

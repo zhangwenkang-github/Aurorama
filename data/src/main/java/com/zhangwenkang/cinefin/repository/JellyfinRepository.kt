@@ -179,6 +179,14 @@ interface JellyfinRepository {
     suspend fun markAsUnplayed(itemId: UUID): UserDataWriteOutcome
 
     /**
+     * W8-T5：删除服务器上的单个条目（电影 / 单集）。
+     *
+     * 删除不可排队补偿：服务器拒绝或网络失败时**本地不做任何改动**，只把 [UserDataWriteOutcome.Failed] 返回给调用方；成功后才清理本地缓存 （条目行 /
+     * 用户数据 / 来源与媒体流 / 下载意图）。
+     */
+    suspend fun deleteItem(itemId: UUID): UserDataWriteOutcome
+
+    /**
      * W69：强制失效元数据缓存（下拉刷新 / 用户主动要求最新数据）。
      *
      * 在线实现清空会话缓存，之后的读取直接打服务器；离线实现是空操作（离线数据本就来自本地库）。

@@ -41,6 +41,10 @@ constructor(
     /** W8-T1：收藏 / 已看的写结果（权限失败 / 排队待同步）交给屏幕弹 Snackbar。 */
     private val writeEventsChannel = Channel<DetailWriteEvent>(Channel.BUFFERED)
     val writeEvents = writeEventsChannel.receiveAsFlow()
+
+    /** W8-T5：删除服务器条目的结果；[DetailWriteEvent.Confirmed] = 屏幕关闭详情页，其余弹 Snackbar。 */
+    private val deleteEventsChannel = Channel<DetailWriteEvent>(Channel.BUFFERED)
+    val deleteEvents = deleteEventsChannel.receiveAsFlow()
     private val contentRequests = LatestContentRequest()
 
     lateinit var episodeId: UUID
@@ -139,6 +143,14 @@ constructor(
                 _state.update { it.copy(episode = it.episode?.copy(favorite = previous)) }
             }
             writeEventsChannel.send(outcome.toDetailWriteEvent())
+        }
+    }
+
+    /** W8-T5：删除服务器条目。失败时本地未改动，不重载详情；成功由屏幕关闭详情页。 */
+    fun deleteItem() {
+        viewModelScope.launch {
+            val outcome = runCatching { repository.deleteItem(episodeId) }.getOrNull()
+            deleteEventsChannel.send(outcome.toDetailWriteEvent())
         }
     }
 }

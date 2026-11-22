@@ -55,4 +55,7 @@
     <string name="write_permission_denied">沒有權限修改該條目</string>
     <string name="write_failed">儲存失敗，請稍後重試</string>
     <string name="batch_write_queued">已儲存 %1$d 項，連線後自動同步</string>
+    <string name="detail_delete_server_action">刪除伺服器檔案</string>
+    <string name="detail_delete_server_message">將刪除伺服器上的《%1$s》，檔案無法還原。本機快取與下載紀錄將一併清理。</string>
+    <string name="detail_delete_server_confirm">刪除</string>
 </resources>

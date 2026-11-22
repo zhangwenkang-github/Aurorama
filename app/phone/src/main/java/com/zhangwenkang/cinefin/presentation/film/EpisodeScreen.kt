@@ -16,7 +16,9 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -37,16 +39,20 @@ import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyVideoMetadata
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.spacings
+import com.zhangwenkang.cinefin.film.presentation.detail.DetailDeleteRules
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadEvent
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadState
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadViewModel
+import com.zhangwenkang.cinefin.film.presentation.detail.DetailWriteEvent
 import com.zhangwenkang.cinefin.film.presentation.episode.EpisodeAction
 import com.zhangwenkang.cinefin.film.presentation.episode.EpisodeState
 import com.zhangwenkang.cinefin.film.presentation.episode.EpisodeViewModel
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.presentation.components.DetailSkeleton
 import com.zhangwenkang.cinefin.presentation.film.components.ActorsRow
+import com.zhangwenkang.cinefin.presentation.film.components.DeleteServerFileButton
+import com.zhangwenkang.cinefin.presentation.film.components.DeleteServerFileDialog
 import com.zhangwenkang.cinefin.presentation.film.components.DetailBodyMode
 import com.zhangwenkang.cinefin.presentation.film.components.DetailHero
 import com.zhangwenkang.cinefin.presentation.film.components.DetailLoadError
@@ -125,6 +131,19 @@ fun EpisodeScreen(
         }
     }
 
+    // W8-T5：删除服务器文件成功后关闭详情页；权限拒绝 / 失败走同一条 Snackbar 通道。
+    LaunchedEffect(Unit) {
+        viewModel.deleteEvents.collect { event ->
+            if (event == DetailWriteEvent.Confirmed) {
+                navigateBack()
+            } else {
+                detailWriteEventMessage(context, event)?.let { message ->
+                    snackbarHostState.showSnackbar(message = message)
+                }
+            }
+        }
+    }
+
     ObserveAsEvents(downloaderViewModel.events) { event ->
         when (event) {
             // W60b：单集下载的入队反馈由 DetailDownloadViewModel 的三态 Snackbar 承担（含「查看」动作）。
@@ -175,6 +194,8 @@ fun EpisodeScreen(
             detailDownloadViewModel.enqueueItem(item = episode, storageIndex = storageIndex)
         },
         onRetry = { viewModel.loadEpisode(episodeId = episodeId) },
+        offlineMode = isOfflineMode,
+        onDeleteConfirmed = { viewModel.deleteItem() },
     )
 }
 
@@ -189,6 +210,8 @@ private fun EpisodeScreenLayout(
     onDownloaderAction: (DownloaderAction) -> Unit,
     onDownloadClick: (FindroidEpisode, Int) -> Unit,
     onRetry: () -> Unit = {},
+    offlineMode: Boolean = false,
+    onDeleteConfirmed: () -> Unit = {},
 ) {
     val safePadding = rememberSafePadding()
 
@@ -199,6 +222,7 @@ private fun EpisodeScreenLayout(
     val scrollState = rememberScrollMemoryState(scrollKey)
     val bodyMode =
         detailBodyMode(hasContent = state.episode != null, hasError = state.error != null)
+    var deleteServerDialogOpen by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         state.episode
@@ -251,6 +275,17 @@ private fun EpisodeScreenLayout(
                             downloadEnabled = episode.canDownload,
                             heroLayout = heroLayout,
                         )
+                        if (
+                            DetailDeleteRules.shouldShowDeleteAction(
+                                canDelete = episode.canDelete,
+                                offlineMode = offlineMode,
+                            )
+                        ) {
+                            DeleteServerFileButton(
+                                onClick = { deleteServerDialogOpen = true },
+                                modifier = Modifier.padding(top = MaterialTheme.spacings.small),
+                            )
+                        }
                     }
                     Column(modifier = Modifier.padding(start = paddingStart, end = paddingEnd)) {
                         Spacer(Modifier.height(MaterialTheme.spacings.small))
@@ -308,6 +343,20 @@ private fun EpisodeScreenLayout(
             onBackClick = { onAction(EpisodeAction.OnBackClick) },
             onHomeClick = { onAction(EpisodeAction.OnHomeClick) },
         )
+
+        if (deleteServerDialogOpen) {
+            state.episode?.let { episode ->
+                DeleteServerFileDialog(
+                    itemName = episode.name,
+                    onDelete = {
+                        deleteServerDialogOpen = false
+                        onDeleteConfirmed()
+                    },
+                    onDismiss = { deleteServerDialogOpen = false },
+                )
+            }
+        }
+
         CinefinSnackbarHost(
             hostState = snackbarHostState,
             modifier =
