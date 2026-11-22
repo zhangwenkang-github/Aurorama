@@ -71,6 +71,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import org.jellyfin.sdk.api.client.HttpMethod
 import org.jellyfin.sdk.api.client.RawResponse
+import org.jellyfin.sdk.model.FileInfo
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.DeviceOptionsDto
@@ -2194,6 +2195,10 @@ class JellyfinRepositoryImpl(
      * 三个键：`Name`、`Overview`、`ForcedSortName`（服务端只认它，`SortName` 是派生的只读回显值）；传 null 等于清除自定义
      * 排序名，服务端回落到派生值。
      *
+     * 请求体用 `FileInfo(bytes, "application/json")` 而不是 String：SDK 的 String body 分支固定发
+     * `text/plain`，ASP.NET Core 的 `[FromBody]` 只接受 `application/json`（415）；两条分支都不经
+     * ApiSerializer，字节内容一致。
+     *
      * 失败语义与 T1 一致：`ApiClient.request` 对非 2xx 抛 `InvalidStatusException`，403 → 权限拒绝、5xx → 服务端错误、 IO
      * / 超时 → 网络失败；不排队补偿，本地不做任何改动。
      */
@@ -2212,7 +2217,12 @@ class JellyfinRepositoryImpl(
                     method = HttpMethod.POST,
                     pathTemplate = "/Items/$itemId",
                     queryParameters = emptyMap(),
-                    requestBody = metadataUpdateBody(original, name, overview, sortName),
+                    requestBody =
+                        FileInfo(
+                            metadataUpdateBody(original, name, overview, sortName)
+                                .encodeToByteArray(),
+                            "application/json",
+                        ),
                 )
             } catch (cancellation: CancellationException) {
                 throw cancellation

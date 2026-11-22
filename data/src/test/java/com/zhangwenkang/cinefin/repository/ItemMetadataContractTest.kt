@@ -25,6 +25,7 @@ import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.HttpMethod
 import org.jellyfin.sdk.api.client.RawResponse
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
+import org.jellyfin.sdk.model.FileInfo
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -72,7 +73,7 @@ class ItemMetadataContractTest {
     @Test
     fun `更新只 POST 一次且除三个键外与服务端原文一致`() = runBlocking {
         everyGetReturns(GET_JSON)
-        val posted = slot<String>()
+        val posted = slot<FileInfo>()
         coEvery {
             apiClient.request(
                 method = HttpMethod.POST,
@@ -108,7 +109,10 @@ class ItemMetadataContractTest {
             )
         }
 
-        val body = posted.captured
+        val postedFile = posted.captured
+        // 必须走 application/json（String body 分支固定发 text/plain，服务端会 415）。
+        assertEquals("application/json", postedFile.mediaType)
+        val body = postedFile.content.decodeToString()
         val postJson = Json.parseToJsonElement(body).jsonObject
         assertEquals(JsonPrimitive("新名称"), postJson["Name"])
         assertEquals(JsonPrimitive("新简介"), postJson["Overview"])
@@ -136,7 +140,7 @@ class ItemMetadataContractTest {
     @Test
     fun `强制排序名传 null 时 POST 该键为 JSON null`() = runBlocking {
         everyGetReturns(GET_JSON)
-        val posted = slot<String>()
+        val posted = slot<FileInfo>()
         coEvery {
             apiClient.request(
                 method = HttpMethod.POST,
@@ -153,7 +157,10 @@ class ItemMetadataContractTest {
             sortName = null,
         )
 
-        val body = posted.captured
+        val postedFile = posted.captured
+        // 必须走 application/json（String body 分支固定发 text/plain，服务端会 415）。
+        assertEquals("application/json", postedFile.mediaType)
+        val body = postedFile.content.decodeToString()
         val postJson = Json.parseToJsonElement(body).jsonObject
         assertEquals(JsonNull, postJson["ForcedSortName"])
         assertEquals(JsonNull, postJson["Overview"])
