@@ -1,6 +1,6 @@
 # 2.0 W8 · 服务器写（任务卡）
 
-> 状态：`T1–T6 已交付，T6 真机复验收官中（成功闭环待跑），剩 T7（全量验收矩阵）`（2026-11-23 会话6：T6 425e155b+ef53444e+8a5eac2a+b9ce45fc；T4 77143ae0、T5 91d8d73b；T1 ea8b9c10+T1r e98632b4、T2 a98b4566、T3' a56cb0ec；T3 转向备份 backup/w8-t3-personal-rating 并 revert 6d09a52d；12 条判定最新见下方「T2/T3' 后判定变化」）
+> 状态：`T1–T6 全部交付并 Pad 真机验收通过，剩 T7（全量验收矩阵）`（2026-11-23 会话7：T6 复验收官——电影/单集双成功闭环全绿、测试服无残留，T6=425e155b+ef53444e+8a5eac2a+b9ce45fc；T4 77143ae0、T5 91d8d73b；T1 ea8b9c10+T1r e98632b4、T2 a98b4566、T3' a56cb0ec；T3 转向备份 backup/w8-t3-personal-rating 并 revert 6d09a52d；12 条判定最新见下方「T2/T3' 后判定变化」）
 > 依据：`docs/V2_REQUIREMENTS.md` §6（V2-WRITE 全 12 条）与 §15 波次表（W8 ← W3，依赖已满足）；设计唯一权威 `docs/V2_DESIGN.md`。
 
 ## 状态块（新会话先读这里）
@@ -128,13 +128,14 @@ jellyfin-test.zhangwenkang.com 已获用户可写授权（可删除/改元数据
 - **真机取证点**：删除 → 回读消失 + 网页端确认。依赖 T1+T2。
 - **阻塞解除与边界修订（2026-11-22 会话4，用户裁定）**：原「仅其他库已播完样本」因该库 0 可删条目阻塞；**用户裁定样本源改为动漫/电影库已播完节目或视频（≤5 条）**。服务端 policy 复核：zhangwenkang 删除权仍仅「其他」库（`EnableContentDeletionFromFolders=[12c75549…]`）——故**执行删除用 admin**（动漫/电影库全权），zhangwenkang 用于「无权限入口隐藏」反向门控验证。门控字段实证：`BaseItemDto.canDelete` 服务端按用户 policy 计算——zhangwenkang 看动漫已播完集=false、admin=true（与官方 web 客户端同口径，T5 门控即消费该字段）。端点契约探针：zhangwenkang 对自有 W8-TEST-* 歌单 `DELETE /Items/{id}` ×4 全 204（T4 清理记录）。
 
-### T6 条目元数据编辑（派 deepseek，实现+3 轮返修完成，真机复验待收官）
+### T6 条目元数据编辑 ✅（2026-11-23 Pad 复验通过，`425e155b` + `ef53444e` + `8a5eac2a` + `b9ce45fc`）
 
 - **交付（`425e155b` + `ef53444e` + `8a5eac2a` + `b9ce45fc`）**：详情页（电影/单集）「编辑元数据」入口（挂删除按钮正上方、正常内容色、T5 同款样式）+ 三字段编辑对话框（名称/简介/排序名称，预填服务器当前值、快照 null 时 fail-closed 禁保存、保存条件=名称非空+有差异）；`JellyfinRepository.fetchItemMetadataSnapshot`/`updateItemMetadata`；门控=T2 `canEditMetadata()`（仅管理员，fail-closed）+离线隐藏（`DetailEditRules`）；失败走既有 snackbar，成功失效缓存+`notifyContentChanged`+详情重载。契约 8 例（含「除三键外与 GET 原文一致」字节断言）、data 492/app 602/film 223 单测全绿、ktfmt+assembleDebug 绿。
 - **两轮真机抓出的真缺陷（均已修复）**：①SortName 必须写 **`ForcedSortName`**（探针实证：服务端忽略 `SortName` 字段，`ForcedSortName=null`=清自定义回落派生值）；②**SDK 类型化 DTO 回环破坏 DateTime**——`Chapters[].ImageDateModified` 的 `0001-01-01T00:00:00.0000000Z` 被 SDK 重序列化为 `0001-01-01T08:05:43+08:05:43`（设备时区对公元 1 年用上海 LMT 历史偏移），服务端稳定 400 → 写路径改 **raw JSON 通道**（`ApiClient.request` GET 原文→只换三键→`FileInfo(bytes,"application/json")` POST 原文，String 分支是 text/plain 有 415 风险故用 FileInfo）。抓包定位手法：adb reverse + 自签 TLS 转发器（走 App 的 W31 TOFU 信任流程），工具留档 `qa/w8-t6/relay.py`。
-- **真机验收进度（Pad=43af8627）**：✅ zhangwenkang 详情页无编辑入口（反向门控）；✅ admin 入口可见、对话框预填服务器值、三字段编辑与保存链路触发正常；✅ 失败可见（POST 被拒后对话框保留+按钮复位）；⏳ **成功闭环未跑**——修复后的构建未装机复验（编辑→回读新值→还原→回读原值，电影+单集各一）。样本：电影《乔西的虎与鱼》`4e06c2a3…`（zhangwenkang 已播完；萤火之森因网格滚动不可达替换，理由记录快照文件）、单集《我和班上最讨厌的女生结婚了。》S1E1 `aabb1ad4…`（名为纯 ASCII，可做全 App 内闭环）；编辑前快照 `F:\Develop\code_data\qa\w8-t6\metadata-snapshot.json`。
+- **真机验收记录（Pad=43af8627）**：会话6 ✅ zhangwenkang 详情页无编辑入口（反向门控）；✅ admin 入口可见、对话框预填服务器值；✅ 失败可见（POST 被拒后对话框保留+按钮复位）。**会话7（2026-11-23）成功闭环双绿**：①电影《乔西的虎与鱼》——改排序名称为 `w8t6verify` 保存（logcat 实证 GET 快照→POST→GET 重载）→服务端回读 ForcedSortName=`w8t6verify`、名称/简介原值未动→App 内重开对话框预填=`w8t6verify`（App 内回读）→API 还原（204）→回读原值（ForcedSortName=None、SortName 回落派生值 `qiao xi de hu yu yu`、名称/简介与快照一致）。②单集《结婚了。》S1E1（纯 ASCII 名）**全 App 内闭环**——改排序名称为 `001 - 00w8t6epverify`→服务端回读确认→**App 内**还原为 `001 - 0001 - Class no Daikirai…`→服务端回读三字段全部与快照一致。测试服无 T6 残留。
 - **写边界与还原声明（执行记录）**：电影样本在诊断期间被多次探针改动（ForcedSortName 探针 ZZZPROBE 等），每次改后均核对并最终 API 全量还原（名称/ForcedSortName/简介三项回读确认原值）；单集样本**从未被触碰**；测试服当前无 T6 残留。
-- **设备遗留状态（下会话先处理）**：Pad 的 App 添加了 `https://localhost:18080` 抓包服务器（显示名 jellyfin）并停留在该服 admin 会话，转发器已关停→该入口不可用；**复验前先在「服务器/用户」页切回直连 jellyfin 服务器的 admin**（或直接删除该服务器条目）。Pad 中文 adb 输入不可用，中文名还原一律走 API。
+- **设备遗留处置（2026-11-23 会话7，已闭环）**：Pad 的 localhost:18080 抓包地址使全部请求发死地址、详情全靠 Room 缓存、policy 拉取 fail-closed（编辑/删除入口双双隐藏——**非 T6 缺陷**）。处置=删服务器条目重建：服务器按 serverId 去重只显示一行、**当前地址不可删且无「设为当前」入口**（`ServerAddressesViewModel.deleteAddress` 拒绝时仅 Timber 日志无 UI 反馈，登记 W9 backlog）；删前核查 T1 排队行=0（已补传）；重建后流量实证全走 `https://jellyfin-test.zhangwenkang.com`。Pad 现状=直连测试服 admin。
+- **会话7 观察（登记，非 T6 缺陷）**：①全局搜索输入 searchTerm 后 API 正常返回（Kekkon=12 集）但结果区不渲染（截图取证后删除），列入 T7 核查/W9 backlog；②`adb input text` 空格需 `%s` 转义，否则首空格截断。
 - **真机取证点**：编辑→详情新值+服务端回读→还原→回读原值；单集同链路全 App 闭环。依赖 T1+T2。
 
 ### T7 全量验收矩阵 + 多服务器隔离核查（Kimi 主导，1 卡）
