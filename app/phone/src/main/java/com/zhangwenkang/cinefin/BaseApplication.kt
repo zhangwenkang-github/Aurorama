@@ -34,6 +34,7 @@ import com.zhangwenkang.cinefin.identity.IdentityStateStatus
 import com.zhangwenkang.cinefin.network.SharedPreferencesCertificateTrustStore
 import com.zhangwenkang.cinefin.network.buildCertificateAwareOkHttpClient
 import com.zhangwenkang.cinefin.presentation.update.launchAutomaticUpdateCheck
+import com.zhangwenkang.cinefin.repository.UserPolicyStore
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.update.UpdateWorkScheduler
 import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceInstaller
@@ -79,6 +80,9 @@ class BaseApplication : Application(), Configuration.Provider, SingletonImageLoa
 
     @Inject lateinit var updateWorkScheduler: UpdateWorkScheduler
 
+    /** W8-T2：当前用户写权限缓存（启动会话恢复后刷新；T5/T6 写入口消费）。 */
+    @Inject lateinit var userPolicyStore: UserPolicyStore
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
 
@@ -119,6 +123,11 @@ class BaseApplication : Application(), Configuration.Provider, SingletonImageLoa
             ) {
                 scheduleUserDataSync(workManager)
                 scheduleReaderProgressSync(workManager)
+                // W8-T2：启动恢复会话后拉一次当前用户 UserPolicy（删除 / 元数据入口的前置门控）。
+                if (!snapshot.selection.offlineMode) {
+                    runCatching { userPolicyStore.refresh() }
+                        .onFailure { Timber.w(it, "UserPolicy 拉取失败") }
+                }
             }
         }
         launchAutomaticUpdateCheck(CoroutineScope(Dispatchers.IO), updateWorkScheduler).start()
