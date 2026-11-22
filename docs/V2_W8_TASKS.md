@@ -1,26 +1,138 @@
 # 2.0 W8 · 服务器写（任务卡）
 
-> 状态：`PENDING`（2026-11-22 预建：开工提示词与上下文就绪，待 W8 会话1 执行 T0）
+> 状态：`T0 已收官，待派 T1`（2026-11-22 会话1：12 条判定 ✅1/⚠️7/❌4；完备度对照 + 测试服盘点入档；任务卡 T1–T7 定稿）
 > 依据：`docs/V2_REQUIREMENTS.md` §6（V2-WRITE 全 12 条）与 §15 波次表（W8 ← W3，依赖已满足）；设计唯一权威 `docs/V2_DESIGN.md`。
 
 ## 状态块（新会话先读这里）
 
-- 分支：`codex/v2-integration`；W8 开工基线 = W7 收官 HEAD（`da4791d5`，以 git log 为准）。
-- **范围锚点**：V2-WRITE-01 = 写能力对齐官方客户端可比完备度（收藏、已看、评分、播放列表、条目管理等常规用户写操作）；02–12 为横切纪律：端点/参数以官方 OpenAPI spec + 官方客户端源码为准并记录依据（02）；写失败用户可见且区分可重试（03）；权限不足入口前置隐藏/禁用（04）；禁乐观更新、以服务端确认/回读为准（05/08）；批量与危险操作二次确认+影响范围（06）；用户级写=本人身份禁管理员代写（07）；403 不当网络错误重试（09）；受限账号测试覆盖（10）；多服务器数据隔离+环境可见（11）；交付标准=权限正确者成功/不足者被拒且 UI 合理/失败可见，不以「接口调通」为完成（12）。
-- **测试服务器政策（2026-11-22 用户拍板）**：`jellyfin-test.zhangwenkang.com` 为独立可写测试服——**资源可删除、可改元数据；优先操作已播放完的节目/视频**。凭据位置 `F:\Develop\codex_work\Documents\Codex\资源.txt`（值不得进仓库/日志/报告/记忆/截图）。生产 `jellyfins.zhangwenkang.com` 依旧永久只读。写操作实现可参考官方 App（jellyfin-android）或同类开源项目（含基线 Findroid 上游）。
-- **账户条件（WRITE-10 前置）**：T0 先盘点测试服现有账号——是否已有受限（非管理员、库权限受控）用户；无则申请用户创建（需要管理员登录测试服网页端操作一次，属用户授权范围）。
-- **既有写能力线索（T0 核对起点，未核对前不作数）**：收藏（Favorites 域存在）、已看/播放进度上报（W2/W4 播放链路）、删除（疑似无）；音乐歌单 = 本地歌单（非服务端 Playlist）——服务端播放列表增删改、评分（PersonalRating/Star）、条目元数据编辑、条目删除预计为主要缺口。
-- **取证纪律**：写操作必须真机对测试服验证真实结果（WRITE-12：不以「接口调通」为完成；写后回读或服务端确认（05/08））；每卡在任务卡内声明写边界与还原方式（写了什么、怎么还原/是否可留）；K60=`8e875894`，真机取证 Kimi 执行（子代理 adb 已解禁，可辅助）。
+- 分支：`codex/v2-integration`；W8 基线 = W7 收官 HEAD（`da4791d5`，T0 后文档 HEAD 以 git log 为准）。
+- **范围锚点**：V2-WRITE-01 = 写能力对齐官方客户端可比完备度；02–12 为横切纪律（端点依据官方 spec/源码 02；写失败用户可见且区分可重试 03；权限不足入口前置隐藏/禁用 04；禁乐观更新、以服务端确认为准 05/08；危险操作二次确认 06；用户级写=本人身份 07；403 不当网络错误重试 09；受限账号测试覆盖 10；多服务器隔离+环境可见 11；交付标准=成功/被拒/失败三态可见，不以「接口调通」为完成 12）。
+- **测试服务器政策（2026-11-22 用户拍板）**：`jellyfin-test.zhangwenkang.com`（Jellyfin 12.4.0）为独立可写测试服——资源可删除、可改元数据；优先操作已播放完内容。凭据位置 `F:\Develop\codex_work\Documents\Codex\资源.txt`（值不得进仓库/日志/报告/记忆/截图）。生产 `jellyfins.zhangwenkang.com` 依旧永久只读。
+- **测试服盘点（T0 实测，2026-11-22）**：
+  - 账号：`admin`（管理员，删除权全开）；`zhangwenkang`（非管理员，6 库全开，删除权仅限「其他」库 `12c75549…`）。**无库受限用户** → WRITE-10 需用户在测试服网页端创建（建议 `w8limited`：非管理员、仅 1–2 库可见、无删除权）；未创建前 T2/T7 用 `zhangwenkang` 做非管理员侧验证。
+  - 库：动漫(tvshows) / 音乐(music) / 其他(homevideos) / 合集(boxsets) / 书籍(books) / 电影(movies)。
+  - 已播完可写样本充足：admin 已播 380 集+85 音频+2 电影；zhangwenkang 已播 17 集+158 音频+4 电影。服务端歌单各 1 个（歌单写测试可用，新建测试歌单用后删除）。
+- **T0 判定表（§6 全 12 条，✅1/⚠️7/❌4）**：
+
+| 条目 | 判定 | 归证（代码位置） |
+|------|------|------------------|
+| 01 写能力完备度 | ⚠️ 部分 | 已有：收藏（`JellyfinRepositoryImpl.kt:2062/2077`）、已看/未看（`:2091/2103`）、播放进度上报（`:1983/2024/2044`）、书籍进度回写（`ReaderRepositoryImpl.kt:345`、`SyncWorker.kt:77`）、歌单移除条目（`MusicRepository.kt:319`）。缺口：评分、歌单创建/加入、条目删除、元数据编辑（全仓零命中） |
+| 02 端点依据官方 | ⚠️ 部分 | 既有全部走官方 SDK 1.8.12（OpenAPI 生成），依据记录于 `ARCHITECTURE.md` §9/`PLAYER_PLAN.md`；新增端点需逐条核实记录（T0 已本地 jar 实证能力面，见对照表） |
+| 03 失败可见+可重试区分 | ❌ | 收藏/已看写失败 `catch (_: Exception)` 吞掉仅标记 `toBeSynced`（`:2069/2083/2097/2109`），用户无任何可见反馈，无可重试区分 |
+| 04 权限不足入口前置隐藏 | ❌ | 全仓无 `UserPolicy` 门控；仅 setup 查 `isAdministrator`（`:2156`），写入口不做权限判断 |
+| 05 禁乐观更新/服务端确认为准 | ⚠️ | 非乐观更新，但「本地先落库→服务器失败静默」（`:2066-2071`），UI 以本地为准，服务端结果不参与 UI 状态 |
+| 06 危险操作二次确认 | ⚠️ | 批量动作存在（`MediaBatchViewModel`/`MusicBatchRules`）但删除仅限本地下载（`Downloader.deleteItem`）；服务器侧危险操作尚不存在，确认机制随 T5 建立 |
+| 07 用户本人身份写 | ✅ | 全部写操作走用户 access token + `jellyfinApi.userId`（`MUSIC_PLAN.md` D10 实证服务端只认用户令牌） |
+| 08 静默不一致补偿 | ⚠️ | 有 `toBeSynced` + `SyncWorker` 后台补同步机制，但补偿过程用户不可见、无回读确认闭环 |
+| 09 403 不重试 | ❌ | 用户数据写路径 catch-all，无状态码区分（`SyncPlayMapping.kt:216`/`PlaybackSourceResolution.kt:635` 有 `InvalidStatusException` 映射，但不在用户数据写路径） |
+| 10 受限账号测试覆盖 | ❌ | 测试服无受限用户（见盘点），无任何受限侧测试 |
+| 11 多服务器隔离 | ⚠️ | 多服务器管理存在（`setup/servers`）；但 `UserDataEvents` 为全局单例 object（`UserDataEvents.kt:17`），写路径/缓存跨服隔离未验证 |
+| 12 交付三态标准 | ⚠️ | 过程标准，本波次 T7 验收执行；现状 03/04 不达标 |
+
+- **WRITE-01 完备度对照表（官方 jellyfin-android/web + Findroid 上游 vs Cinefin；SDK 1.8.12 本地 jar 实证操作组全在）**：
+
+| 写操作 | Jellyfin API（SDK 操作组） | 官方客户端 | Findroid 上游 | Cinefin 现状 | W8 处置 |
+|--------|---------------------------|-----------|---------------|--------------|---------|
+| 收藏 toggle | `userLibraryApi.markFavoriteItem/unmark` | ✅ | ✅ | ✅ | 保持，接 T1 错误模型 |
+| 已看/未看 | `playStateApi.markPlayedItem/markUnplayedItem` | ✅ | ✅ | ✅ | 保持，接 T1 错误模型 |
+| 播放进度上报 | `playStateApi.reportPlayback*` | ✅ | ✅ | ✅ | 保持 |
+| 阅读进度回写 | `itemsApi.updateItemUserData` | ✅ | — | ✅ | 保持 |
+| 评分（PersonalRating） | `userLibraryApi.updateUserItemData(rating)`（jar 实证含 rating/likes 字段） | API 支持，web 无原生入口 | ❌ | ❌ | **T3** |
+| 喜欢（Likes） | 同上(likes) | web 无 | ❌ | ❌ | 不纳入（L535 未列，裁定 W9 候选登记） |
+| 歌单创建 | `playlistsApi.createPlaylist` | ✅ | ❌ | ❌（歌单=本地歌单） | **T4** |
+| 歌单加入 | `playlistsApi.addToPlaylist` | ✅ | ❌ | ❌ | **T4** |
+| 歌单移除条目 | `playlistsApi.removeItemFromPlaylist` | ✅ | ❌ | ✅ | 保持，接 T1 错误模型 |
+| 歌单删除 | `itemsApi.deleteItem` | ✅ | ❌ | ❌ | 随 **T5** |
+| 条目删除 | `itemsApi.deleteItem`（需 EnableContentDeletion） | ✅ | ❌ | ❌ | **T5** |
+| 元数据编辑 | `itemUpdateApi.updateItem` | ✅（web 编辑器，权限模型 T6 实测） | ❌ | ❌ | **T6** |
+| 合集创建/加入 | `collectionApi.create/addToCollection` | ✅ | ❌ | ❌ | 裁定 LATER → W9 backlog 登记 |
+| 刷新元数据 | `itemRefreshApi.refreshItem` | ✅ | ❌ | ❌ | 裁定 LATER → W9 backlog 登记 |
+| 图片上传/删除 | `imageApi` | ✅ | ❌ | ❌ | 裁定 LATER → W9 backlog 登记 |
+
+- **取证纪律**：写操作必须真机对测试服验证真实结果（写后回读或服务端确认 05/08）；每卡声明写边界与还原方式；K60=`8e875894`，真机取证 Kimi 执行（子代理 adb 已解禁，可辅助）。
 - **门禁**：相关模块单测 + `ktfmtCheck` + `:app:phone:assembleDebug` 绿；新增端点至少一条契约测试或可复现 fixture。
-- **W8 开工提示词存档**：见 `docs/PROJECT_PLAN.md` 焦点节「W8 会话1 开工提示词」（会话1 执行后移入本状态块）。
+- **依赖关系**：T1 → T3/T4/T5/T6（错误模型底座）；T2 → T5/T6（权限门控）；T5 → T4 的歌单删除部分；T7 最后。T3 ∥ T4 可并行（不同模块）。
+- **W8 会话1 开工提示词存档**（已执行完毕，自 `PROJECT_PLAN.md` 焦点节移入）：
+
+```
+你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
+工作区：F:\Develop\code_data\work_tree\Aurorama\v2-merge-141（分支 codex/v2-integration）。
+开工读序：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V2_W8_TASKS.md 状态块
+→ 记忆库 MEMORY.md（读序外文件按需，不通读）。
+现状：W7 下载域已收官（55 条 = ✅51/⚠️4/❌0，F1b/F7 修复卡根因已定位，登记
+V2_W7_TASKS.md 裁定登记）；W8 服务器写未开工，依赖 W3 已满足；测试服
+jellyfin-test.zhangwenkang.com 已获用户可写授权（可删除/改元数据，优先操作
+已播完内容；凭据在资源.txt，值不入库）；W9-T0 聚合顺延至 W8 后。
+本会话任务（1 卡，Kimi 亲自）：W8-T0 现状核对 + 任务卡定稿——对照 §6 V2-WRITE
+全 12 条逐条核对现有写能力（收藏/已看/进度上报/评分/服务端播放列表/条目
+元数据编辑/删除，✅/⚠️/❌+归证）；以官方 jellyfin-android / Findroid 上游
+写操作清单做 WRITE-01 完备度对照；盘点测试服账号（受限用户有无，无则申请）
+与已播完可写样本；任务卡 T1+ 定稿写入 V2_W8_TASKS.md（每卡含写边界与还原
+声明），本提示词移入其状态块存档。
+设计分权：设计以 docs/V2_DESIGN.md 为准，deepseek 零设计权。
+门禁与纪律：见 AGENTS.md 质量门/红线；本卡为核对/文档工作，不动代码、无需
+真机（子代理 adb 已解禁，本卡用不到）。
+交接：收口按 AGENTS.md 五件事，提示词按统一标准填槽更新。
+```
 
 ## 任务卡
 
-### T0 现状核对 + 任务卡定稿（Kimi 亲自，1 卡）
+### T0 现状核对 + 任务卡定稿 ✅（2026-11-22，Kimi 亲自）
 
-- **目标**：①对照 §6 V2-WRITE 全 12 条逐条核对现有写能力（✅/⚠️/❌ + 代码位置归证）；②盘点官方客户端写操作清单（jellyfin-android / Findroid 上游）作 WRITE-01 完备度对照表；③测试服账号与可写样本盘点（受限用户有无、已播完内容清单）；④任务卡 T1+ 定稿（每卡自包含：目标/文件边界/验收要点/门禁/红线/**写边界与还原声明**/真机取证点），写入本文件，开工提示词移入状态块存档。
-- **验收**：12 条判定表 + 完备度对照表入本文件状态块下方；任务卡可直接派单。
-- **门禁**：本卡为核对/文档工作，不动代码、无需真机；文档一致性自检。
-- **红线**：不登录生产服务器做任何写操作；测试服凭据只读使用、值不入库。
+结果已入上方状态块：12 条判定表 + 完备度对照表 + 测试服盘点；T1–T7 定稿如下。遗留申请：请用户在测试服网页端创建受限用户（建议 `w8limited`，非管理员、仅 1–2 库可见、无删除权），供 T2/T7 受限侧验证。
 
-### T1+（由 T0 产出，此处占位）
+### T1 写基础设施：统一写错误模型 + 失败可见（派 deepseek，1 卡）
+
+- **目标**：建立用户数据写的统一错误边界——区分 403（权限，不可重试）/ 401 / 网络与 5xx（可重试）；写失败用户可见；既有收藏/已看/歌单移除路径全部接入（消除 `catch (_: Exception)` 静默）。
+- **文件边界**：`data/src/.../repository/`（`JellyfinRepository.kt/Impl.kt`、`UserDataEvents.kt`，可新增写错误类型文件）；`modes/film` 与 `app/phone` 中收藏/已看 ViewModel 的失败展示；`modes/music/.../MusicRepository.kt` 歌单移除接入。禁动播放器内核与下载域。
+- **验收要点**：①错误分类单测（403→不可重试权限错误、IO→可重试、5xx→可重试）；②`toBeSynced` 补偿保留但失败先用户可见；③UI 失败提示（snackbar/toast，样式按 `V2_DESIGN.md`）；④契约测试覆盖 updateUserItemData/markFavorite 端点映射。
+- **写边界与还原声明**：验证用测试服已播完样本做收藏 toggle，写后回读；还原 = 再 toggle 回原状态，不留残留。
+- **真机取证点**：断网点收藏 → 可见失败提示；恢复网络重试 → 成功且回读一致。K60 logcat 过滤取证。
+- **门禁/红线**：见状态块；只打测试服。
+
+### T2 权限门控：UserPolicy 前置隐藏/禁用（派 deepseek，1 卡）
+
+- **目标**：登录/切服时拉取并缓存当前用户 `UserPolicy`；写入口按权限前置处理——删除/元数据编辑按 `EnableContentDeletion(FromFolders)` 门控（无权限隐藏入口），收藏/已看/评分全员可用不门控；受限用户看不到越权入口（WRITE-04/10 前置）。
+- **文件边界**：`data`（policy 拉取/缓存）、`app/phone`+`modes/*` 写入口渲染处；禁动 setup 登录流程本体。
+- **验收要点**：①`zhangwenkang`（非管理员）登录：删除/元数据入口隐藏，收藏/已看/评分可用；②admin：全入口可见；③受限用户 `w8limited`（待用户创建）库外条目不可见（继承库权限，无需额外代码则记录实证）。
+- **写边界与还原声明**：本卡不写服务器数据（仅读 policy）；验证登录态切换后无残留。
+- **真机取证点**：两账号分别登录，`uiautomator dump` 取证入口有无。
+- **前置依赖**：受限用户创建为完整矩阵前置；未就绪可先交 ①② 两轮。
+
+### T3 评分：PersonalRating（派 deepseek，1 卡）
+
+- **目标**：条目评分读写——`userLibraryApi.updateUserItemData(rating)`（SDK jar 实证字段存在；端点/参数核实记录入代码注释或任务证据，WRITE-02）。范围：影视详情（电影/单集）+ 音乐曲目；UI 位置与交互按 `V2_DESIGN.md`。
+- **文件边界**：`data/repository`（新增 rating 读写方法 + `UserDataEvents` 广播位）、`modes/film`、`modes/music` 对应 ViewModel/UI。
+- **验收要点**：①写后回读一致（禁乐观更新）；②清除评分（rating=null）可用；③失败走 T1 错误模型；④契约测试覆盖 rating 字段映射。
+- **写边界与还原声明**：对测试服已播完电影/音频评分；还原 = 评分置 null（回读验证 null）。
+- **真机取证点**：评分 → 回读值正确；清评分 → 回读 null。依赖 T1 完成。
+
+### T4 服务端播放列表：创建 + 加入（派 deepseek，1 卡）
+
+- **目标**：音乐域服务端歌单——`playlistsApi.createPlaylist` 创建、`addToPlaylist` 加入（单曲/批量复用现有批量选择）；移除条目已有（`MusicRepository.kt:319`，本卡接入 T1 错误模型）；歌单删除随 T5。
+- **文件边界**：`modes/music`（`MusicRepository.kt`、歌单 UI/ViewModel）、`data` 如需新增仓库方法。
+- **验收要点**：①创建歌单→服务端回读出现；②加入曲目→歌单详情回读含新曲目；③失败可见；④契约测试覆盖 create/add 端点。
+- **写边界与还原声明**：新建歌单统一命名 `W8-TEST-*`；验证后删除（随 T5 或网页端手动），不留测试歌单。
+- **真机取证点**：创建+加入后网页端/回读双侧确认。依赖 T1；与 T3 可并行。
+
+### T5 条目删除（含歌单删除）（派 deepseek，1 卡）
+
+- **目标**：`itemsApi.deleteItem` 服务器条目删除——危险操作二次确认+影响范围说明（WRITE-06）；入口按 T2 权限门控；删除后本地缓存/索引同步清理。
+- **文件边界**：`data/repository`、`app/phone`+`modes/film|music` 删除入口与确认弹窗（样式按 `V2_DESIGN.md`）。
+- **验收要点**：①`zhangwenkang` 仅「其他」库可见删除入口（权限实证）；②二次确认文案含影响范围（服务器文件删除、不可还原）；③删除后回读 404/列表消失；④403 按 T1 模型呈权限失败不重试。
+- **写边界与还原声明**：**删除不可还原**——仅删测试服「其他」库已播完样本，总量 ≤5 条；每条删除前登记快照（名称/ID/路径）入任务证据，清单经用户确认后执行。歌单删除 = 删 `W8-TEST-*` 测试歌单。
+- **真机取证点**：删除 → 回读消失 + 网页端确认。依赖 T1+T2。
+
+### T6 条目元数据编辑（派 deepseek，1 卡）
+
+- **目标**：`itemUpdateApi.updateItem` 元数据编辑——字段裁剪：名称/简介/SortName；权限模型实测记录（Jellyfin 12 元数据写权限，WRITE-02）；快照→写→回读→还原闭环。
+- **文件边界**：`data/repository`、`app/phone`/`modes/film` 详情页编辑入口。
+- **验收要点**：①编辑→回读新值；②还原→回读原值；③无权限账号入口隐藏（T2）；④契约测试覆盖 updateItem 字段映射。
+- **写边界与还原声明**：仅改测试服已播完电影/单集的名称/简介/SortName；每次编辑前快照原值入任务证据，验证后写回原值并回读确认，不留改动。
+- **真机取证点**：编辑前后回读对照。依赖 T1+T2。
+
+### T7 全量验收矩阵 + 多服务器隔离核查（Kimi 主导，1 卡）
+
+- **目标**：WRITE-12 三态矩阵验收（admin / zhangwenkang / w8limited × 全部写操作：权限正确成功、不足被拒且 UI 合理、失败可见）；WRITE-11 核查（`UserDataEvents` 全局单例作用域、切服后缓存/事件串扰）；收官报告 + W9 backlog 移交（含 T0 裁定 LATER 项：Likes/合集/刷新元数据/图片）。
+- **验收**：矩阵全绿 + 隔离核查结论入状态块；W8 状态置收官。
+- **写边界与还原声明**：矩阵复用 T1–T6 边界；终态核对测试服无 W8 残留（测试歌单已删、评分已清、元数据已还原）。
