@@ -32,7 +32,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 线 | 状态 | 文档 |
 |----|------|------|
 | 1.4.1 | 🟢 **已发布**（2026-11-18）：master=`76f5350b`、tag `v1.4.1`、GitHub Release 双 APK | 发布目录 `releases/1.4.1-signed-r34-2026-11-17/` |
-| 2.0.0 | 🟡 **W8 已开工（T0 收官）**（2026-11-22 会话1）：W7 终判 ✅51/⚠️4/❌0，F1b/F7 根因定位登记 W9；W8-T0 现状核对完成——12 条判定 ✅1/⚠️7/❌4，缺口=评分/歌单增删/条目删除/元数据编辑，任务卡 T1–T7 定稿；受限用户 `w8limited` 待用户创建；W9-T0 聚合顺延至 W8 后 | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · `V2_W8_TASKS.md` · `V2_W7_TASKS.md` |
+| 2.0.0 | 🟡 **W8 进行中（T1+T1r 已验收）**（2026-11-22 会话2）：T0 核对 ✅1/⚠️7/❌4；T1 写错误模型 `ea8b9c10` + T1r 排队补同步 `e98632b4`，Pad 真机验证通过（在线 toggle 回读一致/断网排队可见/Confirmed 清标志），补同步末环待 Pad 网络恢复确认；下一步 T2 权限门控；W9-T0 聚合顺延 | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · `V2_W8_TASKS.md` · `V2_W7_TASKS.md` |
 | 播放器 | 🟢 W2 架构重构完成；W4 开工（2026-11-19）：T0 现状核对 + 任务卡定稿（T1–T7）；retrySeek 跨条目重建已修（`ccdafefa`）；生产 TLS `-0x7280` 复验通过（服务器侧修复生效，K60 mpv 正常播放） | `docs/V2_W4_TASKS.md` · `docs/V2_ARCHITECTURE.md` §3 |
 | 下载/离线 | 🟢 W7 已收官（2026-11-22）：55 条 = ✅51/⚠️4/❌0；修复卡 F1b 音乐重下载删档绕过 / F2 PENDING 滞留 / F4 音乐离线冷路径 / F5 书籍通知 / F6 作者折叠 / F7 引擎空转热循环，全登记 W9 聚合（F1 引擎层与 F3 已修销项） | `docs/V2_W7_TASKS.md` · `docs/DOWNLOAD_PLAN.md` |
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
@@ -41,28 +41,29 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-22）
 
-1. **2.0.0 W8 服务器写已开工——T0 收官（2026-11-22 会话1）**：12 条判定 ✅1/⚠️7/❌4（已有：收藏/已看/进度上报/书籍进度/歌单移除；缺口：评分、歌单创建+加入、条目删除、元数据编辑；横切 ❌=失败不可见 03、无权限门控 04、403 不区分 09、无受限覆盖 10）；WRITE-01 完备度对照与测试服盘点（admin/zhangwenkang，已播完样本充足）入 `V2_W8_TASKS.md` 状态块；任务卡 T1–T7 定稿（T1 写错误模型底座先行）。**遗留申请**：请用户在测试服网页端创建受限用户 `w8limited`（非管理员、仅 1–2 库、无删除权），供 T2/T7 受限侧验证。
+1. **2.0.0 W8 服务器写进行中（2026-11-22 会话2）**：T1 写错误模型（`ea8b9c10`）+ T1r 排队补同步（`e98632b4`）交付并 Pad 真机验收——在线收藏双向回读一致、断网 snackbar「已保存，联网后自动同步」+ 本地排队 (1,0,1)、Confirmed 清旧标志、QueuedForSync 触发带网络约束的 SyncWorker（WM 日志实证）。**末环遗留**：Pad 路由器 captive portal 断网，「网络恢复→worker 执行→服务端 fav 翻转」未亲眼确认；Pad 上排队行 (1,0,1) 留存，恢复后应自动补传为 True——下会话先确认该翻转并**还原（取消收藏）**。**设备事实：K60 的 App 连生产服（禁写），Pad 的 App 连测试服（W8 验证机）**。**受限账号**：`w8limited` 误建在生产服，测试服仍待补建。T1r 遗留登记：SyncWorker 只扫 movies/episodes（季/剧排队写不补传，T7 评估）。证据 `F:\Develop\code_data\qa\w8-t1\`。
 2. **W7 下载域已收官（2026-11-22 会话4，HEAD `da4791d5`）**：55 条 = ✅51/⚠️4/❌0；⚠️ 全裁定（F1b/F2/F4/F5/F6/F7 + L1–L3 + O1 + S1，见 `V2_W7_TASKS.md`「裁定登记」）；F3（`d8ee43af`）与 F1 引擎层（`d5e8b119`）已修；F1b/F7 根因已定位、修复卡就绪（优先候选）；W9-T0 聚合顺延至 W8 收官后。
 3. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
-### W8 会话2 开工提示词（新会话直接粘贴；格式遵循 AGENTS.md「开工提示词统一标准」）
+### W8 会话3 开工提示词（新会话直接粘贴；格式遵循 AGENTS.md「开工提示词统一标准」）
 
 ```
 你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
 工作区：F:\Develop\code_data\work_tree\Aurorama\v2-merge-141（分支 codex/v2-integration）。
 开工读序：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V2_W8_TASKS.md 状态块
 → 记忆库 MEMORY.md（读序外文件按需，不通读）。
-现状：W8-T0 已收官（12 条判定 ✅1/⚠️7/❌4；缺口=评分/歌单增删/删除/元数据
-编辑，任务卡 T1–T7 定稿入 V2_W8_TASKS.md）；受限用户 w8limited 创建申请已发
-出，就绪情况以状态块为准；HEAD 以 git log 为准。
-本会话任务（1–2 卡，派 deepseek）：W8-T1 写基础设施——统一写错误模型（403/
-401 不可重试 vs 网络/5xx 可重试）、失败用户可见、既有收藏/已看/歌单移除路径
-接入（消除 catch-all 静默）；视容量续 W8-T2 权限门控（UserPolicy 前置隐藏/
-禁用，zhangwenkang 非管理员验证，w8limited 就绪则补受限轮）。
+现状：T1+T1r 已交付验收（ea8b9c10/e98632b4）；补同步末环待确认——Pad 上有
+排队行 (fav=1,toBeSynced=1)，网络恢复后服务端应变 True，先回读确认并还原
+（取消收藏）；K60 App 连生产服（禁写）、Pad 连测试服（W8 验证机）；
+w8limited 误建生产服、测试服待补建；HEAD 以 git log 为准。
+本会话任务（1–2 卡，派 deepseek）：W8-T2 权限门控——UserPolicy 登录/切服
+拉取缓存，删除/元数据编辑入口按 EnableContentDeletion(FromFolders) 前置隐藏，
+zhangwenkang 非管理员验证（w8limited 就绪则补受限轮）；视容量续 W8-T3 评分
+（PersonalRating，依赖 T1 已满足）。
 设计分权：设计以 docs/V2_DESIGN.md 为准，deepseek 零设计权。
-门禁与纪律：见 AGENTS.md 质量门/红线；子代理禁 adb；K60 真机取证 Kimi 做。
-写验证只打测试服 jellyfin-test.zhangwenkang.com、优先已播完样本，凭据读
-资源.txt、值不入库；每卡写边界与还原声明见 V2_W8_TASKS.md 任务卡。
+门禁与纪律：见 AGENTS.md 质量门/红线；子代理禁 adb；真机取证 Kimi 做（W8
+用 Pad=43af8627，其 App 连测试服）。写验证只打测试服、优先已播完样本，凭据
+读资源.txt、值不入库；每卡写边界与还原声明见 V2_W8_TASKS.md 任务卡。
 交接：收口按 AGENTS.md 五件事，提示词按统一标准填槽更新。
 ```
 

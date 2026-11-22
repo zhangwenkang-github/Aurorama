@@ -1,15 +1,22 @@
 # 2.0 W8 · 服务器写（任务卡）
 
-> 状态：`T0 已收官，待派 T1`（2026-11-22 会话1：12 条判定 ✅1/⚠️7/❌4；完备度对照 + 测试服盘点入档；任务卡 T1–T7 定稿）
+> 状态：`T1+T1r 已交付（K60/Pad 真机验证通过），待派 T2`（2026-11-22 会话2：T1 写错误模型 ea8b9c10 + T1r 排队补同步 e98632b4；12 条判定 ✅1/⚠️7/❌4；任务卡 T1–T7 定稿）
 > 依据：`docs/V2_REQUIREMENTS.md` §6（V2-WRITE 全 12 条）与 §15 波次表（W8 ← W3，依赖已满足）；设计唯一权威 `docs/V2_DESIGN.md`。
 
 ## 状态块（新会话先读这里）
 
-- 分支：`codex/v2-integration`；W8 基线 = W7 收官 HEAD（`da4791d5`，T0 后文档 HEAD 以 git log 为准）。
+- 分支：`codex/v2-integration`；W8 基线 = W7 收官 HEAD（`da4791d5`）；T1/T1r 后 HEAD 以 git log 为准。
+- **T1/T1r 验收记录（2026-11-22，Pad=43af8627，App 登录 zhangwenkang，样本=电影《告白实行委员会：从很久以前就喜欢你了》`587e411f…`）**：
+  - ✅ 在线收藏/取消收藏双向即时生效，服务端回读一致，仅影响登录账号（WRITE-07/12 实证）。
+  - ✅ 飞行模式点收藏 → snackbar「已保存，联网后自动同步」+ 本地行 (fav=1,toBeSynced=1) 排队（WRITE-03 失败可见、WRITE-05 非乐观更新达标）。
+  - ✅ T1r 修复①：QueuedForSync 入队带网络约束的 SyncWorker（WM 日志实证调度与约束门控）；②Confirmed 清旧 toBeSynced 残留（实证 (1,·,1)→(0,0,0)）。
+  - ⏳ 补同步最后一环（网络恢复→worker 执行→服务端翻转）因 Pad 路由器 captive portal 掉线未收官；排队行 (1,0,1) 安全留存，网络恢复后 worker 应自动补传——**下会话开机先回读该行/服务端确认，并做最终还原（取消收藏）**。
+  - **设备事实（重要）**：**K60=8e875894 的 App 连的是生产服**（servers 库只有 jellyfins URL）；**Pad=43af8627 的 App 连测试服**。W8 写验证一律用 Pad，K60 禁止写操作。WAL 陷阱：读设备 DB 必须连 `-wal` 一起拉，否则看到的是陈旧主文件。
+  - T1r 遗留登记（非 T1r 引入）：①KEEP 竞态——排队时若同名家任务正运行且已越过该行，需下一次触发才补传（接受口径）；②**SyncWorker 只扫 movies/episodes 两表——季/剧的排队写不会被补传**（WRITE-08 既有缺口，T7 或新卡评估扩展）。
 - **范围锚点**：V2-WRITE-01 = 写能力对齐官方客户端可比完备度；02–12 为横切纪律（端点依据官方 spec/源码 02；写失败用户可见且区分可重试 03；权限不足入口前置隐藏/禁用 04；禁乐观更新、以服务端确认为准 05/08；危险操作二次确认 06；用户级写=本人身份 07；403 不当网络错误重试 09；受限账号测试覆盖 10；多服务器隔离+环境可见 11；交付标准=成功/被拒/失败三态可见，不以「接口调通」为完成 12）。
 - **测试服务器政策（2026-11-22 用户拍板）**：`jellyfin-test.zhangwenkang.com`（Jellyfin 12.4.0）为独立可写测试服——资源可删除、可改元数据；优先操作已播放完内容。凭据位置 `F:\Develop\codex_work\Documents\Codex\资源.txt`（值不得进仓库/日志/报告/记忆/截图）。生产 `jellyfins.zhangwenkang.com` 依旧永久只读。
 - **测试服盘点（T0 实测，2026-11-22）**：
-  - 账号：`admin`（管理员，删除权全开）；`zhangwenkang`（非管理员，6 库全开，删除权仅限「其他」库 `12c75549…`）。**无库受限用户** → WRITE-10 需用户在测试服网页端创建（建议 `w8limited`：非管理员、仅 1–2 库可见、无删除权）；未创建前 T2/T7 用 `zhangwenkang` 做非管理员侧验证。
+  - 账号：`admin`（管理员，删除权全开）；`zhangwenkang`（非管理员，6 库全开，删除权仅限「其他」库 `12c75549…`）。**受限用户 `w8limited` 误建在生产服**（2026-11-22 复核：测试服仍仅 2 账号，生产 `jellyfins` 出现 w8limited）——待用户在**测试服**网页端补建（非管理员、仅 1–2 库可见、无删除权），生产侧多余账号由用户自行处置；未就绪前 T2/T7 用 `zhangwenkang` 做非管理员侧验证。
   - 库：动漫(tvshows) / 音乐(music) / 其他(homevideos) / 合集(boxsets) / 书籍(books) / 电影(movies)。
   - 已播完可写样本充足：admin 已播 380 集+85 音频+2 电影；zhangwenkang 已播 17 集+158 音频+4 电影。服务端歌单各 1 个（歌单写测试可用，新建测试歌单用后删除）。
 - **T0 判定表（§6 全 12 条，✅1/⚠️7/❌4）**：
@@ -81,14 +88,11 @@ jellyfin-test.zhangwenkang.com 已获用户可写授权（可删除/改元数据
 
 结果已入上方状态块：12 条判定表 + 完备度对照表 + 测试服盘点；T1–T7 定稿如下。遗留申请：请用户在测试服网页端创建受限用户（建议 `w8limited`，非管理员、仅 1–2 库可见、无删除权），供 T2/T7 受限侧验证。
 
-### T1 写基础设施：统一写错误模型 + 失败可见（派 deepseek，1 卡）
+### T1 写基础设施：统一写错误模型 + 失败可见 ✅（2026-11-22，`ea8b9c10` + T1r `e98632b4`，Pad 真机验证通过）
 
-- **目标**：建立用户数据写的统一错误边界——区分 403（权限，不可重试）/ 401 / 网络与 5xx（可重试）；写失败用户可见；既有收藏/已看/歌单移除路径全部接入（消除 `catch (_: Exception)` 静默）。
-- **文件边界**：`data/src/.../repository/`（`JellyfinRepository.kt/Impl.kt`、`UserDataEvents.kt`，可新增写错误类型文件）；`modes/film` 与 `app/phone` 中收藏/已看 ViewModel 的失败展示；`modes/music/.../MusicRepository.kt` 歌单移除接入。禁动播放器内核与下载域。
-- **验收要点**：①错误分类单测（403→不可重试权限错误、IO→可重试、5xx→可重试）；②`toBeSynced` 补偿保留但失败先用户可见；③UI 失败提示（snackbar/toast，样式按 `V2_DESIGN.md`）；④契约测试覆盖 updateUserItemData/markFavorite 端点映射。
-- **写边界与还原声明**：验证用测试服已播完样本做收藏 toggle，写后回读；还原 = 再 toggle 回原状态，不留残留。
-- **真机取证点**：断网点收藏 → 可见失败提示；恢复网络重试 → 成功且回读一致。K60 logcat 过滤取证。
-- **门禁/红线**：见状态块；只打测试服。
+- **交付**：`UserDataWriteOutcome`（Confirmed/QueuedForSync/Failed）+ `UserDataWriteFailure`（PermissionDenied/Network/ServerError/Unknown），沿 cause 链解析 InvalidStatusException；收藏/已看四方法 + 音乐歌单移除全部接入，消除 catch-all 静默；详情页与批量操作失败走既有 snackbar/弹窗通道。T1r：QueuedForSync 触发带网络约束的 SyncWorker 调度（`UserDataSyncScheduler` 抽象在 data、WorkManager 实现在 core）；Confirmed 清旧 toBeSynced。
+- **验收记录**：见状态块「T1/T1r 验收记录」。补同步末环（worker 执行→服务端翻转）待 Pad 网络恢复后确认。
+- **写边界与还原声明（执行记录）**：样本电影 `587e411f…`（已播完库内），收藏 toggle 验证；还原 = 取消收藏回 False（末环确认后执行）。
 
 ### T2 权限门控：UserPolicy 前置隐藏/禁用（派 deepseek，1 卡）
 
