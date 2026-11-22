@@ -1411,6 +1411,114 @@ class DownloaderImplRecoveryTest {
         }
     }
 
+    /** W7-F1：COMPLETED 记录的 path 即完成提交时 rename 后的最终路径；文件存在时重复入队必须幂等命中。 */
+    private fun seedCompletedSource(
+        fixture: Fixture,
+        generation: Long = 7L,
+        fileExists: Boolean = true,
+    ): FindroidSourceDto {
+        val finalFile =
+            DownloadCompletionCommitRules.downloadTargetFiles(
+                    directory = fixture.downloads,
+                    itemId = ITEM_ID.toString(),
+                    sourceId = SOURCE_ID,
+                    generation = generation,
+                )
+                .second
+        if (fileExists) {
+            finalFile.parentFile?.mkdirs()
+            finalFile.writeText("already-downloaded")
+        }
+        val completed =
+            FindroidSourceDto(
+                id = SOURCE_ID,
+                itemId = ITEM_ID,
+                name = ITEM_NAME,
+                type = FindroidSourceType.LOCAL,
+                path = finalFile.path,
+                downloadId = 4_242L,
+                taskStatus = DownloadTaskStatus.COMPLETED.name,
+                updatedAt = 1L,
+                downloadedBytes = if (fileExists) finalFile.length() else 0L,
+                totalBytes = MEDIA_BYTES.size.toLong(),
+                engineVersion = DownloaderImpl.ENGINE_VERSION,
+                container = "mp4",
+                taskGeneration = generation,
+                originServerId = SERVER_ID,
+                originUserId = USER_ID.toString(),
+            )
+        fixture.dao.putSource(completed)
+        return completed
+    }
+
+    @Test
+    fun `COMPLETED记录最终文件存在时重复入队保持幂等`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val seeded = seedCompletedSource(fixture)
+            val finalFile = File(seeded.path)
+
+            val (handle, error) = fixture.downloader.downloadItem(fixture.movie(), SOURCE_ID, 0)
+
+            assertEquals(seeded.downloadId ?: -1L, handle)
+            assertNull(error)
+            assertEquals("幂等命中不得重新 insertSource", 0, fixture.dao.sourceInsertCount(SOURCE_ID))
+            val current = requireNotNull(fixture.dao.sourceById(SOURCE_ID))
+            assertEquals(DownloadTaskStatus.COMPLETED.name, current.taskStatus)
+            assertEquals("幂等命中不得分配新 generation", seeded.taskGeneration, current.taskGeneration)
+            assertEquals("幂等命中不得重置进度", seeded.downloadedBytes, current.downloadedBytes)
+            assertTrue("最终文件不得被改动", finalFile.isFile)
+            assertEquals("already-downloaded", finalFile.readText())
+            assertTrue(fixture.dao.sourceEvents.none { it.startsWith("INSERT:$SOURCE_ID") })
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `COMPLETED记录最终文件已被删除时允许重新入队`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val seeded = seedCompletedSource(fixture, fileExists = false)
+            assertFalse(File(seeded.path).isFile)
+
+            val (handle, error) = fixture.downloader.downloadItem(fixture.movie(), SOURCE_ID, 0)
+
+            assertTrue("记录还在但文件没了应重新入队成功", handle >= 0L)
+            assertNull(error)
+            assertEquals(1, fixture.dao.sourceInsertCount(SOURCE_ID))
+            val current = requireNotNull(fixture.dao.sourceById(SOURCE_ID))
+            assertEquals(DownloadTaskStatus.PENDING.name, current.taskStatus)
+            assertTrue(
+                "重新入队必须分配新 generation：seeded=${seeded.taskGeneration} current=${current.taskGeneration}",
+                current.taskGeneration > seeded.taskGeneration,
+            )
+            assertTrue("重新入队应写入残片路径", current.path.endsWith(".download"))
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `批量入队继承COMPLETED文件存在的幂等跳过`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val seeded = seedCompletedSource(fixture)
+
+            val result = fixture.downloader.enqueueItems(listOf(fixture.movie()), 0)
+
+            assertEquals(listOf(ITEM_ID), result.addedIds)
+            assertNull(result.lastError)
+            assertEquals(0, fixture.dao.sourceInsertCount(SOURCE_ID))
+            assertEquals(
+                seeded.taskGeneration,
+                requireNotNull(fixture.dao.sourceById(SOURCE_ID)).taskGeneration,
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
     @Test
     fun `legacy公开删除旧source身份不得删除同名新代`() = runBlocking {
         val fixture = Fixture()

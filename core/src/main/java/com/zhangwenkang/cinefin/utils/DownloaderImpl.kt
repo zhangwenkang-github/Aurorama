@@ -884,6 +884,27 @@ private constructor(
                     ensureEngineRunning(forceStart = true)
                     return@withSourceOperation Pair(existing?.downloadId ?: handle, null)
                 }
+                // W7-F1：已完成记录的 path 就是完成提交时 rename 后的最终文件；文件仍在 = 已下载，
+                // 不再重下（否则会走到 rename 撞已存在文件 → FILE_ERROR）。文件已被手动删除则落到
+                // 下方重新入队，正确表达「记录还在但文件没了」。无需 ensureEngineRunning：没有待调度工作。
+                if (
+                    existingStatus == DownloadTaskStatus.COMPLETED &&
+                        existing != null &&
+                        File(existing.path).isFile
+                ) {
+                    if (intentFence != null) {
+                        val finalized =
+                            itemMutationLock(item.id).withLock {
+                                confirmAndPublishIntentSource(
+                                    intentFence,
+                                    sourceAlreadyPresent = true,
+                                )
+                            }
+                        if (!finalized) return@withSourceOperation Pair(-1L, null)
+                    }
+                    notifyQueueChanged()
+                    return@withSourceOperation Pair(existing.downloadId ?: handle, null)
+                }
 
                 val taskGeneration =
                     lifecycleControl.nextEnqueueGeneration(
