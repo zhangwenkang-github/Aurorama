@@ -32,7 +32,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 线 | 状态 | 文档 |
 |----|------|------|
 | 1.4.1 | 🟢 **已发布**（2026-11-18）：master=`76f5350b`、tag `v1.4.1`、GitHub Release 双 APK | 发布目录 `releases/1.4.1-signed-r34-2026-11-17/` |
-| 2.0.0 | 🟡 **W7 下载域已收官**（2026-11-22 会话4，HEAD `d5e8b119`）：§8 全 55 条终判 ✅51/⚠️4/❌0（⚠️=11/27/28/44 全裁定去向；当日追加修复 F3 `d8ee43af` 季页多选提示层 + F1 `d5e8b119` COMPLETED 幂等，新立案 F1b 音乐重下载删档绕过 / F7 引擎空转热循环，登记 `V2_W7_TASKS.md`「裁定登记」）；K60 全链路矩阵绿（含视频完成通知直达、断网离线播放）；**下一步 = W9-T0 backlog 聚合**（W8 服务器写未开工待授权，聚合先行） | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · `V2_W7_TASKS.md` · `V2_W6_TASKS.md` |
+| 2.0.0 | 🟡 **W7 已收官，W8 服务器写待开工**（2026-11-22 会话4，HEAD `da4791d5`）：W7 终判 ✅51/⚠️4/❌0，F3/F1 已修、F1b/F7 根因定位登记 W9；用户拍板 **W8 先行**（测试服 `jellyfin-test` 可写授权：可删/改元数据、优先已播完内容），W9-T0 聚合顺延至 W8 后；W8 波次文档已预建 | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · `V2_W8_TASKS.md` · `V2_W7_TASKS.md` |
 | 播放器 | 🟢 W2 架构重构完成；W4 开工（2026-11-19）：T0 现状核对 + 任务卡定稿（T1–T7）；retrySeek 跨条目重建已修（`ccdafefa`）；生产 TLS `-0x7280` 复验通过（服务器侧修复生效，K60 mpv 正常播放） | `docs/V2_W4_TASKS.md` · `docs/V2_ARCHITECTURE.md` §3 |
 | 下载/离线 | 🟢 W7 已收官（2026-11-22）：55 条 = ✅51/⚠️4/❌0；修复卡 F1b 音乐重下载删档绕过 / F2 PENDING 滞留 / F4 音乐离线冷路径 / F5 书籍通知 / F6 作者折叠 / F7 引擎空转热循环，全登记 W9 聚合（F1 引擎层与 F3 已修销项） | `docs/V2_W7_TASKS.md` · `docs/DOWNLOAD_PLAN.md` |
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
@@ -41,29 +41,30 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-22）
 
-1. **2.0.0 W7 下载域已收官（2026-11-22 会话4，HEAD `d5e8b119`）**：T6 全量验收完成，55 条 = ✅51/⚠️4/❌0；⚠️ 全裁定（修复卡 F1b/F2/F4/F5/F6/F7 + backlog-low L1–L3 + OUT-接受 O1 + 样本窗口 S1，见 `V2_W7_TASKS.md`「裁定登记」）；当日追加修复 F3（`d8ee43af` 季页多选提示层，K60 复验 ✅）与 F1 引擎层（`d5e8b119` COMPLETED 幂等 + 3 契约测试）；F1 真机复验立案 F1b（音乐重下载先删档再全量重下）与 F7（引擎空转热循环），根因调查中。K60 全链路矩阵绿，设备还原复核 ✓；证据 `F:\Develop\code_data\qa\w7-s4\`。**下一步 = W9-T0 backlog 聚合**（W8 服务器写未开工待用户授权，聚合先行）。
-2. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
+1. **2.0.0 W7 下载域已收官（2026-11-22 会话4，HEAD `da4791d5`）**：T6 全量验收完成，55 条 = ✅51/⚠️4/❌0；⚠️ 全裁定（F1b/F2/F4/F5/F6/F7 + L1–L3 + O1 + S1，见 `V2_W7_TASKS.md`「裁定登记」）；当日追加修复 F3（`d8ee43af`，K60 复验 ✅）与 F1 引擎层（`d5e8b119`）；F1b/F7 根因已定位、修复卡就绪（优先候选）。设备还原复核 ✓；证据 `F:\Develop\code_data\qa\w7-s4\`。
+2. **下一步 = W8 服务器写（2026-11-22 用户拍板，修正此前「W9 聚合先行」的交接口径）**：测试服 `jellyfin-test.zhangwenkang.com` 已获可写授权（可删除/改元数据，优先操作已播完内容；凭据在 `资源.txt`，值不入库）；波次文档 `docs/V2_W8_TASKS.md` 已预建（状态块 + T0 卡），会话1 = T0 现状核对 + 任务卡定稿。W9-T0 backlog 聚合顺延至 W8 之后。
+3. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
-### W9 会话1 开工提示词（新会话直接粘贴；格式遵循 AGENTS.md「开工提示词统一标准」，W7 各会话提示词已存档于 `V2_W7_TASKS.md` 状态块）
+### W8 会话1 开工提示词（新会话直接粘贴；格式遵循 AGENTS.md「开工提示词统一标准」；W9-T0 backlog 聚合顺延至 W8 收官后，届时另写提示词）
 
 ```
 你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
 工作区：F:\Develop\code_data\work_tree\Aurorama\v2-merge-141（分支 codex/v2-integration）。
-开工读序：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V2_W7_TASKS.md 状态块
-与「裁定登记」节 → 记忆库 MEMORY.md（读序外文件按需，不通读）。
-现状：W7 下载域已收官（2026-11-22，55 条 = ✅50/⚠️5/❌0，HEAD 以 git log 为准）；
-W4 播放器 / W5 音乐 / W6 阅读均已收官；仅 W8 服务器写未开工（依赖可写测试
-服务器授权，待用户确认范围）。W8 之前按用户指令先做 W9-T0 backlog 聚合。
-本会话任务（1 卡，收集派子代理、裁剪 Kimi 亲自）：W9-T0 backlog 聚合——
-收集 W4–W8 各波次文档（V2_W4_TASKS.md / V2_W6_TASKS.md / V2_W7_TASKS.md /
-W5、W8（如已建）+ DOWNLOAD_PLAN.md / PLAYER 线文档）的 backlog/观察项清单
-（W7 侧以 V2_W7_TASKS.md「裁定登记」最新内容为准：修复卡 F1b/F2/F4/F5/F6/F7
-+ L1–L3 + O1 + S1）→ 去重合并、标注来源与严重度 →
-Kimi 裁剪（修 / backlog / OUT）→ W9 修复卡清单定稿（新建 docs/V2_W9_TASKS.md，
-状态块在顶部，本提示词移入存档）；样本窗口 S1 的申请书一并起草给用户。
+开工读序：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V2_W8_TASKS.md 状态块
+→ 记忆库 MEMORY.md（读序外文件按需，不通读）。
+现状：W7 下载域已收官（55 条 = ✅51/⚠️4/❌0，F1b/F7 修复卡根因已定位，登记
+V2_W7_TASKS.md 裁定登记）；W8 服务器写未开工，依赖 W3 已满足；测试服
+jellyfin-test.zhangwenkang.com 已获用户可写授权（可删除/改元数据，优先操作
+已播完内容；凭据在资源.txt，值不入库）；W9-T0 聚合顺延至 W8 后。
+本会话任务（1 卡，Kimi 亲自）：W8-T0 现状核对 + 任务卡定稿——对照 §6 V2-WRITE
+全 12 条逐条核对现有写能力（收藏/已看/进度上报/评分/服务端播放列表/条目
+元数据编辑/删除，✅/⚠️/❌+归证）；以官方 jellyfin-android / Findroid 上游
+写操作清单做 WRITE-01 完备度对照；盘点测试服账号（受限用户有无，无则申请）
+与已播完可写样本；任务卡 T1+ 定稿写入 V2_W8_TASKS.md（每卡含写边界与还原
+声明），本提示词移入其状态块存档。
 设计分权：设计以 docs/V2_DESIGN.md 为准，deepseek 零设计权。
-门禁与纪律：见 AGENTS.md 质量门/红线；本卡为文档/裁定工作，预期不动代码、
-无需真机（子代理 adb 已于 2026-11-22 解禁，本卡用不到）。
+门禁与纪律：见 AGENTS.md 质量门/红线；本卡为核对/文档工作，不动代码、无需
+真机（子代理 adb 已解禁，本卡用不到）。
 交接：收口按 AGENTS.md 五件事，提示词按统一标准填槽更新。
 ```
 
