@@ -4,13 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.film.domain.VideoMetadataParser
 import com.zhangwenkang.cinefin.film.domain.selectSourceForMetadata
+import com.zhangwenkang.cinefin.film.presentation.detail.DetailWriteEvent
 import com.zhangwenkang.cinefin.film.presentation.detail.LatestContentRequest
 import com.zhangwenkang.cinefin.film.presentation.detail.readOptionalDetail
+import com.zhangwenkang.cinefin.film.presentation.detail.toDetailWriteEvent
 import com.zhangwenkang.cinefin.models.FindroidItemPerson
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidSource
 import com.zhangwenkang.cinefin.models.VideoMetadata
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.UserDataWriteOutcome
 import com.zhangwenkang.cinefin.repository.catalog.CatalogMovieQuery
 import com.zhangwenkang.cinefin.repository.catalog.CatalogReadOutcome
 import com.zhangwenkang.cinefin.repository.catalog.CatalogReadPort
@@ -22,8 +25,10 @@ import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.model.api.PersonKind
@@ -70,6 +75,10 @@ private constructor(
 
     private val _state = MutableStateFlow(MovieState())
     val state = _state.asStateFlow()
+
+    /** W8-T1：收藏 / 已看的写结果（权限失败 / 排队待同步）交给屏幕弹 Snackbar。 */
+    private val writeEventsChannel = Channel<DetailWriteEvent>(Channel.BUFFERED)
+    val writeEvents = writeEventsChannel.receiveAsFlow()
     private val contentRequests = LatestContentRequest()
 
     lateinit var movieId: UUID
@@ -243,31 +252,21 @@ private constructor(
 
     fun onAction(action: MovieAction) {
         when (action) {
-            is MovieAction.MarkAsPlayed -> {
-                viewModelScope.launch {
-                    repository.markAsPlayed(movieId)
-                    loadMovie(movieId)
-                }
-            }
-            is MovieAction.UnmarkAsPlayed -> {
-                viewModelScope.launch {
-                    repository.markAsUnplayed(movieId)
-                    loadMovie(movieId)
-                }
-            }
-            is MovieAction.MarkAsFavorite -> {
-                viewModelScope.launch {
-                    repository.markAsFavorite(movieId)
-                    loadMovie(movieId)
-                }
-            }
-            is MovieAction.UnmarkAsFavorite -> {
-                viewModelScope.launch {
-                    repository.unmarkAsFavorite(movieId)
-                    loadMovie(movieId)
-                }
-            }
+            is MovieAction.MarkAsPlayed -> writeUserData { repository.markAsPlayed(movieId) }
+            is MovieAction.UnmarkAsPlayed -> writeUserData { repository.markAsUnplayed(movieId) }
+            is MovieAction.MarkAsFavorite -> writeUserData { repository.markAsFavorite(movieId) }
+            is MovieAction.UnmarkAsFavorite ->
+                writeUserData { repository.unmarkAsFavorite(movieId) }
             else -> Unit
+        }
+    }
+
+    /** W8-T1：写结果先给提示（权限失败 / 排队待同步），再重取详情以服务端结果为准。 */
+    private fun writeUserData(write: suspend () -> UserDataWriteOutcome) {
+        viewModelScope.launch {
+            val outcome = runCatching { write() }.getOrNull()
+            writeEventsChannel.send(outcome.toDetailWriteEvent())
+            loadMovie(movieId)
         }
     }
 }

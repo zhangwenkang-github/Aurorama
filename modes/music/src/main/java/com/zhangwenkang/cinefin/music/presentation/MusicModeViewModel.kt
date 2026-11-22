@@ -84,6 +84,8 @@ import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackStateSource
 import com.zhangwenkang.cinefin.player.local.domain.MusicQueueEditor
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.UserDataWriteFailure
+import com.zhangwenkang.cinefin.repository.UserDataWriteOutcome
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.utils.DownloadCanonicalIdentity
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
@@ -1747,18 +1749,27 @@ constructor(
         val favorite = batchFavoriteTarget(selected) ?: return
         val ids = selected.map { it.itemId }.toSet()
         viewModelScope.launch {
-            runCatching { ids.forEach { repository.setFavorite(it, favorite) } }
-                .onSuccess { _uiState.update { state -> state.withFavorites(ids, favorite) } }
-                .onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            errorTitle = "收藏失败",
-                            errorMessage =
-                                error.message?.takeIf { message -> message.isNotBlank() }
-                                    ?: "无法写入服务器收藏",
-                        )
+            var failure: UserDataWriteFailure? = null
+            val written = runCatching {
+                ids.forEach { id ->
+                    val outcome = repository.setFavorite(id, favorite)
+                    if (outcome is UserDataWriteOutcome.Failed) {
+                        failure = failure ?: outcome.failure
                     }
                 }
+                failure == null
+            }
+                .getOrDefault(false)
+            if (written) {
+                _uiState.update { state -> state.withFavorites(ids, favorite) }
+            } else {
+                _uiState.update {
+                    it.copy(
+                        errorTitle = "收藏失败",
+                        errorMessage = failure.writeErrorMessage("无法写入服务器收藏"),
+                    )
+                }
+            }
         }
     }
 
@@ -1820,30 +1831,35 @@ constructor(
             return
         }
         viewModelScope.launch {
-            runCatching {
-                selected.forEach { repository.removeFromPlaylist(detail.playlist.id, it.itemId) }
+            var failure: UserDataWriteFailure? = null
+            val removed = runCatching {
+                selected.forEach { song ->
+                    val outcome = repository.removeFromPlaylist(detail.playlist.id, song.itemId)
+                    if (outcome is UserDataWriteOutcome.Failed) {
+                        failure = failure ?: outcome.failure
+                    }
+                }
+                failure == null
             }
-                .onSuccess {
-                    val removed = selected.map { it.itemId }.toSet()
-                    _uiState.update { state ->
-                        val current = state.detail as? MusicDetail.Playlist ?: return@update state
-                        state.copy(
-                            detail =
-                                current.copy(songs = current.songs.filter { it.itemId !in removed })
-                        )
-                    }
-                    clearBatchSelection()
+                .getOrDefault(false)
+            if (removed) {
+                val removedIds = selected.map { it.itemId }.toSet()
+                _uiState.update { state ->
+                    val current = state.detail as? MusicDetail.Playlist ?: return@update state
+                    state.copy(
+                        detail =
+                            current.copy(songs = current.songs.filter { it.itemId !in removedIds })
+                    )
                 }
-                .onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            errorTitle = "从播放列表移除失败",
-                            errorMessage =
-                                error.message?.takeIf { message -> message.isNotBlank() }
-                                    ?: "无法写入服务器歌单",
-                        )
-                    }
+                clearBatchSelection()
+            } else {
+                _uiState.update {
+                    it.copy(
+                        errorTitle = "从播放列表移除失败",
+                        errorMessage = failure.writeErrorMessage("无法写入服务器歌单"),
+                    )
                 }
+            }
         }
     }
 
@@ -2849,24 +2865,32 @@ constructor(
     fun toggleFavorite(song: MusicSong) {
         val favorite = !song.isFavorite
         viewModelScope.launch {
-            runCatching { repository.setFavorite(song.itemId, favorite) }
-                .onSuccess {
-                    Timber.i("收藏成功：itemId=${song.itemId} favorite=$favorite")
-                    _uiState.update { state -> state.withFavorite(song.itemId, favorite) }
+            val outcome = runCatching { repository.setFavorite(song.itemId, favorite) }.getOrNull()
+            if (outcome is UserDataWriteOutcome.Failed || outcome == null) {
+                val failure = (outcome as? UserDataWriteOutcome.Failed)?.failure
+                Timber.w("收藏失败：itemId=${song.itemId}")
+                _uiState.update {
+                    it.copy(
+                        errorTitle = "收藏失败",
+                        errorMessage = failure.writeErrorMessage("无法写入服务器收藏"),
+                    )
                 }
-                .onFailure { error ->
-                    Timber.w(error, "收藏失败：itemId=${song.itemId}")
-                    _uiState.update {
-                        it.copy(
-                            errorTitle = "收藏失败",
-                            errorMessage =
-                                error.message?.takeIf { message -> message.isNotBlank() }
-                                    ?: "无法写入服务器收藏",
-                        )
-                    }
-                }
+            } else {
+                Timber.i("收藏成功：itemId=${song.itemId} favorite=$favorite")
+                _uiState.update { state -> state.withFavorite(song.itemId, favorite) }
+            }
         }
     }
+
+    /** W8-T1：写失败文案按可重试性区分——权限拒绝不提示「稍后重试」（V2-WRITE-09）。 */
+    private fun UserDataWriteFailure?.writeErrorMessage(fallback: String): String =
+        when (this) {
+            is UserDataWriteFailure.PermissionDenied -> "没有权限执行该操作（服务器返回 $status）"
+            is UserDataWriteFailure.Network -> "网络不可用，请检查网络后重试"
+            is UserDataWriteFailure.ServerError -> "服务器暂时不可用，请稍后重试"
+            is UserDataWriteFailure.Unknown,
+            null -> fallback
+        }
 
     private fun UiState.withFavorite(itemId: UUID, favorite: Boolean): UiState {
         return withFavorites(setOf(itemId), favorite)

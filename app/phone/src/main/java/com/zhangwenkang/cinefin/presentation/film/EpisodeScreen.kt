@@ -57,6 +57,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
 import com.zhangwenkang.cinefin.presentation.film.components.VideoMetadataBar
 import com.zhangwenkang.cinefin.presentation.film.components.communityRatingText
 import com.zhangwenkang.cinefin.presentation.film.components.detailBodyMode
+import com.zhangwenkang.cinefin.presentation.film.components.detailWriteEventMessage
 import com.zhangwenkang.cinefin.presentation.film.components.downloadEventMessage
 import com.zhangwenkang.cinefin.presentation.film.components.showsViewAction
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
@@ -112,6 +113,15 @@ fun EpisodeScreen(
                     duration = DownloadSnackbarDuration,
                 )
             if (result == SnackbarResult.ActionPerformed) onOpenDownloads()
+        }
+    }
+
+    // W8-T1：收藏 / 已看写失败（权限拒绝）或已排队待同步都必须让用户看到。
+    LaunchedEffect(Unit) {
+        viewModel.writeEvents.collect { event ->
+            detailWriteEventMessage(context, event)?.let { message ->
+                snackbarHostState.showSnackbar(message = message)
+            }
         }
     }
 

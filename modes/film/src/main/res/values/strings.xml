@@ -81,4 +81,8 @@
     <string name="batch_partial_failure">%1$d item(s) failed</string>
     <string name="batch_play_unavailable">No playable items in the selection</string>
     <string name="batch_download_skipped">All selected items are already downloaded or queued</string>
+    <string name="write_saved_queued">Saved — will sync when online</string>
+    <string name="write_permission_denied">No permission to change this item</string>
+    <string name="write_failed">Could not save this change</string>
+    <string name="batch_write_queued">%1$d item(s) saved — will sync when online</string>
 </resources>

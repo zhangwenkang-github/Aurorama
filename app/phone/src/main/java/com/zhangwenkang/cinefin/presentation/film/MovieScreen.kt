@@ -72,6 +72,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.communityRatingText
 import com.zhangwenkang.cinefin.presentation.film.components.detailBodyMode
 import com.zhangwenkang.cinefin.presentation.film.components.detailEyebrow
 import com.zhangwenkang.cinefin.presentation.film.components.detailTypeEyebrow
+import com.zhangwenkang.cinefin.presentation.film.components.detailWriteEventMessage
 import com.zhangwenkang.cinefin.presentation.film.components.metaLine
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
@@ -132,6 +133,15 @@ fun MovieScreen(
                 } else {
                     viewModel.loadMovie(movieId = movieId)
                 }
+            }
+        }
+    }
+
+    // W8-T1：收藏 / 已看写失败（权限拒绝）或已排队待同步都必须让用户看到。
+    LaunchedEffect(Unit) {
+        viewModel.writeEvents.collect { event ->
+            detailWriteEventMessage(context, event)?.let { message ->
+                snackbarHostState.showSnackbar(message = message)
             }
         }
     }

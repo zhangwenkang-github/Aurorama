@@ -181,7 +181,12 @@ internal fun mediaBatchEventMessage(context: Context, event: MediaBatchEvent): S
                 else -> context.getString(FilmR.string.batch_download_skipped)
             }
         is MediaBatchEvent.Updated ->
-            batchResultText(context, event.changed, event.failed) { count ->
+            batchResultText(
+                context = context,
+                successCount = event.changed,
+                failed = event.failed,
+                queued = event.queued,
+            ) { count ->
                 context.getString(FilmR.string.batch_action_updated, count)
             }
         is MediaBatchEvent.Deleted ->
@@ -196,10 +201,12 @@ private fun batchResultText(
     context: Context,
     successCount: Int,
     failed: Int,
+    queued: Int = 0,
     successFormat: (Int) -> String,
 ): String? {
     val parts = mutableListOf<String>()
     if (successCount > 0) parts += successFormat(successCount)
+    if (queued > 0) parts += context.getString(FilmR.string.batch_write_queued, queued)
     if (failed > 0) parts += context.getString(FilmR.string.batch_partial_failure, failed)
     return parts.joinToString(" · ").takeIf { it.isNotBlank() }
 }

@@ -146,7 +146,8 @@ fun FavoritesScreen(
             when (event) {
                 is MediaBatchEvent.Updated -> {
                     // 批量取消收藏会让条目从本页消失；批量已看也让卡片状态跟着走。
-                    if (event.changed > 0) viewModel.load()
+                    // W8-T1：排队待同步同样改了本地库，需要刷新。
+                    if (event.changed > 0 || event.queued > 0) viewModel.load()
                     selection = selection.clear()
                 }
                 else -> Unit

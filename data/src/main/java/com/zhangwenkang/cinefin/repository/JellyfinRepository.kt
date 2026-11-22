@@ -169,13 +169,14 @@ interface JellyfinRepository {
 
     suspend fun postPlaybackProgress(itemId: UUID, positionTicks: Long, isPaused: Boolean)
 
-    suspend fun markAsFavorite(itemId: UUID)
+    /** W8-T1：收藏 / 已看统一走 [UserDataWriteOutcome]（权限拒绝不落本地，网络失败排队补同步）。 */
+    suspend fun markAsFavorite(itemId: UUID): UserDataWriteOutcome
 
-    suspend fun unmarkAsFavorite(itemId: UUID)
+    suspend fun unmarkAsFavorite(itemId: UUID): UserDataWriteOutcome
 
-    suspend fun markAsPlayed(itemId: UUID)
+    suspend fun markAsPlayed(itemId: UUID): UserDataWriteOutcome
 
-    suspend fun markAsUnplayed(itemId: UUID)
+    suspend fun markAsUnplayed(itemId: UUID): UserDataWriteOutcome
 
     /**
      * W69：强制失效元数据缓存（下拉刷新 / 用户主动要求最新数据）。

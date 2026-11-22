@@ -12,6 +12,7 @@ import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.repository.BookDownloadEnqueueResult
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.ReaderRepository
+import com.zhangwenkang.cinefin.repository.UserDataWriteOutcome
 import com.zhangwenkang.cinefin.utils.Downloader
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
@@ -68,7 +69,8 @@ sealed interface MediaBatchEvent {
         val failedIds: List<UUID>,
     ) : MediaBatchEvent
 
-    data class Updated(val changed: Int, val failed: Int) : MediaBatchEvent
+    /** W8-T1：`queued` = 网络失败但本地已保存、等后台补同步的条数（提示文案单列）。 */
+    data class Updated(val changed: Int, val failed: Int, val queued: Int = 0) : MediaBatchEvent
 
     data class Deleted(val deleted: Int, val failed: Int) : MediaBatchEvent
 
@@ -398,17 +400,17 @@ constructor(
         val played = batchPlayedTarget(items) ?: return
         viewModelScope.launch {
             val repository = repositoryProvider.get()
-            var changed = 0
-            var failed = 0
+            val tally = UserDataWriteTally()
             for (item in items) {
-                runCatching {
-                    if (played) repository.markAsPlayed(item.id)
-                    else repository.markAsUnplayed(item.id)
-                }
-                    .onSuccess { changed++ }
-                    .onFailure { failed++ }
+                tally.count(
+                    runCatching {
+                        if (played) repository.markAsPlayed(item.id)
+                        else repository.markAsUnplayed(item.id)
+                    }
+                        .getOrNull()
+                )
             }
-            eventsChannel.send(MediaBatchEvent.Updated(changed = changed, failed = failed))
+            eventsChannel.send(tally.toEvent())
         }
     }
 
@@ -417,17 +419,17 @@ constructor(
         val favorite = batchFavoriteTarget(items) ?: return
         viewModelScope.launch {
             val repository = repositoryProvider.get()
-            var changed = 0
-            var failed = 0
+            val tally = UserDataWriteTally()
             for (item in items) {
-                runCatching {
-                    if (favorite) repository.markAsFavorite(item.id)
-                    else repository.unmarkAsFavorite(item.id)
-                }
-                    .onSuccess { changed++ }
-                    .onFailure { failed++ }
+                tally.count(
+                    runCatching {
+                        if (favorite) repository.markAsFavorite(item.id)
+                        else repository.unmarkAsFavorite(item.id)
+                    }
+                        .getOrNull()
+                )
             }
-            eventsChannel.send(MediaBatchEvent.Updated(changed = changed, failed = failed))
+            eventsChannel.send(tally.toEvent())
         }
     }
 
@@ -566,4 +568,22 @@ constructor(
                 onFailure = { 0 to 1 },
             )
     }
+}
+
+/** W8-T1：批量用户数据写的结果计数（排队待同步单列，提示里与「已更新」区分）。 */
+private class UserDataWriteTally {
+    private var changed = 0
+    private var queued = 0
+    private var failed = 0
+
+    fun count(outcome: UserDataWriteOutcome?) {
+        when (outcome) {
+            UserDataWriteOutcome.Confirmed -> changed++
+            UserDataWriteOutcome.QueuedForSync -> queued++
+            is UserDataWriteOutcome.Failed,
+            null -> failed++
+        }
+    }
+
+    fun toEvent(): MediaBatchEvent = MediaBatchEvent.Updated(changed, failed, queued)
 }

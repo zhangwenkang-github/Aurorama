@@ -288,7 +288,8 @@ private fun VideoScreenLayout(
             }
             when (event) {
                 is MediaBatchEvent.PlayQueue -> context.startVideoQueuePlayback(event.entries)
-                is MediaBatchEvent.Updated -> if (event.changed > 0) pagingItems.refresh()
+                is MediaBatchEvent.Updated ->
+                    if (event.changed > 0 || event.queued > 0) pagingItems.refresh()
                 else -> Unit
             }
             if (event is MediaBatchEvent.PlayQueue || event is MediaBatchEvent.Deleted) {

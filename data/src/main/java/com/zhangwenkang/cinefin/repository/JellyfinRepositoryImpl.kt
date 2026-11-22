@@ -2059,56 +2059,60 @@ class JellyfinRepositoryImpl(
         }
     }
 
-    override suspend fun markAsFavorite(itemId: UUID) {
+    override suspend fun markAsFavorite(itemId: UUID): UserDataWriteOutcome {
         // W69：收藏状态内嵌在各列表的条目里，本地落库后直接失效会话缓存（下一次读取静默取新值）。
         invalidateMetadataCache()
-        withContext(Dispatchers.IO) {
-            database.setFavorite(jellyfinApi.userId!!, itemId, true)
-            try {
-                jellyfinApi.userLibraryApi.markFavoriteItem(itemId)
-            } catch (_: Exception) {
-                database.setUserDataToBeSynced(jellyfinApi.userId!!, itemId, true)
-            }
+        return withContext(Dispatchers.IO) {
+            val userId = jellyfinApi.userId!!
+            val outcome =
+                runUserDataWrite(
+                    remote = { jellyfinApi.userLibraryApi.markFavoriteItem(itemId) },
+                    persistLocal = { database.setFavorite(userId, itemId, true) },
+                    markForSync = { database.setUserDataToBeSynced(userId, itemId, true) },
+                )
             // W60b：单一数据源广播（本地状态已落库，详情 / 列表 / 收藏页统一靠它刷新）。
-            UserDataEvents.notifyFavoriteChanged()
+            if (outcome.localStateChanged) UserDataEvents.notifyFavoriteChanged()
+            outcome
         }
     }
 
-    override suspend fun unmarkAsFavorite(itemId: UUID) {
+    override suspend fun unmarkAsFavorite(itemId: UUID): UserDataWriteOutcome {
         invalidateMetadataCache()
-        withContext(Dispatchers.IO) {
-            database.setFavorite(jellyfinApi.userId!!, itemId, false)
-            try {
-                jellyfinApi.userLibraryApi.unmarkFavoriteItem(itemId)
-            } catch (_: Exception) {
-                database.setUserDataToBeSynced(jellyfinApi.userId!!, itemId, true)
-            }
+        return withContext(Dispatchers.IO) {
+            val userId = jellyfinApi.userId!!
+            val outcome =
+                runUserDataWrite(
+                    remote = { jellyfinApi.userLibraryApi.unmarkFavoriteItem(itemId) },
+                    persistLocal = { database.setFavorite(userId, itemId, false) },
+                    markForSync = { database.setUserDataToBeSynced(userId, itemId, true) },
+                )
             // W60b：单一数据源广播（取消收藏同样通知所有展示方刷新）。
-            UserDataEvents.notifyFavoriteChanged()
+            if (outcome.localStateChanged) UserDataEvents.notifyFavoriteChanged()
+            outcome
         }
     }
 
-    override suspend fun markAsPlayed(itemId: UUID) {
+    override suspend fun markAsPlayed(itemId: UUID): UserDataWriteOutcome {
         invalidateMetadataCache()
-        withContext(Dispatchers.IO) {
-            database.setPlayed(jellyfinApi.userId!!, itemId, true)
-            try {
-                jellyfinApi.playStateApi.markPlayedItem(itemId)
-            } catch (_: Exception) {
-                database.setUserDataToBeSynced(jellyfinApi.userId!!, itemId, true)
-            }
+        return withContext(Dispatchers.IO) {
+            val userId = jellyfinApi.userId!!
+            runUserDataWrite(
+                remote = { jellyfinApi.playStateApi.markPlayedItem(itemId) },
+                persistLocal = { database.setPlayed(userId, itemId, true) },
+                markForSync = { database.setUserDataToBeSynced(userId, itemId, true) },
+            )
         }
     }
 
-    override suspend fun markAsUnplayed(itemId: UUID) {
+    override suspend fun markAsUnplayed(itemId: UUID): UserDataWriteOutcome {
         invalidateMetadataCache()
-        withContext(Dispatchers.IO) {
-            database.setPlayed(jellyfinApi.userId!!, itemId, false)
-            try {
-                jellyfinApi.playStateApi.markUnplayedItem(itemId)
-            } catch (_: Exception) {
-                database.setUserDataToBeSynced(jellyfinApi.userId!!, itemId, true)
-            }
+        return withContext(Dispatchers.IO) {
+            val userId = jellyfinApi.userId!!
+            runUserDataWrite(
+                remote = { jellyfinApi.playStateApi.markUnplayedItem(itemId) },
+                persistLocal = { database.setPlayed(userId, itemId, false) },
+                markForSync = { database.setUserDataToBeSynced(userId, itemId, true) },
+            )
         }
     }
 

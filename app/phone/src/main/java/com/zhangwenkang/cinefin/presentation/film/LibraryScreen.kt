@@ -361,7 +361,8 @@ private fun LibraryScreenLayout(
             when (event) {
                 is MediaBatchEvent.PlayQueue -> context.startVideoQueuePlayback(event.entries)
                 // 标记已看 / 已读 / 收藏后重取一次已加载页，让卡片上的状态跟着走。
-                is MediaBatchEvent.Updated -> if (event.changed > 0) items.refresh()
+                is MediaBatchEvent.Updated ->
+                    if (event.changed > 0 || event.queued > 0) items.refresh()
                 else -> Unit
             }
             if (event is MediaBatchEvent.PlayQueue || event is MediaBatchEvent.Deleted) {

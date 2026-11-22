@@ -480,38 +480,50 @@ class JellyfinRepositoryOfflineImpl(
         }
     }
 
-    override suspend fun markAsFavorite(itemId: UUID) {
-        withContext(Dispatchers.IO) {
-            val userId = jellyfinApi.userId ?: return@withContext
+    /** 离线模式只写本地：本地已落库并标 `toBeSynced`，联网后由同步 Worker 补写服务器。 */
+    override suspend fun markAsFavorite(itemId: UUID): UserDataWriteOutcome =
+        offlineUserDataWrite { userId ->
             database.setFavorite(userId, itemId, true)
             database.setUserDataToBeSynced(userId, itemId, true)
         }
-    }
 
-    override suspend fun unmarkAsFavorite(itemId: UUID) {
-        withContext(Dispatchers.IO) {
-            val userId = jellyfinApi.userId ?: return@withContext
+    override suspend fun unmarkAsFavorite(itemId: UUID): UserDataWriteOutcome =
+        offlineUserDataWrite { userId ->
             database.setFavorite(userId, itemId, false)
             database.setUserDataToBeSynced(userId, itemId, true)
         }
-    }
 
-    override suspend fun markAsPlayed(itemId: UUID) {
-        withContext(Dispatchers.IO) {
-            val userId = jellyfinApi.userId ?: return@withContext
+    override suspend fun markAsPlayed(itemId: UUID): UserDataWriteOutcome =
+        offlineUserDataWrite { userId ->
             database.setPlayed(userId, itemId, true)
             database.setPlaybackPositionTicks(itemId, userId, 0)
             database.setUserDataToBeSynced(userId, itemId, true)
         }
-    }
 
-    override suspend fun markAsUnplayed(itemId: UUID) {
-        withContext(Dispatchers.IO) {
-            val userId = jellyfinApi.userId ?: return@withContext
+    override suspend fun markAsUnplayed(itemId: UUID): UserDataWriteOutcome =
+        offlineUserDataWrite { userId ->
             database.setPlayed(userId, itemId, false)
             database.setUserDataToBeSynced(userId, itemId, true)
         }
-    }
+
+    /** 无账号离线模式没有可写用户：明确给出失败，而不是无声地什么都不做。 */
+    private suspend fun offlineUserDataWrite(
+        persist: suspend (userId: UUID) -> Unit
+    ): UserDataWriteOutcome =
+        withContext(Dispatchers.IO) {
+            val userId = jellyfinApi.userId
+            if (userId == null) {
+                UserDataWriteOutcome.Failed(
+                    UserDataWriteFailure.Unknown(
+                        status = null,
+                        message = "offline user unavailable",
+                    )
+                )
+            } else {
+                persist(userId)
+                UserDataWriteOutcome.QueuedForSync
+            }
+        }
 
     /** W69：离线实现没有会话级元数据缓存，空操作（下拉刷新本就直读本地库）。 */
     override fun invalidateMetadataCache() = Unit

@@ -6,11 +6,14 @@ import com.zhangwenkang.cinefin.repository.MetadataNamespace
 import com.zhangwenkang.cinefin.repository.MetadataSnapshotReadResult
 import com.zhangwenkang.cinefin.repository.MetadataSnapshotStore
 import com.zhangwenkang.cinefin.repository.UserDataEvents
+import com.zhangwenkang.cinefin.repository.UserDataWriteOutcome
+import com.zhangwenkang.cinefin.repository.toUserDataWriteFailure
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.utils.ImageCacheRules
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.model.api.BaseItemDto
@@ -150,14 +153,14 @@ interface MusicRepository {
     /** 歌单内曲目（按服务器返回顺序）。 */
     suspend fun getPlaylistSongs(playlistId: UUID): List<MusicSong>
 
-    /** 收藏 / 取消收藏（服务端 UserData 白名单；失败抛异常由 UI 提示）。 */
-    suspend fun setFavorite(itemId: UUID, favorite: Boolean)
+    /** 收藏 / 取消收藏（服务端 UserData 白名单）。W8-T1：结果区分权限拒绝与可重试失败。 */
+    suspend fun setFavorite(itemId: UUID, favorite: Boolean): UserDataWriteOutcome
 
     /** 服务端收藏的曲目（`filters=IsFavorite` + `includeItemTypes=Audio`）。 */
     suspend fun getFavoriteSongs(): List<MusicSong>
 
-    /** W58：把曲目从服务器歌单移除（编辑歌单，非删除媒体；纯服务器写白名单）。 */
-    suspend fun removeFromPlaylist(playlistId: UUID, itemId: UUID)
+    /** W58：把曲目从服务器歌单移除（编辑歌单，非删除媒体；纯服务器写白名单）。W8-T1：结果区分权限拒绝与可重试失败。 */
+    suspend fun removeFromPlaylist(playlistId: UUID, itemId: UUID): UserDataWriteOutcome
 
     /**
      * W5-T12（MUSIC-14 Auto DJ）：以 [seedItemId] 为种子的即时混排曲目（`GET /Audio/{itemId}/instant-mix`，只读）。
@@ -301,28 +304,62 @@ constructor(
                 .mapNotNull { item -> item.toMusicSong(baseUrl, namespace) }
         }
 
-    override suspend fun setFavorite(itemId: UUID, favorite: Boolean) {
+    override suspend fun setFavorite(itemId: UUID, favorite: Boolean): UserDataWriteOutcome =
         withContext(Dispatchers.IO) {
-            if (favorite) {
-                jellyfinApi.userLibraryApi.markFavoriteItem(itemId)
-            } else {
-                jellyfinApi.userLibraryApi.unmarkFavoriteItem(itemId)
-            }
-            // W60b：音乐收藏也属于条目级收藏的单一数据源（其它页面的收藏角标靠它刷新）。
-            UserDataEvents.notifyFavoriteChanged()
+            musicServerWrite(
+                remote = {
+                    if (favorite) {
+                        jellyfinApi.userLibraryApi.markFavoriteItem(itemId)
+                    } else {
+                        jellyfinApi.userLibraryApi.unmarkFavoriteItem(itemId)
+                    }
+                },
+                onConfirmed = {
+                    // W60b：音乐收藏也属于条目级收藏的单一数据源（其它页面的收藏角标靠它刷新）。
+                    UserDataEvents.notifyFavoriteChanged()
+                },
+            )
+        }
+
+    override suspend fun removeFromPlaylist(
+        playlistId: UUID,
+        itemId: UUID,
+    ): UserDataWriteOutcome {
+        val namespace = currentNamespace()
+        return withContext(Dispatchers.IO) {
+            musicServerWrite(
+                remote = {
+                    jellyfinApi.playlistsApi.removeItemFromPlaylist(
+                        playlistId = playlistId.toString(),
+                        entryIds = listOf(itemId.toString()),
+                    )
+                },
+                onConfirmed = {
+                    namespace?.let { playlistCardCache.invalidate(it, PLAYLIST_CARD_CACHE_KEY) }
+                },
+            )
         }
     }
 
-    override suspend fun removeFromPlaylist(playlistId: UUID, itemId: UUID) {
-        val namespace = currentNamespace()
-        withContext(Dispatchers.IO) {
-            jellyfinApi.playlistsApi.removeItemFromPlaylist(
-                playlistId = playlistId.toString(),
-                entryIds = listOf(itemId.toString()),
-            )
-            namespace?.let { playlistCardCache.invalidate(it, PLAYLIST_CARD_CACHE_KEY) }
+    /**
+     * W8-T1：音乐侧服务器写统一错误边界。
+     *
+     * 音乐收藏 / 歌单条目没有本地镜像可排队（`toBeSynced` 只覆盖持有本地库的条目），所以失败如实上报为 [UserDataWriteOutcome.Failed]，由
+     * `UserDataWriteFailure.retryable` 让 UI 区分权限拒绝与可重试失败。
+     */
+    private suspend fun musicServerWrite(
+        remote: suspend () -> Unit,
+        onConfirmed: suspend () -> Unit,
+    ): UserDataWriteOutcome =
+        try {
+            remote()
+            onConfirmed()
+            UserDataWriteOutcome.Confirmed
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: Exception) {
+            UserDataWriteOutcome.Failed(error.toUserDataWriteFailure())
         }
-    }
 
     override suspend fun getFavoriteSongs(): List<MusicSong> =
         withContext(Dispatchers.IO) {

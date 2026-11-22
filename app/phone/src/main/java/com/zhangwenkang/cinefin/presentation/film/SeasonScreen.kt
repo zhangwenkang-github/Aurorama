@@ -66,6 +66,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.DetailHero
 import com.zhangwenkang.cinefin.presentation.film.components.EpisodeCard
 import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
+import com.zhangwenkang.cinefin.presentation.film.components.detailWriteEventMessage
 import com.zhangwenkang.cinefin.presentation.film.components.downloadEventMessage
 import com.zhangwenkang.cinefin.presentation.film.components.showsViewAction
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchTopBarActions
@@ -124,6 +125,15 @@ fun SeasonScreen(
                     duration = DownloadSnackbarDuration,
                 )
             if (result == SnackbarResult.ActionPerformed) onOpenDownloads()
+        }
+    }
+
+    // W8-T1：收藏 / 已看写失败（权限拒绝）或已排队待同步都必须让用户看到。
+    LaunchedEffect(Unit) {
+        viewModel.writeEvents.collect { event ->
+            detailWriteEventMessage(context, event)?.let { message ->
+                snackbarHostState.showSnackbar(message = message)
+            }
         }
     }
 
