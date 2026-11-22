@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.FileDataSource
 import androidx.media3.datasource.TransferListener
 import com.zhangwenkang.cinefin.network.JellyfinAuth
 import java.net.URI
@@ -67,8 +68,9 @@ object ServerCredentialScope {
  * 视频端点（`/Videos/{id}/stream`）在本服务器上匿名可达，所以过去不注头也能播；音乐走 `/Audio/{itemId}/universal` 必须带头，否则 401（旧实现的
  * `?api_key=` 在 Jellyfin 12 上就是 401 根因）。
  *
- * 注头时机 = 每次 [DataSource.open]：读 [credentials] 当前值 → 同源则写头，否则清空（不残留上一次的头）。 本地 `content://` /
- * `file://` 条目由 media3 走各自的数据源，不会经过这里。
+ * 注头时机 = 每次 [DataSource.open]：读 [credentials] 当前值 → 同源则写头，否则清空（不残留上一次的头）。
+ * 非 http(s) 的条目（`file://`、下载引擎落盘的**无 scheme 裸路径**）由 [ServerAuthDataSource] 委托给
+ * `FileDataSource`，不经过 HTTP 数据源（W7-T5b：已下载音乐离线起播曾因裸路径被当 URL 报 MalformedURLException）。
  *
  * 已知边界：media3 的 [DefaultHttpDataSource] 在**同协议跨主机重定向**时会沿用请求头（它没有逐跳剥离钩子）， 这里用
  * `allowCrossProtocolRedirects = false` 兜住跨协议降级；播放地址由本 App 构造、只指向当前服务器且 不请求远端媒体（不传
@@ -84,11 +86,33 @@ private class ServerAuthDataSource(private val credentials: () -> PlaybackServer
     DataSource {
     private val http: DefaultHttpDataSource =
         DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(false).createDataSource()
+    private val file: FileDataSource = FileDataSource()
 
-    override fun addTransferListener(transferListener: TransferListener) =
+    /** 本次 open 命中的实际数据源；read/close/getUri 一律转交它。 */
+    private var active: DataSource = http
+
+    /**
+     * 已下载媒体（下载引擎落盘的 `sources` 表 LOCAL 行）给的是**无 scheme 的裸文件路径** （`/storage/emulated/...`），不是注释里假设的
+     * `file://`。裸路径同样路由到文件数据源， 否则会被 `DefaultHttpDataSource` 以 MalformedURLException 拒绝（W7-T5
+     * 真机：已下载音乐离线起播失败）。
+     */
+    private fun delegateFor(uri: Uri): DataSource =
+        when (uri.scheme?.lowercase()) {
+            "http",
+            "https" -> http
+            else -> file
+        }
+
+    override fun addTransferListener(transferListener: TransferListener) {
         http.addTransferListener(transferListener)
+        file.addTransferListener(transferListener)
+    }
 
     override fun open(dataSpec: DataSpec): Long {
+        active = delegateFor(dataSpec.uri)
+        if (active === file) {
+            return file.open(dataSpec)
+        }
         val current = credentials()
         // 每次 open 重建头表：令牌换了、服务器地址换了、或本条是跨主机地址，都不能沿用旧头
         http.clearAllRequestProperties()
@@ -101,10 +125,14 @@ private class ServerAuthDataSource(private val credentials: () -> PlaybackServer
         return http.open(dataSpec)
     }
 
-    override fun getUri(): Uri? = http.uri
+    override fun getUri(): Uri? = active.uri
 
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
-        http.read(buffer, offset, length)
+        active.read(buffer, offset, length)
 
-    override fun close() = http.close()
+    override fun close() {
+        // 两个底层源都可能处于打开态（切歌路径上前一个未关），幂等关闭
+        runCatching { file.close() }
+        http.close()
+    }
 }
