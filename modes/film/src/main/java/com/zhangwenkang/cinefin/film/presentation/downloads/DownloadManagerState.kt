@@ -70,6 +70,14 @@ data class DownloadManagerState(
     val selectionByFilter: Map<DownloadMediaFilter, List<String>> = emptyMap(),
     /** W7-T4：按媒体类型分槽的用户排序选择（默认 = 现有分组排序；不落盘）。 */
     val sortModes: Map<DownloadMediaFilter, DownloadSortMode> = emptyMap(),
+    /**
+     * W7-T5（需求 09）：系统通知总开关 / Android 13+ `POST_NOTIFICATIONS` 是否可用。
+     *
+     * 默认 true，避免未查询前误报；ViewModel 创建与页面回前台时刷新。
+     */
+    val notificationsEnabled: Boolean = true,
+    /** W7-T5：本会话已点过通知权限引导（进程内，不落盘）。 */
+    val notificationPermissionNudgeDismissed: Boolean = false,
     /** W34：书籍离线文件占用（阅读器 `books/`，不在 DownloadManager 目录里）。 */
     val bookStorageBytes: Long = 0L,
     val storage: DownloadStorageUsage = DownloadStorageUsage(0L, 0L, 0L),

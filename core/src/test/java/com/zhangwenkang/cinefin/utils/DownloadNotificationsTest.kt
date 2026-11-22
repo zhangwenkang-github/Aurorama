@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.utils
 
 import android.content.Intent
 import com.zhangwenkang.cinefin.core.R as CoreR
+import java.util.UUID
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -83,14 +84,9 @@ class DownloadNotificationsTest {
 
     @Test
     fun `home active and failed targets have isolated pending identities`() {
-        val targets =
-            DownloadNotificationDestination.entries.associate { destination ->
-                destination.name to downloadNotificationTarget(destination)
-            }
-
-        val home = targets.getValue("HOME")
-        val active = targets.getValue("ACTIVE")
-        val failed = targets.getValue("FAILED")
+        val home = downloadNotificationTarget(DownloadNotificationDestination.Home)
+        val active = downloadNotificationTarget(DownloadNotificationDestination.Active)
+        val failed = downloadNotificationTarget(DownloadNotificationDestination.Failed)
 
         assertNotEquals(home.requestCode, active.requestCode)
         assertNotEquals(active.requestCode, failed.requestCode)
@@ -104,6 +100,53 @@ class DownloadNotificationsTest {
 
         assertTrue(failed.openDownloads)
         assertEquals("FAILED", failed.tab)
+    }
+
+    @Test
+    fun `completed target carries item identity without opening downloads`() {
+        val itemId = UUID.fromString("7c9e6679-7425-40de-944b-e07fc1f90ae7")
+        val target =
+            downloadNotificationTarget(
+                DownloadNotificationDestination.Completed(
+                    itemId = itemId,
+                    mediaKind = DownloadMediaKind.MUSIC,
+                )
+            )
+
+        assertFalse(target.openDownloads)
+        assertEquals(null, target.tab)
+        assertEquals(itemId.toString(), target.completion?.itemId)
+        assertEquals(DownloadMediaKind.MUSIC, target.completion?.mediaKind)
+    }
+
+    @Test
+    fun `completed targets for different items keep isolated request codes`() {
+        val first =
+            downloadNotificationTarget(
+                DownloadNotificationDestination.Completed(
+                    itemId = UUID.fromString("7c9e6679-7425-40de-944b-e07fc1f90ae7"),
+                    mediaKind = DownloadMediaKind.VIDEO,
+                )
+            )
+        val second =
+            downloadNotificationTarget(
+                DownloadNotificationDestination.Completed(
+                    itemId = UUID.fromString("16fd2706-8baf-433b-82eb-8c7fada847da"),
+                    mediaKind = DownloadMediaKind.VIDEO,
+                )
+            )
+        val failed = downloadNotificationTarget(DownloadNotificationDestination.Failed)
+
+        assertNotEquals(first.requestCode, second.requestCode)
+        assertNotEquals(first.requestCode, failed.requestCode)
+    }
+
+    @Test
+    fun `completion media kind parser rejects unknown values`() {
+        assertEquals(DownloadMediaKind.MUSIC, parseDownloadCompletionMediaKind("MUSIC"))
+        assertEquals(DownloadMediaKind.BOOK, parseDownloadCompletionMediaKind("BOOK"))
+        assertEquals(null, parseDownloadCompletionMediaKind("PODCAST"))
+        assertEquals(null, parseDownloadCompletionMediaKind(null))
     }
 
     @Test

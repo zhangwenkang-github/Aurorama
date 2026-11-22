@@ -1,5 +1,7 @@
 package com.zhangwenkang.cinefin.presentation.film
 
+import android.content.Intent
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -42,12 +44,19 @@ import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinCard
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinFilterChip
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
@@ -73,6 +82,7 @@ import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadsViewModel
 import com.zhangwenkang.cinefin.film.presentation.downloads.allEntries
 import com.zhangwenkang.cinefin.film.presentation.downloads.deletionProjection
 import com.zhangwenkang.cinefin.film.presentation.downloads.detailRows
+import com.zhangwenkang.cinefin.film.presentation.downloads.shouldShowNotificationPermissionNudge
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadBookSectionHeader
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadConfirmDialog
@@ -120,6 +130,8 @@ fun DownloadsScreen(
 
     LaunchedEffect(Unit) { viewModel.start() }
     DisposableEffect(Unit) { onDispose { viewModel.stop() } }
+    // W7-T5（需求 09）：从系统设置返回后重查通知权限，已授权则引导条自动消失。
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshNotificationPermission() }
     LaunchedEffect(viewModel) {
         viewModel.playbackRequests.collect { request ->
             when (request) {
@@ -148,6 +160,15 @@ fun DownloadsScreen(
                 else -> viewModel.onAction(action)
             }
         },
+        onOpenNotificationSettings = {
+            viewModel.onNotificationPermissionNudgeOpened()
+            runCatching {
+                context.startActivity(
+                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                )
+            }
+        },
     )
 }
 
@@ -174,6 +195,7 @@ private fun DownloadsScreenLayout(
     initialTab: DownloadTab,
     requestId: Long,
     onAction: (DownloadAction) -> Unit,
+    onOpenNotificationSettings: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
     val safePadding = rememberSafePadding(handleStartInsets = false)
@@ -298,6 +320,24 @@ private fun DownloadsScreenLayout(
         )
 
         if (drilldown == null) {
+            // W7-T5（需求 09）：无通知权限且有进行中任务 → 顶部非阻断引导，每会话一次。
+            if (
+                shouldShowNotificationPermissionNudge(
+                    activeCount = state.activeCount,
+                    notificationsEnabled = state.notificationsEnabled,
+                    dismissedThisSession = state.notificationPermissionNudgeDismissed,
+                )
+            ) {
+                NotificationPermissionNudge(
+                    onOpenSettings = onOpenNotificationSettings,
+                    modifier =
+                        Modifier.padding(
+                            start = horizontalPadding,
+                            end = horizontalPadding,
+                            top = CinefinSpacing.Space3,
+                        ),
+                )
+            }
             Spacer(Modifier.height(CinefinSpacing.Space3))
             StorageSummary(
                 storage = state.storage,
@@ -915,6 +955,44 @@ private fun OverviewItem(
     }
 }
 
+/**
+ * W7-T5（需求 09）：通知权限引导长条。
+ *
+ * 复用 Lumen 面板语言（[CinefinCard] + 描边次级按钮），不引入新配色 / 图标；非阻断，只解释与跳转。
+ */
+@Composable
+private fun NotificationPermissionNudge(
+    onOpenSettings: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalCinefinColors.current
+    CinefinCard(
+        modifier = modifier.fillMaxWidth(),
+        shape = CinefinShapes.Card,
+        contentPadding =
+            PaddingValues(
+                horizontal = CinefinSpacing.Space4,
+                vertical = CinefinSpacing.Space3,
+            ),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(CoreR.string.download_notification_permission_nudge),
+                style = CinefinType.BodyMedium,
+                color = colors.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.size(CinefinSpacing.Space3))
+            CinefinButton(
+                text = stringResource(CoreR.string.download_notification_permission_nudge_action),
+                onClick = onOpenSettings,
+                variant = CinefinButtonVariant.Outlined,
+                size = CinefinButtonSize.Small,
+            )
+        }
+    }
+}
+
 @Composable
 private fun StorageSummary(
     storage: DownloadStorageUsage,
@@ -1054,6 +1132,7 @@ private fun DownloadsScreenLayoutPreview() {
             initialTab = DownloadTab.ACTIVE,
             requestId = 0L,
             onAction = {},
+            onOpenNotificationSettings = {},
         )
     }
 }

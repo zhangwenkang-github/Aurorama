@@ -176,6 +176,8 @@
     <string name="download_notification_cancel">取消</string>
     <string name="download_notification_completed">下載完成</string>
     <string name="download_notification_failed">下載失敗</string>
+    <string name="download_notification_permission_nudge">通知已關閉，下載進度與完成提醒不會顯示</string>
+    <string name="download_notification_permission_nudge_action">去開啟</string>
     <string name="download_filter_all">全部</string>
     <string name="download_filter_book">書籍</string>
     <string name="download_container_progress">已下載 %1$s</string>

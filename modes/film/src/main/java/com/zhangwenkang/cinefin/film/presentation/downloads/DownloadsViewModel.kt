@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.film.presentation.downloads
 
+import android.app.NotificationManager
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -84,6 +85,32 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import timber.log.Timber
+
+/**
+ * W7-T5（需求 09）：通知权限引导「每会话一次」的进程内开关。
+ *
+ * 不落盘：进程重启视为新会话；用户点过「去开启」后，离开下载页再回来也不重复提示。
+ */
+internal object DownloadNotificationNudgeSession {
+    @Volatile private var dismissed = false
+
+    fun isDismissed(): Boolean = dismissed
+
+    fun dismiss() {
+        dismissed = true
+    }
+
+    internal fun resetForTest() {
+        dismissed = false
+    }
+}
+
+/** W7-T5：有进行中任务、通知不可用、且本会话未提示过时，才在下载页顶部给引导。 */
+fun shouldShowNotificationPermissionNudge(
+    activeCount: Int,
+    notificationsEnabled: Boolean,
+    dismissedThisSession: Boolean,
+): Boolean = activeCount > 0 && !notificationsEnabled && !dismissedThisSession
 
 /** 书籍任务到下载页的纯投影规则；key 保留 canonical owner，内部 superseded 永不进入 UI。 */
 internal object BookDownloadProjectionRules {
@@ -189,8 +216,8 @@ internal object BookDownloadProjectionRules {
 /**
  * W32 下载管理页 ViewModel。
  *
- * 数据来源：Downloader（进行中 / 暂停 / 失败任务 + 存储占用）+ JellyfinRepository（已完成条目）。页面可见时每 1.5s 对账一次， 进程重启后由
- * DownloadManager 中的任务与 sources 表持久化状态恢复列表。
+ * 数据来源：Downloader（进行中 / 暂停 / 失败任务 + 存储占用）+ JellyfinRepository（已完成条目）。页面可见时每 500ms 对账一次 （W7-T5 需求
+ * 25），进程重启后由 DownloadManager 中的任务与 sources 表持久化状态恢复列表。
  *
  * W34：把任务与已完成条目归一化成 [DownloadHierarchyEntry]，交给纯函数 [DownloadHierarchyBuilder] 组织成「视频：节目 → 季 → 剧集 /
  * 音乐：专辑 → 曲目 / 书籍：封面卡片」的层级容器。
@@ -210,7 +237,14 @@ constructor(
     private val imageCacheStore: ImageCacheStore,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(DownloadManagerState())
+    private val _state =
+        MutableStateFlow(
+            DownloadManagerState(
+                notificationsEnabled = areNotificationsEnabled(),
+                notificationPermissionNudgeDismissed =
+                    DownloadNotificationNudgeSession.isDismissed(),
+            )
+        )
     val state = _state.asStateFlow()
 
     private val _playbackRequests =
@@ -413,6 +447,7 @@ constructor(
 
     /** 页面进入：立即刷新 + 启动轮询；重复调用无副作用。 */
     fun start() {
+        refreshNotificationPermission()
         if (sessionJob != null) return
         val session = SupervisorJob(actionScope().coroutineContext[Job])
         sessionJob = session
@@ -483,6 +518,36 @@ constructor(
         sessionJob?.cancel()
         sessionJob = null
     }
+
+    /** W7-T5（需求 09）：页面回前台时重查通知权限（用户可能刚从系统设置返回）。 */
+    fun refreshNotificationPermission() {
+        val enabled = areNotificationsEnabled()
+        val dismissed = DownloadNotificationNudgeSession.isDismissed()
+        _state.update { current ->
+            if (
+                current.notificationsEnabled == enabled &&
+                    current.notificationPermissionNudgeDismissed == dismissed
+            ) {
+                current
+            } else {
+                current.copy(
+                    notificationsEnabled = enabled,
+                    notificationPermissionNudgeDismissed = dismissed,
+                )
+            }
+        }
+    }
+
+    /** W7-T5：点「去开启」后本会话不再提示（系统设置返回仍未授权时也不重复打扰）。 */
+    fun onNotificationPermissionNudgeOpened() {
+        DownloadNotificationNudgeSession.dismiss()
+        _state.update { it.copy(notificationPermissionNudgeDismissed = true) }
+    }
+
+    private fun areNotificationsEnabled(): Boolean = runCatching {
+        context.getSystemService(NotificationManager::class.java)?.areNotificationsEnabled() ?: true
+    }
+        .getOrDefault(true)
 
     private fun requestExternalRefresh() {
         if (sessionJob == null) return
@@ -2445,7 +2510,8 @@ constructor(
     }
 
     private companion object {
-        const val POLL_INTERVAL_MS = 1500L
+        /** W7-T5（需求 25）：下载页可见期间进度刷新 ≤500ms（原 1500ms）。 */
+        const val POLL_INTERVAL_MS = 500L
 
         /** W63：服务器元数据补齐阶段的并发上限。 */
         const val REMOTE_PREFETCH_CONCURRENCY = 4

@@ -183,6 +183,8 @@
     <string name="download_notification_cancel">Cancel</string>
     <string name="download_notification_completed">Download complete</string>
     <string name="download_notification_failed">Download failed</string>
+    <string name="download_notification_permission_nudge">Notifications are off — download progress and completion alerts won\'t appear</string>
+    <string name="download_notification_permission_nudge_action">Turn on</string>
     <string name="download_filter_all">All</string>
     <string name="download_filter_book">Books</string>
     <string name="download_container_progress">%1$s downloaded</string>

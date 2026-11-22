@@ -35,7 +35,9 @@ import kotlinx.coroutines.supervisorScope
 /**
  * 下载状态角标数据源（W60b）：单例轮询下载引擎的只读快照（任务状态 + 进度 + 已下载集合）， 供库网格 / 首页走廊 / 搜索结果 / 详情海报 / 我的收藏页的卡片角标共用。
  *
- * 只在有页面「持有」时轮询（[acquire] / [release] 计数）：所有页面离开组合后停止轮询并清空快照， 不把下载引擎的查询变成常驻负担。轮询周期与下载页一致（1500ms）。
+ * 只在有页面「持有」时轮询（[acquire] / [release] 计数）：所有页面离开组合后停止轮询并清空快照， 不把下载引擎的查询变成常驻负担。
+ *
+ * W7-T5 裁定豁免：下载页进度刷新已收紧到 500ms（需求 25），角标不承担进度主体，保持 1500ms，避免多页面共享轮询放大查询压力。
  */
 @Singleton
 class DownloadStatusMonitor
@@ -124,6 +126,7 @@ constructor(
         }
 
     private companion object {
+        /** W7-T5 裁定：角标不是进度主体，不跟随下载页 500ms 口径（保持 1500ms）。 */
         const val POLL_INTERVAL_MS = 1500L
     }
 }

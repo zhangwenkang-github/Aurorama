@@ -11,17 +11,38 @@ import android.text.format.Formatter
 import androidx.core.app.NotificationCompat
 import com.zhangwenkang.cinefin.core.R as CoreR
 import java.net.URI
+import java.util.UUID
 
-internal enum class DownloadNotificationDestination {
-    HOME,
-    ACTIVE,
-    FAILED,
+/**
+ * 通知点击目的地。
+ *
+ * W7-T5（需求 27）：[Completed] 把「条目 + 媒体类型」交给 [com.zhangwenkang.cinefin.MainActivity]， 由它按本地可达性直达播放 /
+ * 阅读，或回退下载页「已完成」分组。
+ */
+internal sealed interface DownloadNotificationDestination {
+    data object Home : DownloadNotificationDestination
+
+    data object Active : DownloadNotificationDestination
+
+    data object Failed : DownloadNotificationDestination
+
+    data class Completed(
+        val itemId: UUID,
+        val mediaKind: DownloadMediaKind,
+    ) : DownloadNotificationDestination
 }
+
+internal data class DownloadCompletionDeepLink(
+    val itemId: String,
+    val mediaKind: DownloadMediaKind,
+)
 
 internal data class DownloadNotificationTarget(
     val requestCode: Int,
     val openDownloads: Boolean,
     val tab: String?,
+    /** 非空 = 完成通知直达播放 / 阅读（不打开下载页）。 */
+    val completion: DownloadCompletionDeepLink? = null,
 )
 
 internal data class DownloadFailureNotificationContent(
@@ -113,25 +134,40 @@ internal fun downloadNotificationTarget(
     destination: DownloadNotificationDestination
 ): DownloadNotificationTarget =
     when (destination) {
-        DownloadNotificationDestination.HOME ->
+        DownloadNotificationDestination.Home ->
             DownloadNotificationTarget(
                 requestCode = REQUEST_OPEN_HOME,
                 openDownloads = false,
                 tab = null,
             )
-        DownloadNotificationDestination.ACTIVE ->
+        DownloadNotificationDestination.Active ->
             DownloadNotificationTarget(
                 requestCode = REQUEST_OPEN_ACTIVE_DOWNLOADS,
                 openDownloads = true,
                 tab = DOWNLOADS_TAB_ACTIVE,
             )
-        DownloadNotificationDestination.FAILED ->
+        DownloadNotificationDestination.Failed ->
             DownloadNotificationTarget(
                 requestCode = REQUEST_OPEN_FAILED_DOWNLOADS,
                 openDownloads = true,
                 tab = DOWNLOADS_TAB_FAILED,
             )
+        is DownloadNotificationDestination.Completed ->
+            DownloadNotificationTarget(
+                requestCode = REQUEST_OPEN_COMPLETED + (destination.itemId.hashCode() and 0xfff),
+                openDownloads = false,
+                tab = null,
+                completion =
+                    DownloadCompletionDeepLink(
+                        itemId = destination.itemId.toString(),
+                        mediaKind = destination.mediaKind,
+                    ),
+            )
     }
+
+/** 完成通知 extra 的媒体类型解析；未知 / 缺失返回 null（调用方回退下载页）。 */
+fun parseDownloadCompletionMediaKind(raw: String?): DownloadMediaKind? =
+    DownloadMediaKind.entries.firstOrNull { it.name == raw }
 
 internal fun failureNotificationContent(
     taskName: String,
@@ -251,9 +287,9 @@ internal class DownloadNotifications(private val context: Context) : DownloadNot
                 .setContentIntent(
                     openAppIntent(
                         if (activeCount > 1) {
-                            DownloadNotificationDestination.ACTIVE
+                            DownloadNotificationDestination.Active
                         } else {
-                            DownloadNotificationDestination.HOME
+                            DownloadNotificationDestination.Home
                         }
                     )
                 )
@@ -296,7 +332,15 @@ internal class DownloadNotifications(private val context: Context) : DownloadNot
                 .setContentTitle(context.getString(CoreR.string.download_notification_completed))
                 .setContentText(task.name)
                 .setAutoCancel(true)
-                .setContentIntent(openAppIntent(DownloadNotificationDestination.HOME))
+                // W7-T5（需求 27）：完成通知点击直达对应播放 / 阅读界面。
+                .setContentIntent(
+                    openAppIntent(
+                        DownloadNotificationDestination.Completed(
+                            itemId = task.itemId,
+                            mediaKind = task.mediaKind,
+                        )
+                    )
+                )
                 .build()
         manager.notify(stateNotificationId(task.sourceId), notification)
     }
@@ -315,7 +359,7 @@ internal class DownloadNotifications(private val context: Context) : DownloadNot
                 .setContentText(content.text)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(content.expandedText))
                 .setAutoCancel(true)
-                .setContentIntent(openAppIntent(DownloadNotificationDestination.FAILED))
+                .setContentIntent(openAppIntent(DownloadNotificationDestination.Failed))
                 .build()
         manager.notify(stateNotificationId(task.sourceId), notification)
     }
@@ -353,6 +397,10 @@ internal class DownloadNotifications(private val context: Context) : DownloadNot
         if (target.openDownloads) {
             launch.putExtra(EXTRA_OPEN_DOWNLOADS, true)
             target.tab?.let { launch.putExtra(EXTRA_DOWNLOADS_TAB, it) }
+        }
+        target.completion?.let { completion ->
+            launch.putExtra(EXTRA_DOWNLOAD_COMPLETION_ITEM_ID, completion.itemId)
+            launch.putExtra(EXTRA_DOWNLOAD_COMPLETION_MEDIA_KIND, completion.mediaKind.name)
         }
         return PendingIntent.getActivity(
             context,
@@ -419,9 +467,21 @@ const val EXTRA_DOWNLOADS_TAB = "com.zhangwenkang.cinefin.extra.DOWNLOADS_TAB"
 const val DOWNLOADS_TAB_ACTIVE = "ACTIVE"
 const val DOWNLOADS_TAB_FAILED = "FAILED"
 
+/** W7-T5：完成通知直达播放 / 阅读的条目身份；由 MainActivity 消费并分派。 */
+const val EXTRA_DOWNLOAD_COMPLETION_ITEM_ID =
+    "com.zhangwenkang.cinefin.extra.DOWNLOAD_COMPLETION_ITEM_ID"
+const val EXTRA_DOWNLOAD_COMPLETION_MEDIA_KIND =
+    "com.zhangwenkang.cinefin.extra.DOWNLOAD_COMPLETION_MEDIA_KIND"
+
+/** W7-T5：本地条目不可达时回退的下载页分组。 */
+const val DOWNLOADS_TAB_COMPLETED = "COMPLETED"
+
 private const val REQUEST_OPEN_HOME = 100
 private const val REQUEST_OPEN_ACTIVE_DOWNLOADS = 101
 private const val REQUEST_OPEN_FAILED_DOWNLOADS = 102
+
+/** 完成通知按条目 hash 分离请求码，避免多条完成通知互相覆盖 PendingIntent。 */
+private const val REQUEST_OPEN_COMPLETED = 10_000
 private const val MAX_FAILURE_DETAIL_LENGTH = 180
 private val httpUrlPattern = Regex("""https?://[^\s]+""", RegexOption.IGNORE_CASE)
 internal val downloadNotificationLaunchFlags =
