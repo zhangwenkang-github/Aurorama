@@ -1,6 +1,6 @@
 # 2.0 W8 · 服务器写（任务卡）
 
-> 状态：`T1/T1r/T2/T3'/T4 已交付验收，待派 T5（阻塞：其他库无可删样本，待用户补料）/T6`（2026-11-22 会话4：T4 77143ae0；T1 ea8b9c10+T1r e98632b4、T2 a98b4566、T3' a56cb0ec；T3 个人评分写入经用户裁定转向，备份 backup/w8-t3-personal-rating 并 revert 6d09a52d；12 条判定最新见下方「T2/T3' 后判定变化」）
+> 状态：`T1/T1r/T2/T3'/T4/T5 已交付验收，待派 T6（元数据编辑，仅管理员）/T7（全量验收矩阵）`（2026-11-22 会话4：T4 77143ae0、T5 91d8d73b；T1 ea8b9c10+T1r e98632b4、T2 a98b4566、T3' a56cb0ec；T3 个人评分写入经用户裁定转向，备份 backup/w8-t3-personal-rating 并 revert 6d09a52d；12 条判定最新见下方「T2/T3' 后判定变化」）
 > 依据：`docs/V2_REQUIREMENTS.md` §6（V2-WRITE 全 12 条）与 §15 波次表（W8 ← W3，依赖已满足）；设计唯一权威 `docs/V2_DESIGN.md`。
 
 ## 状态块（新会话先读这里）
@@ -15,7 +15,7 @@
   - T1r 遗留登记（非 T1r 引入）：①KEEP 竞态——排队时若同名家任务正运行且已越过该行，需下一次触发才补传（接受口径）；②**SyncWorker 只扫 movies/episodes 两表——季/剧的排队写不会被补传**（WRITE-08 既有缺口，T7 或新卡评估扩展）。
 - **T2 交付（2026-11-22，`a98b4566`）**：`UserPolicyStore`（按 serverId+userId 键控、StateFlow、fail-closed、切号不串）+ 纯函数 `canDeleteContent`（admin∥全局许可∥库白名单）/`canEditMetadata`（**仅管理员**——T2 实测：Jellyfin 12 `ItemUpdateController` 整体 RequiresElevation，zhangwenkang 全库 403、admin 204；T6 据此门控）；启动 READY 时刷新一次，同进程切号由写入口 `ensureLoaded()` 兜底。实测：w8limited 仅见动漫+书籍 2 库（服务端强制，App 零代码）。Pad 冒烟：冷启动 `GET /Users/Me` ×2 实证。15 条新单测全绿。
 - **T3 转向记录（2026-11-22 用户裁定）**：原「个人评分写入」系需求理解错误（原始需求文档无评分条目），正确需求 = 显示服务器评分元数据。已交付的 T3（`618c005a`，14 单测+测试服实测：7.5 精确回读、清除须走 `DELETE /UserItems/{id}/Rating`、写评分会顺带翻转服务端 Likes）已备份 `backup/w8-t3-personal-rating` 并主干 revert（`6d09a52d`），是否启用登记 W9。Pad 复验副产物：评分星条"off-by-one"实为 **uiautomator dump 与 input tap ~50px 坐标系偏差**（点击目标按 dump 坐标 +50 命中），对话框实现正确、无缺陷。新 T3' = 列表卡片评分徽标（定稿见任务卡）。
-- **T2/T3' 后 12 条判定变化**：03（失败可见）❌→✅（T1 已修并真机验证）；04（权限门控）❌→⚠️（基础设施就绪，UI 门控随 T5/T6 落地）；09（403 区分）❌→✅（T1 错误模型）；05/08 ⚠️→⚠️+（T1/T1r 服务器先行+排队补同步已闭环，SyncWorker 季/剧缺口遗留）；10 ❌→⚠️（受限用户 w8limited 就绪，覆盖测试随 T5–T7）。
+- **T2–T5 后 12 条判定变化**：03（失败可见）❌→✅（T1 已修并真机验证）；04（权限门控）❌→⚠️（删除入口门控已随 T5 落地——条目级 canDelete；元数据编辑门控随 T6 落地后转 ✅）；09（403 区分）❌→✅（T1 错误模型）；05/08 ⚠️→⚠️+（T1/T1r 服务器先行+排队补同步已闭环，SyncWorker 季/剧缺口遗留）；06（二次确认）⚠️→✅（T5 删除确认 Pad 取证：取消零请求、确认才执行、文案含影响范围）；10 ❌→⚠️（受限用户 w8limited 就绪，覆盖测试随 T6–T7）。
 - **范围锚点**：V2-WRITE-01 = 写能力对齐官方客户端可比完备度；02–12 为横切纪律（端点依据官方 spec/源码 02；写失败用户可见且区分可重试 03；权限不足入口前置隐藏/禁用 04；禁乐观更新、以服务端确认为准 05/08；危险操作二次确认 06；用户级写=本人身份 07；403 不当网络错误重试 09；受限账号测试覆盖 10；多服务器隔离+环境可见 11；交付标准=成功/被拒/失败三态可见，不以「接口调通」为完成 12）。
 - **测试服务器政策（2026-11-22 用户拍板）**：`jellyfin-test.zhangwenkang.com`（Jellyfin 12.4.0）为独立可写测试服——资源可删除、可改元数据；优先操作已播放完内容。凭据位置 `F:\Develop\codex_work\Documents\Codex\资源.txt`（值不得进仓库/日志/报告/记忆/截图）。生产 `jellyfins.zhangwenkang.com` 依旧永久只读。
 - **测试服盘点（T0 实测，2026-11-22）**：
@@ -31,7 +31,7 @@
 | 03 失败可见+可重试区分 | ❌ | 收藏/已看写失败 `catch (_: Exception)` 吞掉仅标记 `toBeSynced`（`:2069/2083/2097/2109`），用户无任何可见反馈，无可重试区分 |
 | 04 权限不足入口前置隐藏 | ❌ | 全仓无 `UserPolicy` 门控；仅 setup 查 `isAdministrator`（`:2156`），写入口不做权限判断 |
 | 05 禁乐观更新/服务端确认为准 | ⚠️ | 非乐观更新，但「本地先落库→服务器失败静默」（`:2066-2071`），UI 以本地为准，服务端结果不参与 UI 状态 |
-| 06 危险操作二次确认 | ⚠️ | 批量动作存在（`MediaBatchViewModel`/`MusicBatchRules`）但删除仅限本地下载（`Downloader.deleteItem`）；服务器侧危险操作尚不存在，确认机制随 T5 建立 |
+| 06 危险操作二次确认 | ✅ | T5 落地：删除服务器文件经二次确认（含影响范围文案），取消零请求、确认才执行（Pad 取证） |
 | 07 用户本人身份写 | ✅ | 全部写操作走用户 access token + `jellyfinApi.userId`（`MUSIC_PLAN.md` D10 实证服务端只认用户令牌） |
 | 08 静默不一致补偿 | ⚠️ | 有 `toBeSynced` + `SyncWorker` 后台补同步机制，但补偿过程用户不可见、无回读确认闭环 |
 | 09 403 不重试 | ❌ | 用户数据写路径 catch-all，无状态码区分（`SyncPlayMapping.kt:216`/`PlaybackSourceResolution.kt:635` 有 `InvalidStatusException` 映射，但不在用户数据写路径） |
@@ -52,8 +52,8 @@
 | 歌单创建 | `playlistsApi.createPlaylist` | ✅ | ❌ | ✅ **T4** | 保持（移除条目随既有实现） |
 | 歌单加入 | `playlistsApi.addToPlaylist`（SDK 方法名 `addItemToPlaylist`） | ✅ | ❌ | ✅ **T4** | 保持 |
 | 歌单移除条目 | `playlistsApi.removeItemFromPlaylist` | ✅ | ❌ | ✅ | 保持，接 T1 错误模型 |
-| 歌单删除 | `itemsApi.deleteItem` | ✅ | ❌ | ❌ | 随 **T5** |
-| 条目删除 | `itemsApi.deleteItem`（需 EnableContentDeletion） | ✅ | ❌ | ❌ | **T5** |
+| 歌单删除 | `libraryApi.deleteItem`（SDK 1.8.12 无 itemsApi.deleteItem） | ✅ | ❌ | ✅（随 T4 清理执行） | 保持 |
+| 条目删除 | `libraryApi.deleteItem`（服务端按 policy 计算条目级 canDelete 门控） | ✅ | ❌ | ✅ **T5** | 保持 |
 | 元数据编辑 | `itemUpdateApi.updateItem` | ✅（web 编辑器，权限模型 T6 实测） | ❌ | ❌ | **T6** |
 | 合集创建/加入 | `collectionApi.create/addToCollection` | ✅ | ❌ | ❌ | 裁定 LATER → W9 backlog 登记 |
 | 刷新元数据 | `itemRefreshApi.refreshItem` | ✅ | ❌ | ❌ | 裁定 LATER → W9 backlog 登记 |
@@ -119,14 +119,14 @@ jellyfin-test.zhangwenkang.com 已获用户可写授权（可删除/改元数据
 - **写边界与还原声明（执行记录）**：测试歌单统一 `W8-TEST-*`；验证后全部删除（`DELETE /Items/{id}` ×4 全 204、回读仅剩既有「测试播放列表」），该删除同时作 T5 deleteItem 端点契约探针（zhangwenkang 对自有歌单 204 实证）。测试曲目均为已播完音频，非破坏操作。
 - **遗留**：①6 按钮批量条仅 Pad 宽屏目检，360dp 竖屏挤压风险登记（W9 或 K60 只读目检）；②本地曲目禁用态无本地库可验，以 `ServerPlaylistRulesTest` 单测口径为准；③新建/加入后 `refresh` 连曲库重拉，粒度可后拆。
 
-### T5 条目删除（含歌单删除）（派 deepseek，1 卡）
+### T5 条目删除（含歌单删除）✅（2026-11-22，`91d8d73b`，Pad 真机验证通过）
 
-- **目标**：`itemsApi.deleteItem` 服务器条目删除——危险操作二次确认+影响范围说明（WRITE-06）；入口按 T2 权限门控；删除后本地缓存/索引同步清理。
-- **文件边界**：`data/repository`、`app/phone`+`modes/film|music` 删除入口与确认弹窗（样式按 `V2_DESIGN.md`）。
-- **验收要点**：①`zhangwenkang` 仅「其他」库可见删除入口（权限实证）；②二次确认文案含影响范围（服务器文件删除、不可还原）；③删除后回读 404/列表消失；④403 按 T1 模型呈权限失败不重试。
-- **写边界与还原声明**：**删除不可还原**——仅删测试服「其他」库已播完样本，总量 ≤5 条；每条删除前登记快照（名称/ID/路径）入任务证据，清单经用户确认后执行。歌单删除 = 删 `W8-TEST-*` 测试歌单。
+- **交付**：`JellyfinRepository.deleteItem`（**SDK 1.8.12 实为 `libraryApi.deleteItem`**，无 itemsApi.deleteItem）——简单写边界复用 T1 失败分类、**无排队补偿**（删除不补偿，失败零本地改动）；服务器确认后本地清理（movies/episodes/userdata/sources+mediastreams 级联/downloadIntents）+ 元数据快照失效 + `UserDataEvents.contentVersion` 广播（`FavoriteChangeEffect` 扩展订阅，列表回页补刷）。门控 = 条目级 `canDelete`（服务端按用户 policy 计算、官方 web 客户端同口径；Findroid 模型新增字段，null→false fail-closed；离线不渲染）。UI：详情页（MovieScreen/EpisodeScreen）`ItemButtonsBar` 下方 `DeleteServerFileButton`（error 槽位）+ 复用 `DownloadConfirmDialog` 二次确认（标题「删除服务器文件」、正文含《条目名》+不可还原+本地清理说明）；成功 popBackStack、失败走 `DetailWriteMessages` snackbar。11 条新单测（4 契约+3 规则+3 VM 映射+effect）。
+- **真机验收记录（Pad=43af8627）**：①**反向门控**：zhangwenkang 打开动漫单集详情（只有神知道的世界 S1E1）无删除入口（服务端 canDelete=false 实证）。②**电影**：admin 言叶之庭详情入口可见 → 取消（无请求，回读 200）→ 确认（回读 404、图片 404）→ 自动返回电影库「共 17→16 个项目」即时刷新。③**单集**：admin 我们无法一起学习 E1 同流程全过 → 返回季页集列表 E1 消失。④文案取证：「将删除服务器上的《名称》，文件不可还原。本地缓存与下载记录将一并清理。」（WRITE-06 达标）。
+- **写边界与还原声明（执行记录）**：删除不可还原——实际执行 **2 条**（≤5）：言叶之庭（电影 `c62d59e5…`）、我们无法一起学习 E1（`6b651b3e…`），均 admin 已播完、删前快照登记 `F:\Develop\code_data\qa\w8-t5\deletion-snapshot.md`（含两次同规则目标替换理由：悠哉 S3E13 库排序位 80/93 导航成本高→邻座的怪同学；应用库排序≠API SortName 盲翻 12 屏未命中→首屏可见的我们无法一起学习 E1）。歌单删除已由 T4 清理完成（无遗留）。执行后 Pad 已切回 zhangwenkang。
+- **遗留**：①季页头部「季 · 13」计数删除后当页不刷新（集列表已正确移除，计数待下次加载；登记 W9 或 T7 顺手）；②应用库排序与 API SortName 不一致（导航经验，非缺陷）。
 - **真机取证点**：删除 → 回读消失 + 网页端确认。依赖 T1+T2。
-- **阻塞与前置证据（2026-11-22 会话4 盘点）**：①「其他」库对唯一有删除权的 zhangwenkang **仅显示空文件夹「隐藏影库」，0 个可见可删条目**（admin 反被服务端拒访该库）——**待用户往 `/medi/下载完成/隐藏影库` 补可弃样本并扫描后方可执行**；②端点契约探针已留存：zhangwenkang 对自有 W8-TEST-* 歌单 `DELETE /Items/{id}` ×4 全 204、回读消失（T4 清理记录）。
+- **阻塞解除与边界修订（2026-11-22 会话4，用户裁定）**：原「仅其他库已播完样本」因该库 0 可删条目阻塞；**用户裁定样本源改为动漫/电影库已播完节目或视频（≤5 条）**。服务端 policy 复核：zhangwenkang 删除权仍仅「其他」库（`EnableContentDeletionFromFolders=[12c75549…]`）——故**执行删除用 admin**（动漫/电影库全权），zhangwenkang 用于「无权限入口隐藏」反向门控验证。门控字段实证：`BaseItemDto.canDelete` 服务端按用户 policy 计算——zhangwenkang 看动漫已播完集=false、admin=true（与官方 web 客户端同口径，T5 门控即消费该字段）。端点契约探针：zhangwenkang 对自有 W8-TEST-* 歌单 `DELETE /Items/{id}` ×4 全 204（T4 清理记录）。
 
 ### T6 条目元数据编辑（派 deepseek，1 卡）
 

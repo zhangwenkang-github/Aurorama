@@ -32,7 +32,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 线 | 状态 | 文档 |
 |----|------|------|
 | 1.4.1 | 🟢 **已发布**（2026-11-18）：master=`76f5350b`、tag `v1.4.1`、GitHub Release 双 APK | 发布目录 `releases/1.4.1-signed-r34-2026-11-17/` |
-| 2.0.0 | 🟡 **W8 进行中（T1/T1r/T2/T3'/T4 已验收）**（2026-11-22 会话4）：T4 服务端歌单创建/加入 `77143ae0` Pad 真机三用例通过（含 id 无连字符解析缺陷修复）；T5 阻塞——「其他」库对 zhangwenkang 0 可删条目，待用户补样本；deleteItem 端点契约探针已留存（204×4）；W9-T0 聚合顺延 | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · `V2_W8_TASKS.md` · `V2_W7_TASKS.md` |
+| 2.0.0 | 🟡 **W8 进行中（T1/T1r/T2/T3'/T4/T5 已验收，剩 T6/T7）**（2026-11-22 会话4）：T4 服务端歌单创建/加入 `77143ae0`、T5 条目删除 `91d8d73b`（libraryApi.deleteItem+二次确认+条目级 canDelete 门控，Pad 双删除链路验证、取消零请求实证；12 条判定 06 转 ✅）；下一步 T6 元数据编辑（实证仅管理员）；W9-T0 聚合顺延 | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · `V2_W8_TASKS.md` · `V2_W7_TASKS.md` |
 | 播放器 | 🟢 W2 架构重构完成；W4 开工（2026-11-19）：T0 现状核对 + 任务卡定稿（T1–T7）；retrySeek 跨条目重建已修（`ccdafefa`）；生产 TLS `-0x7280` 复验通过（服务器侧修复生效，K60 mpv 正常播放） | `docs/V2_W4_TASKS.md` · `docs/V2_ARCHITECTURE.md` §3 |
 | 下载/离线 | 🟢 W7 已收官（2026-11-22）：55 条 = ✅51/⚠️4/❌0；修复卡 F1b 音乐重下载删档绕过 / F2 PENDING 滞留 / F4 音乐离线冷路径 / F5 书籍通知 / F6 作者折叠 / F7 引擎空转热循环，全登记 W9 聚合（F1 引擎层与 F3 已修销项） | `docs/V2_W7_TASKS.md` · `docs/DOWNLOAD_PLAN.md` |
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
@@ -41,7 +41,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-22）
 
-1. **2.0.0 W8 服务器写进行中（2026-11-22 会话4）**：T1 写错误模型（`ea8b9c10`）+T1r 补同步（`e98632b4`）、T2 权限门控（`a98b4566`）、T3' 评分徽标（`a56cb0ec`）、**T4 服务端歌单创建/加入（`77143ae0`）** 全部交付并 Pad 真机验收。T4 验收抓出并修复真缺陷：`PlaylistCreationResult.id` 为 32 位无连字符裸 String，直接 `UUID.fromString` 必抛（契约测试成功用例已改真实线格式）。**T5 阻塞待用户**：「其他」库（`12c75549…`）对唯一有删除权的 zhangwenkang 只显示空文件夹「隐藏影库」、0 可删条目（admin 被服务端拒访该库）；请往 `/medi/下载完成/隐藏影库` 补可弃样本并扫描，清单由 Kimi 列快照后经用户确认执行。deleteItem 契约探针已留存（zhangwenkang 删自有 W8-TEST-* 歌单 204×4）。T4 证据 `F:\Develop\code_data\qa\w8-t4\`。
+1. **2.0.0 W8 服务器写进行中（2026-11-22 会话4）**：T1 写错误模型（`ea8b9c10`）+T1r 补同步（`e98632b4`）、T2 权限门控（`a98b4566`）、T3' 评分徽标（`a56cb0ec`）、T4 服务端歌单创建/加入（`77143ae0`）、**T5 条目删除（`91d8d73b`）** 全部交付并 Pad 真机验收。T4 修复 `PlaylistCreationResult.id` 无连字符解析缺陷；T5 关键事实：SDK 1.8.12 删除端点实为 `libraryApi.deleteItem`，门控用服务端条目级 `canDelete`（zhangwenkang=false/admin=true 实证），删除无排队补偿、取消零请求、确认后本地级联清理+列表即时刷新；实删 2 条已播完样本（快照 `qa/w8-t5/`），设备已切回 zhangwenkang。**下一步 T6 元数据编辑**（T2 实证仅管理员可编辑，非管理员入口隐藏）。T4/T5 证据 `F:\Develop\code_data\qa\w8-t4\`、`w8-t5\`。
 2. **W7 下载域已收官（2026-11-22 会话4，HEAD `da4791d5`）**：55 条 = ✅51/⚠️4/❌0；⚠️ 全裁定（F1b/F2/F4/F5/F6/F7 + L1–L3 + O1 + S1，见 `V2_W7_TASKS.md`「裁定登记」）；F3（`d8ee43af`）与 F1 引擎层（`d5e8b119`）已修；F1b/F7 根因已定位、修复卡就绪（优先候选）；W9-T0 聚合顺延至 W8 收官后。
 3. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
