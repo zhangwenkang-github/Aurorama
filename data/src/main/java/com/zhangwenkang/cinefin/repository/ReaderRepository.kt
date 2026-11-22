@@ -43,6 +43,25 @@ interface ReaderRepository {
     val bookDownloads: StateFlow<List<BookDownloadTask>>
 
     /**
+     * W7-T3（V2-DOWNLOAD-21 书籍侧）：暂停在途整本下载。
+     *
+     * 取消在途请求但保留 `.part` 与已下载字节；返回 true = 确实暂停了一个活动任务。书籍删除 receipt 不可暂停。
+     */
+    suspend fun pauseBookDownload(itemId: UUID): Boolean = false
+
+    /** W7-T3（V2-DOWNLOAD-22 书籍侧）：从暂停点继续（Range 续传）；只有 `PAUSED` 任务可继续。 */
+    suspend fun resumeBookDownload(
+        itemId: UUID,
+        title: String? = null,
+    ): Boolean = false
+
+    /** W7-T3（V2-DOWNLOAD-23 书籍侧）：失败任务手动重试（重新入队并做残片续传检测）。 */
+    suspend fun retryBookDownload(
+        itemId: UUID,
+        title: String? = null,
+    ): Boolean = false
+
+    /**
      * W80（#23）：把整本下载登记为**后台任务**（App 作用域，离开阅读页 / 切换页面都不会取消）。
      *
      * [downloadLocalFile] 为避免出现第二套 Range / 恢复协议，也复用同一持久任务；是否等待完成只影响调用方，执行与文件提交始终由 App 作用域协调器持有。

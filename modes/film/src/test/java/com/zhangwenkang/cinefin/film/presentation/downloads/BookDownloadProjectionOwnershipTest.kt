@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.film.presentation.downloads
 import com.zhangwenkang.cinefin.repository.BookDownloadStatus
 import com.zhangwenkang.cinefin.repository.BookDownloadTask
 import com.zhangwenkang.cinefin.repository.LocalBookFile
+import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import java.util.UUID
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -57,7 +58,7 @@ class BookDownloadProjectionOwnershipTest {
     }
 
     @Test
-    fun `active 与 failed 只投影当前 RUNNING FAILED 且多个 owner 不给默认 owner`() {
+    fun `active 只投影活动队列 failed 只投影失败且多个 owner 不给默认 owner`() {
         val running =
             bookTask(
                 canonicalKey = "book:running",
@@ -89,6 +90,79 @@ class BookDownloadProjectionOwnershipTest {
             "多个 canonical owner 不得任选一个作为删除目标",
             BookDownloadProjectionRules.ownerFor(visible, ITEM_ID),
         )
+    }
+
+    @Test
+    fun `暂停与待启动任务进入活动队列并投影各自任务态`() {
+        val pending =
+            bookTask(
+                canonicalKey = "book:pending",
+                serverId = "server-a",
+                userId = USER_ID,
+                status = BookDownloadStatus.PENDING,
+                updatedAt = 1,
+            )
+        val paused =
+            bookTask(
+                canonicalKey = "book:paused",
+                serverId = "server-a",
+                userId = USER_ID,
+                status = BookDownloadStatus.PAUSED,
+                updatedAt = 2,
+            )
+
+        val visible = BookDownloadProjectionRules.visibleTasks(listOf(pending, paused))
+
+        assertEquals(listOf(pending, paused), BookDownloadProjectionRules.activeTasks(visible))
+        assertTrue(BookDownloadProjectionRules.failedTasks(visible).isEmpty())
+
+        val pendingEntry =
+            BookDownloadProjectionRules.activeEntry(
+                task = pending,
+                serverName = null,
+                imageUri = null,
+                allowOffline = true,
+            )
+        val pausedEntry =
+            BookDownloadProjectionRules.activeEntry(
+                task = paused,
+                serverName = null,
+                imageUri = null,
+                allowOffline = true,
+            )
+        assertEquals(DownloadTaskStatus.PENDING, pendingEntry.status)
+        assertEquals(DownloadTaskStatus.PAUSED, pausedEntry.status)
+    }
+
+    @Test
+    fun `有声书时长只在投影传入时出现在书籍条目`() {
+        val task =
+            bookTask(
+                canonicalKey = "book:audio",
+                serverId = "server-a",
+                userId = USER_ID,
+                status = BookDownloadStatus.RUNNING,
+                updatedAt = 1,
+            )
+
+        val ebook =
+            BookDownloadProjectionRules.activeEntry(
+                task = task,
+                serverName = null,
+                imageUri = null,
+                allowOffline = true,
+            )
+        val audiobook =
+            BookDownloadProjectionRules.activeEntry(
+                task = task,
+                serverName = null,
+                imageUri = null,
+                allowOffline = true,
+                runtimeTicks = 3_600_000_000L,
+            )
+
+        assertEquals(0L, ebook.runtimeTicks)
+        assertEquals(3_600_000_000L, audiobook.runtimeTicks)
     }
 
     private fun bookTask(

@@ -5,10 +5,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.database.DownloadedEpisodeHierarchy
 import com.zhangwenkang.cinefin.models.FindroidEpisode
+import com.zhangwenkang.cinefin.models.FindroidFolder
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.FindroidSourceType
+import com.zhangwenkang.cinefin.repository.BookAudioRules
 import com.zhangwenkang.cinefin.repository.BookDownloadDeleteResult
 import com.zhangwenkang.cinefin.repository.BookDownloadStatus
 import com.zhangwenkang.cinefin.repository.BookDownloadTask
@@ -89,8 +91,9 @@ internal object BookDownloadProjectionRules {
     fun visibleTasks(tasks: List<BookDownloadTask>): List<BookDownloadTask> =
         tasks.filterNot(BookDownloadTask::isSupersededDeleteRecord)
 
+    /** 活动队列 = PENDING / RUNNING / PAUSED（与主引擎 `DownloadTaskRules.isActiveQueueStatus` 同口径）。 */
     fun activeTasks(tasks: List<BookDownloadTask>): List<BookDownloadTask> =
-        visibleTasks(tasks).filter { it.status == BookDownloadStatus.RUNNING }
+        visibleTasks(tasks).filter { it.isActive }
 
     fun failedTasks(tasks: List<BookDownloadTask>): List<BookDownloadTask> =
         visibleTasks(tasks).filter { it.status == BookDownloadStatus.FAILED }
@@ -108,6 +111,8 @@ internal object BookDownloadProjectionRules {
         owner: BookDownloadTask?,
         imageUri: String?,
         allowOffline: Boolean,
+        /** 只有识别为有声书时才非 0（V2-DOWNLOAD-34）；电子书为 0，界面不显示时长。 */
+        runtimeTicks: Long = 0L,
     ): DownloadHierarchyEntry =
         DownloadHierarchyEntry(
             itemId = file.itemId,
@@ -121,6 +126,7 @@ internal object BookDownloadProjectionRules {
             status = DownloadTaskStatus.COMPLETED,
             sizeBytes = file.sizeBytes,
             imageUri = imageUri,
+            runtimeTicks = runtimeTicks,
             serverId = owner?.serverId,
             userId = owner?.userId?.toString(),
             allowOffline = allowOffline,
@@ -131,10 +137,9 @@ internal object BookDownloadProjectionRules {
         serverName: String?,
         imageUri: String?,
         allowOffline: Boolean,
+        runtimeTicks: Long = 0L,
     ): DownloadHierarchyEntry {
-        val entryStatus =
-            if (task.status == BookDownloadStatus.FAILED) DownloadTaskStatus.FAILED
-            else DownloadTaskStatus.RUNNING
+        val entryStatus = task.status.toDownloadTaskStatus()
         return DownloadHierarchyEntry(
             itemId = task.itemId,
             name =
@@ -150,12 +155,23 @@ internal object BookDownloadProjectionRules {
             totalBytes = task.totalBytes,
             updatedAt = task.updatedAtEpochMillis,
             imageUri = imageUri,
+            runtimeTicks = runtimeTicks,
             bookDetail = task.error,
             serverId = task.serverId,
             userId = task.userId?.toString(),
             allowOffline = allowOffline,
         )
     }
+
+    /** 书籍任务态 → 下载页 6 态投影；DELETING 书籍链路没有，删除走 FAILED + receipt。 */
+    fun BookDownloadStatus.toDownloadTaskStatus(): DownloadTaskStatus =
+        when (this) {
+            BookDownloadStatus.PENDING -> DownloadTaskStatus.PENDING
+            BookDownloadStatus.RUNNING -> DownloadTaskStatus.RUNNING
+            BookDownloadStatus.PAUSED -> DownloadTaskStatus.PAUSED
+            BookDownloadStatus.COMPLETED -> DownloadTaskStatus.COMPLETED
+            BookDownloadStatus.FAILED -> DownloadTaskStatus.FAILED
+        }
 }
 
 /**
@@ -589,11 +605,53 @@ constructor(
                 runForTask(action.task, DownloadPendingAction.RESUME) { downloader.resumeTask(it) }
             is DownloadAction.Retry ->
                 runForTask(action.task, DownloadPendingAction.RETRY) { downloader.retryTask(it) }
+            is DownloadAction.PauseBook ->
+                runBookEntryAction(action.key, DownloadPendingAction.PAUSE) { itemId ->
+                    readerRepository.pauseBookDownload(itemId)
+                }
+            is DownloadAction.ResumeBook ->
+                runBookEntryAction(action.key, DownloadPendingAction.RESUME) { itemId ->
+                    readerRepository.resumeBookDownload(itemId)
+                }
+            is DownloadAction.RetryBook ->
+                runBookEntryAction(action.key, DownloadPendingAction.RETRY) { itemId ->
+                    readerRepository.retryBookDownload(itemId)
+                }
             is DownloadAction.DeleteTask ->
                 runForTask(action.task, DownloadPendingAction.DELETE) { downloader.deleteTask(it) }
             is DownloadAction.DeleteCompleted -> runCompletedDeletion(action.download)
             is DownloadAction.Open -> Unit
             is DownloadAction.OpenEntry -> Unit
+        }
+    }
+
+    /**
+     * W7-T3：书籍行暂停 / 继续 / 重试。
+     *
+     * 书籍没有 `DownloadTask`（独立 `bookDownloadTasks` 链路），按条目 key 解析 itemId 后交给 `ReaderRepository`；
+     * 操作失败与批量动作同一套 pending / failure 反馈，便于下载页显示「操作失败」。
+     */
+    private fun runBookEntryAction(
+        key: String,
+        pendingAction: DownloadPendingAction,
+        block: suspend (UUID) -> Boolean,
+    ) {
+        val entry = _state.value.findEntry(key) ?: return
+        _state.update { current -> current.beginPending(pendingAction, setOf(key)) }
+        actionScope().launch {
+            try {
+                val accepted = block(entry.itemId)
+                if (!accepted) {
+                    _state.update { current -> current.failPending(pendingAction, setOf(key)) }
+                }
+                refresh(showLoading = false)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                failSelectionAction(pendingAction, setOf(key), error)
+            } finally {
+                _state.update { current -> current.finishPending(setOf(key)) }
+            }
         }
     }
 
@@ -1569,6 +1627,7 @@ constructor(
                     serverName = bookMetadata[task.itemId]?.name,
                     offlineAllowMap = snapshot.offlineAllowMap,
                     artwork = snapshot.artworkById[task.itemId],
+                    runtimeTicks = bookMetadata[task.itemId]?.runtimeTicks ?: 0L,
                 )
             }
         val failedBookEntries =
@@ -1577,6 +1636,7 @@ constructor(
                     serverName = bookMetadata[task.itemId]?.name,
                     offlineAllowMap = snapshot.offlineAllowMap,
                     artwork = snapshot.artworkById[task.itemId],
+                    runtimeTicks = bookMetadata[task.itemId]?.runtimeTicks ?: 0L,
                 )
             }
         val remoteEntries =
@@ -1904,14 +1964,21 @@ constructor(
         if (bookIds.isEmpty()) return emptyMap()
         for (id in bookIds) {
             if (cachedBookMetadata.containsKey(id)) continue
-            val name = runCatchingCancellable {
-                repository.getItem(id)?.name
-            }
-                .getOrNull()
-                ?.takeIf { it.isNotBlank() }
+            val item = runCatchingCancellable { repository.getItem(id) }.getOrNull()
+            val name = item?.name?.takeIf { it.isNotBlank() }
             val imageUrl = runCatchingCancellable { repository.getPrimaryImageUrl(id) }.getOrNull()
-            if (name != null || imageUrl != null) {
-                cachedBookMetadata[id] = BookMetadata(name = name, imageUrl = imageUrl)
+            // 有声书识别只用已取回的条目字段（类型 / 原始路径扩展名），不额外发请求；识别不了就不带时长。
+            val mediaKind = (item as? FindroidFolder)?.kind ?: (item as? FindroidMovie)?.kind
+            val container = BookAudioRules.containerFromPath((item as? FindroidFolder)?.sourcePath)
+            val runtimeTicks =
+                BookAudioRules.displayRuntimeTicks(
+                    runtimeTicks = item?.runtimeTicks ?: 0L,
+                    mediaKind = mediaKind,
+                    container = container,
+                )
+            if (name != null || imageUrl != null || runtimeTicks > 0L) {
+                cachedBookMetadata[id] =
+                    BookMetadata(name = name, imageUrl = imageUrl, runtimeTicks = runtimeTicks)
             }
         }
         return cachedBookMetadata.filterKeys { it in bookIds }
@@ -2194,6 +2261,7 @@ constructor(
             owner = owner,
             imageUri = artwork?.localImage?.uri ?: artwork?.generatedCover?.uri,
             allowOffline = offlineAllowMap[itemId] ?: true,
+            runtimeTicks = serverMetadata?.runtimeTicks ?: 0L,
         )
 
     /**
@@ -2205,12 +2273,14 @@ constructor(
         serverName: String?,
         offlineAllowMap: Map<UUID, Boolean>,
         artwork: LocalArtworkSnapshot?,
+        runtimeTicks: Long = 0L,
     ): DownloadHierarchyEntry =
         BookDownloadProjectionRules.activeEntry(
             task = this,
             serverName = serverName,
             imageUri = artwork?.generatedCover?.uri,
             allowOffline = offlineAllowMap[itemId] ?: true,
+            runtimeTicks = runtimeTicks,
         )
 
     /** W63：带并发上限的 map（服务器元数据补齐阶段用，避免一次性打出几十个请求）。 */
@@ -2309,7 +2379,12 @@ constructor(
         return results.any { changed -> changed }
     }
 
-    private data class BookMetadata(val name: String?, val imageUrl: String?)
+    private data class BookMetadata(
+        val name: String?,
+        val imageUrl: String?,
+        /** V2-DOWNLOAD-34：只有识别为有声书时才带时长；电子书为 0。 */
+        val runtimeTicks: Long = 0L,
+    )
 
     override fun onCleared() {
         super.onCleared()

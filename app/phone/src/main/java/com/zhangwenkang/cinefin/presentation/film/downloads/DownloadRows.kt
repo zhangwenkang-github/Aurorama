@@ -292,6 +292,18 @@ internal fun downloadActionForContainerRowAction(
         DownloadRowTaskAction.DELETE -> null
     }
 
+/** W7-T3：书籍行动作按条目 key 派发（书籍走独立 `bookDownloadTasks` 链路，没有 `DownloadTask`）。 */
+internal fun bookDownloadActionForRowAction(
+    key: String,
+    action: DownloadRowTaskAction,
+): DownloadAction? =
+    when (action) {
+        DownloadRowTaskAction.PAUSE -> DownloadAction.PauseBook(key)
+        DownloadRowTaskAction.RESUME -> DownloadAction.ResumeBook(key)
+        DownloadRowTaskAction.RETRY -> DownloadAction.RetryBook(key)
+        DownloadRowTaskAction.DELETE -> null
+    }
+
 internal fun downloadLeafContentAction(
     selectionMode: Boolean,
     mediaKind: DownloadMediaKind,
@@ -746,6 +758,9 @@ internal fun DownloadTopLevelRow(
                         canDelete = entry.canDelete,
                         deleteLabelRes = deleteLabelRes,
                         canonicalActions = entry.canonicalActions,
+                        bookStatus =
+                            entry.status.takeIf { entry.mediaKind == DownloadMediaKind.BOOK },
+                        bookEntryKey = entry.key,
                     )
                 }
             }
@@ -770,30 +785,48 @@ private fun DownloadTaskActionIcon(
     canDelete: Boolean,
     deleteLabelRes: Int = CoreR.string.download_action_delete,
     canonicalActions: Set<CanonicalDownloadAction>? = null,
+    /** 书籍条目没有 `DownloadTask`：用任务态 + 条目 key 生成动作（W7-T3）。 */
+    bookStatus: DownloadTaskStatus? = null,
+    bookEntryKey: String? = null,
 ) {
     val actionSpecs =
-        if (task != null) {
-            downloadRowActionSpecs(
-                task = task,
-                canDelete = canDelete,
-                pending = pendingAction != null,
-                deleteLabelRes = deleteLabelRes,
-                canonicalActions = canonicalActions,
-            )
-        } else {
-            downloadRowActionSpecs(
-                status = null,
-                canDelete = canDelete,
-                pending = pendingAction != null,
-                deleteLabelRes = deleteLabelRes,
-                canonicalActions = canonicalActions,
-            )
+        when {
+            task != null ->
+                downloadRowActionSpecs(
+                    task = task,
+                    canDelete = canDelete,
+                    pending = pendingAction != null,
+                    deleteLabelRes = deleteLabelRes,
+                    canonicalActions = canonicalActions,
+                )
+            bookStatus != null ->
+                downloadRowActionSpecs(
+                    status = bookStatus,
+                    canDelete = canDelete,
+                    pending = pendingAction != null,
+                    deleteLabelRes = deleteLabelRes,
+                    canonicalActions = canonicalActions,
+                )
+            else ->
+                downloadRowActionSpecs(
+                    status = null,
+                    canDelete = canDelete,
+                    pending = pendingAction != null,
+                    deleteLabelRes = deleteLabelRes,
+                    canonicalActions = canonicalActions,
+                )
         }
     DownloadRowActionIcon(
         actionSpecs = actionSpecs,
         pendingAction = pendingAction,
     ) { spec ->
-        val action = task?.let { downloadActionForRowAction(it, spec.action) }
+        val action =
+            when {
+                task != null -> downloadActionForRowAction(task, spec.action)
+                bookStatus != null && bookEntryKey != null ->
+                    bookDownloadActionForRowAction(bookEntryKey, spec.action)
+                else -> null
+            }
         if (action != null) onAction(action)
         else if (spec.action == DownloadRowTaskAction.DELETE) onRequestDelete()
     }
@@ -1295,6 +1328,9 @@ internal fun DownloadLeafCard(
                         canDelete = entry.canDelete,
                         deleteLabelRes = deleteLabelRes,
                         canonicalActions = entry.canonicalActions,
+                        bookStatus =
+                            entry.status.takeIf { entry.mediaKind == DownloadMediaKind.BOOK },
+                        bookEntryKey = entry.key,
                     )
                 }
             }
@@ -1800,13 +1836,33 @@ private fun leafSpeedLine(task: DownloadTask?): String {
 private fun leafSizeLine(entry: DownloadHierarchyEntry): String {
     val downloaded = entry.effectiveDownloadedBytes
     val total = entry.expectedTotalBytes
-    return when {
-        entry.status == DownloadTaskStatus.RUNNING ->
-            DownloadFormatRules.formatPercent(
-                if (total > 0L) downloaded.toFloat() / total.toFloat() else 0f
-            ) + " · " + DownloadFormatRules.formatSizePair(downloaded, total)
-        total > 0L && downloaded < total -> DownloadFormatRules.formatSizePair(downloaded, total)
-        else -> DownloadFormatRules.formatBytes(downloaded)
+    val sizeLine =
+        when {
+            entry.status == DownloadTaskStatus.RUNNING ->
+                DownloadFormatRules.formatPercent(
+                    if (total > 0L) downloaded.toFloat() / total.toFloat() else 0f
+                ) + " · " + DownloadFormatRules.formatSizePair(downloaded, total)
+            total > 0L && downloaded < total ->
+                DownloadFormatRules.formatSizePair(downloaded, total)
+            else -> DownloadFormatRules.formatBytes(downloaded)
+        }
+    // V2-DOWNLOAD-34：只有识别为有声书才会带 runtimeTicks（电子书为 0），没识别出来就不显示时长。
+    val audiobookRuntime =
+        entry.runtimeTicks.takeIf { entry.mediaKind == DownloadMediaKind.BOOK && it > 0L }
+            ?: return sizeLine
+    return "$sizeLine · ${formatRuntimeTicks(audiobookRuntime)}"
+}
+
+/** 有声书时长文案（V2-DOWNLOAD-34）：`24:02` / `1:23:00`，与影视片长同一口径。 */
+internal fun formatRuntimeTicks(runtimeTicks: Long): String {
+    val totalSeconds = (runtimeTicks / 10_000_000L).coerceAtLeast(0L)
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) {
+        "%d:%02d:%02d".format(hours, minutes, seconds)
+    } else {
+        "%d:%02d".format(minutes, seconds)
     }
 }
 

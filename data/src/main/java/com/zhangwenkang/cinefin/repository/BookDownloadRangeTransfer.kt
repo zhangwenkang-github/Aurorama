@@ -88,12 +88,32 @@ internal interface BookDownloadTransfer {
 }
 
 /**
+ * 暂停 / 恢复共用的续传偏移规则（纯函数，脱离文件系统即可验证）。
+ *
+ * 口径：没有残片、没有校验器时不能证明残片与服务器同源，一律从零重下；416 只有「总长已知且与当前偏移相等」才算残片已完整。
+ */
+internal object BookDownloadResumeRules {
+
+    /** 只有残片非空且校验器可证明同源时才从残片末尾续传。 */
+    fun resumeOffset(partialBytes: Long, resumeValidator: String?): Long =
+        if (partialBytes > 0L && !resumeValidator.isNullOrBlank()) partialBytes else 0L
+
+    /** 本次请求实际起点：Range 分支用残片偏移，非 Range 分支（安全重下）从零开始。 */
+    fun attemptOffset(useRange: Boolean, partialBytes: Long): Long =
+        if (useRange) partialBytes.coerceAtLeast(0L) else 0L
+
+    /** 416 是否代表「残片已是完整文件」。 */
+    fun unsatisfiedRangeCompletes(totalBytes: Long?, offset: Long): Boolean =
+        totalBytes != null && totalBytes > 0L && offset == totalBytes
+}
+
+/**
  * 书籍整本下载的唯一 HTTP / 文件提交实现。
  *
  * - 首请求不带 Range；只有已有 `.part` 且存在校验器时才续传；
  * - 206 必须从当前文件末尾开始，200 从零截断；
  * - 416 仅当偏移等于总大小时完成，否则仅允许一次无 Range 安全重下；
- * - 任何失败 / 取消都保留 `.part`，完整文件只通过同目录原子 move 出现。
+ * - 任何失败 / 取消（含用户暂停）都保留 `.part`，完整文件只通过同目录原子 move 出现。
  */
 internal class BookDownloadRangeTransfer(private val httpClient: OkHttpClient) :
     BookDownloadTransfer {
@@ -106,18 +126,17 @@ internal class BookDownloadRangeTransfer(private val httpClient: OkHttpClient) :
         request.partialFile.parentFile?.mkdirs()
 
         val resumableOffset =
-            request.partialFile
-                .takeIf {
-                    it.isFile && it.length() > 0L && !request.resumeValidator.isNullOrBlank()
-                }
-                ?.length() ?: 0L
+            BookDownloadResumeRules.resumeOffset(
+                partialBytes = request.partialFile.takeIf { it.isFile }?.length() ?: 0L,
+                resumeValidator = request.resumeValidator,
+            )
         var recoveryUsed = false
         var useRange = resumableOffset > 0L
 
         while (true) {
             currentCoroutineContext().ensureActive()
             val offset = request.partialFile.takeIf { it.isFile }?.length() ?: 0L
-            val attemptOffset = if (useRange) offset else 0L
+            val attemptOffset = BookDownloadResumeRules.attemptOffset(useRange, offset)
             val response =
                 execute(
                     request = request,
@@ -128,10 +147,13 @@ internal class BookDownloadRangeTransfer(private val httpClient: OkHttpClient) :
             response.use {
                 if (response.code == 416) {
                     val total = parseUnsatisfiedTotal(response.header("Content-Range"))
-                    if (useRange && total != null && attemptOffset == total && total > 0L) {
+                    if (
+                        useRange &&
+                            BookDownloadResumeRules.unsatisfiedRangeCompletes(total, attemptOffset)
+                    ) {
                         finishPartial(request.partialFile, request.targetFile)
                         return BookDownloadTransferResult(
-                            totalBytes = total,
+                            totalBytes = total ?: attemptOffset,
                             validator =
                                 response.header("ETag")
                                     ?: response.header("Last-Modified")
@@ -418,6 +440,113 @@ internal class BookDownloadManager(
         }
     }
 
+    /**
+     * W7-T3（V2-DOWNLOAD-21 书籍侧）：暂停在途下载。
+     *
+     * 先持久化 `PAUSED` 再取消协程：`runDownload` 的取消分支只在任务仍为 `RUNNING` 时写终态，因此不会被覆盖成 `FAILED`。 `.part`
+     * 与已写字节保留，恢复时由 [BookDownloadRangeTransfer] 用 Range 从偏移续传。返回 true = 确实暂停了一个活动任务。
+     */
+    suspend fun pauseBookDownload(itemId: UUID): Boolean {
+        restored.await()
+        val prepared =
+            itemLifecycle(itemId).withLock { lock.withLock { preparePauseLocked(itemId) } }
+                ?: return false
+        prepared.job?.cancel(CancellationException("书籍下载已暂停"))
+        withContext(NonCancellable) { prepared.job?.join() }
+        persistPausedBytes(prepared.task)
+        return true
+    }
+
+    /** W7-T3（V2-DOWNLOAD-22 书籍侧）：从暂停点继续。仅对 `PAUSED` 生效，其余状态返回 false（避免把 FAILED 当继续）。 */
+    suspend fun resumeBookDownload(
+        itemId: UUID,
+        title: String? = null,
+    ): Boolean {
+        restored.await()
+        val resumable =
+            itemLifecycle(itemId).withLock {
+                lock.withLock {
+                    mutableTasks.value.any {
+                        it.itemId == itemId &&
+                            !it.isDeleteRecord() &&
+                            BookDownloadTaskRules.canResume(it.status)
+                    }
+                }
+            }
+        if (!resumable) return false
+        return enqueueBookDownload(itemId, title) != BookDownloadEnqueueResult.BlockedByDelete
+    }
+
+    /**
+     * W7-T3（V2-DOWNLOAD-23 书籍侧）：失败任务手动重试。
+     *
+     * 重新入队会走既有残片检测（同源校验器 + `.part` 存在 → Range 续传；否则安全重下），不额外清理用户数据。
+     */
+    suspend fun retryBookDownload(
+        itemId: UUID,
+        title: String? = null,
+    ): Boolean {
+        restored.await()
+        val retryable =
+            itemLifecycle(itemId).withLock {
+                lock.withLock {
+                    mutableTasks.value.any {
+                        it.itemId == itemId &&
+                            !it.isDeleteRecord() &&
+                            BookDownloadTaskRules.canRetry(it.status)
+                    }
+                }
+            }
+        if (!retryable) return false
+        return enqueueBookDownload(itemId, title) != BookDownloadEnqueueResult.BlockedByDelete
+    }
+
+    private suspend fun preparePauseLocked(itemId: UUID): PauseStart? {
+        val task =
+            mutableTasks.value
+                .filter { it.itemId == itemId && !it.isDeleteRecord() }
+                .maxByOrNull { it.updatedAtEpochMillis }
+                ?.takeIf { BookDownloadTaskRules.canPause(it.status) } ?: return null
+        val paused =
+            task.copy(
+                status = BookDownloadStatus.PAUSED,
+                failureReason = null,
+                error = null,
+                updatedAtEpochMillis = clock(),
+            )
+        saveLocked(paused)
+        results.remove(task.canonicalKey)
+        val active = jobs.remove(task.canonicalKey)?.also { retiringJobs[task.canonicalKey] = it }
+        return PauseStart(task = paused, job = active?.job)
+    }
+
+    /** 协程取消后残片可能又落了一点字节；以磁盘实际长度校正暂停进度（V2-DOWNLOAD-30）。 */
+    private suspend fun persistPausedBytes(paused: BookDownloadTask) {
+        lock.withLock {
+            val current =
+                mutableTasks.value.firstOrNull { it.canonicalKey == paused.canonicalKey }
+                    ?: return@withLock
+            if (current.taskGeneration != paused.taskGeneration) return@withLock
+            if (current.status != BookDownloadStatus.PAUSED) return@withLock
+            val bytes =
+                generationPartialFileFor(current).takeIf { it.isFile }?.length()
+                    ?: current.downloadedBytes
+            if (bytes == current.downloadedBytes) return@withLock
+            saveLocked(
+                current.copy(
+                    downloadedBytes = bytes.coerceAtLeast(0L),
+                    updatedAtEpochMillis = clock(),
+                )
+            )
+        }
+    }
+
+    private fun generationPartialFileFor(task: BookDownloadTask): File {
+        val target = task.targetPath?.let(::File) ?: localFileProvider(task.itemId)
+        val basePartial = File(target.parentFile, "${target.name}.part")
+        return generationPartialFile(basePartial, task.taskGeneration)
+    }
+
     suspend fun deleteBookDownload(
         itemId: UUID,
         canonicalKey: String? = null,
@@ -613,7 +742,7 @@ internal class BookDownloadManager(
                     }
                     continue
                 }
-                if (task.status != BookDownloadStatus.RUNNING) continue
+                if (!BookDownloadTaskRules.isAutoResumeOnRestore(task.status)) continue
                 val credentials = runCatching {
                     credentialsProvider()
                 }
@@ -645,7 +774,7 @@ internal class BookDownloadManager(
                     )
                 val resumed =
                     task.copy(
-                        status = BookDownloadStatus.RUNNING,
+                        status = BookDownloadStatus.PENDING,
                         failureReason = null,
                         error = null,
                         taskGeneration = generation,
@@ -653,7 +782,11 @@ internal class BookDownloadManager(
                         targetPath = target.absolutePath,
                         updatedAtEpochMillis = clock(),
                     )
-                lock.withLock { launchLocked(resumed, credentials, target, partial) }
+                // 先持久化「等待自动恢复」再启动：重启窗口内崩溃时会以 PENDING 再次进入恢复分支，不会留下假的「进行中」。
+                lock.withLock {
+                    saveLocked(resumed)
+                    launchLocked(resumed, credentials, target, partial)
+                }
             }
         } finally {
             restored.complete(Unit)
@@ -825,7 +958,7 @@ internal class BookDownloadManager(
         } finally {
             val currentJob = currentCoroutineContext()[Job]
             withContext(NonCancellable) {
-                lock.withLock {
+                val preservePartial = lock.withLock {
                     if (jobs[task.canonicalKey]?.job == currentJob) {
                         jobs.remove(task.canonicalKey)
                     }
@@ -835,8 +968,19 @@ internal class BookDownloadManager(
                     if (results[task.canonicalKey] == result) {
                         results.remove(task.canonicalKey)
                     }
+                    val current =
+                        mutableTasks.value.firstOrNull { it.canonicalKey == task.canonicalKey }
+                    current != null &&
+                        current.taskGeneration == task.taskGeneration &&
+                        current.status == BookDownloadStatus.PAUSED &&
+                        !partial.exists()
                 }
-                commitFile.delete()
+                // 暂停恰好落在「transfer 已原子提交 commit 文件、任务尚未落 completed」的窗口：把完整 commit 还原成残片，
+                // 恢复时由偏移 / 416 检测直接完成，不让用户白等一次整本重下。
+                if (preservePartial && commitFile.isComplete()) {
+                    runCatching { atomicMove(commitFile, partial) }
+                }
+                if (commitFile.exists()) commitFile.delete()
             }
         }
     }
@@ -845,7 +989,7 @@ internal class BookDownloadManager(
         val active = lock.withLock {
             val task =
                 mutableTasks.value.firstOrNull {
-                    it.canonicalKey == canonicalKey && it.status == BookDownloadStatus.RUNNING
+                    it.canonicalKey == canonicalKey && BookDownloadTaskRules.canPause(it.status)
                 } ?: return@withLock null
             val activeJob = jobs[canonicalKey] ?: return@withLock null
             if (activeJob.generation != task.taskGeneration) return@withLock null
@@ -1263,6 +1407,11 @@ internal class BookDownloadManager(
     private data class ActiveBookDownloadJob(
         val generation: Long,
         val job: Job,
+    )
+
+    private data class PauseStart(
+        val task: BookDownloadTask,
+        val job: Job?,
     )
 
     private sealed interface DeleteOwnerSelection {

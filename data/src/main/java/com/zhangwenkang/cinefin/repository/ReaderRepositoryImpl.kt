@@ -142,6 +142,18 @@ class ReaderRepositoryImpl(
         bookDownloadScope.launch(Dispatchers.IO) { bookDownloadManager.deleteBookDownload(itemId) }
     }
 
+    /** W7-T3：暂停保留 `.part` 与字节偏移；无活动任务时返回 false。 */
+    override suspend fun pauseBookDownload(itemId: UUID): Boolean =
+        bookDownloadManager.pauseBookDownload(itemId)
+
+    /** W7-T3：只有用户暂停的任务可继续，恢复走 `BookDownloadRangeTransfer` 的 Range 续传。 */
+    override suspend fun resumeBookDownload(itemId: UUID, title: String?): Boolean =
+        bookDownloadManager.resumeBookDownload(itemId, title)
+
+    /** W7-T3：失败任务重新入队，入队前的残片 / 校验器检测沿用既有落盘规则。 */
+    override suspend fun retryBookDownload(itemId: UUID, title: String?): Boolean =
+        bookDownloadManager.retryBookDownload(itemId, title)
+
     /** W77-3：打开路径的整本下载，进度透传给阅读页顶栏（PDF 过渡态「打开即显示进度」）。 */
     override suspend fun ensureLocalFile(itemId: UUID, onProgress: (Float) -> Unit): File =
         downloadLocalFile(itemId, onProgress)

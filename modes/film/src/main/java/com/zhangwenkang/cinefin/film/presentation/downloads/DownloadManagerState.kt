@@ -384,6 +384,17 @@ sealed interface DownloadAction {
     /** W59：书籍行可见时触发一次封面懒生成（本地已下载书籍走本地文件，不联网）。 */
     data class EnsureBookCover(val itemId: UUID) : DownloadAction
 
+    /**
+     * W7-T3：书籍行暂停 / 继续 / 重试。
+     *
+     * 书籍走独立 `bookDownloadTasks` 链路，没有 `DownloadTask`，只能按条目 key 路由到 `ReaderRepository`。
+     */
+    data class PauseBook(val key: String) : DownloadAction
+
+    data class ResumeBook(val key: String) : DownloadAction
+
+    data class RetryBook(val key: String) : DownloadAction
+
     data object PauseSelected : DownloadAction
 
     data object ResumeSelected : DownloadAction

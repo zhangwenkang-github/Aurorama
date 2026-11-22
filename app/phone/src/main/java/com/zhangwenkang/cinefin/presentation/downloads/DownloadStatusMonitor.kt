@@ -199,12 +199,19 @@ internal fun downloadStatusProjectionFor(
         if (task.itemId in completedIds) continue
         val info =
             when (task.status) {
+                BookDownloadStatus.PENDING ->
+                    DownloadBadgeInfo(
+                        state = DownloadBadgeState.IN_PROGRESS,
+                        progress = task.progress,
+                        indeterminate = true,
+                    )
                 BookDownloadStatus.RUNNING ->
                     DownloadBadgeInfo(
                         state = DownloadBadgeState.IN_PROGRESS,
                         progress = task.progress,
                         indeterminate = task.totalBytes <= 0L,
                     )
+                BookDownloadStatus.PAUSED -> DownloadBadgeInfo(DownloadBadgeState.PAUSED)
                 BookDownloadStatus.FAILED -> DownloadBadgeInfo(DownloadBadgeState.FAILED)
                 BookDownloadStatus.COMPLETED -> DownloadBadgeInfo()
             }
@@ -220,9 +227,7 @@ internal fun downloadStatusProjectionFor(
                         it.status == DownloadTaskStatus.PENDING
                 }
                 .mapTo(linkedSetOf(), DownloadTask::itemId) +
-                latestBooks
-                    .filter { it.status == BookDownloadStatus.RUNNING }
-                    .mapTo(linkedSetOf(), BookDownloadTask::itemId),
+                latestBooks.filter { it.isActive }.mapTo(linkedSetOf(), BookDownloadTask::itemId),
         failedItemIds =
             latestTasks
                 .filter { it.status == DownloadTaskStatus.FAILED }
@@ -260,7 +265,9 @@ private fun downloadStatusRank(status: DownloadTaskStatus): Int =
 
 private fun bookStatusRank(status: BookDownloadStatus): Int =
     when (status) {
-        BookDownloadStatus.FAILED -> 2
-        BookDownloadStatus.RUNNING -> 1
+        BookDownloadStatus.FAILED -> 3
+        BookDownloadStatus.RUNNING -> 2
+        BookDownloadStatus.PENDING -> 1
+        BookDownloadStatus.PAUSED -> 1
         BookDownloadStatus.COMPLETED -> 0
     }
