@@ -83,7 +83,6 @@ import org.jellyfin.sdk.model.api.PlaybackStopInfo
 import org.jellyfin.sdk.model.api.PublicSystemInfo
 import org.jellyfin.sdk.model.api.RepeatMode
 import org.jellyfin.sdk.model.api.SortOrder as ItemSortOrder
-import org.jellyfin.sdk.model.api.UpdateUserItemDataDto
 import org.jellyfin.sdk.model.api.UserConfiguration
 import org.jellyfin.sdk.model.api.UserItemDataDto
 import timber.log.Timber
@@ -2105,36 +2104,6 @@ class JellyfinRepositoryImpl(
             remote = { jellyfinApi.playStateApi.markUnplayedItem(itemId) },
             persistLocal = { userId -> database.setPlayed(userId, itemId, false) },
         )
-    }
-
-    /**
-     * W8-T3：个人评分写。
-     *
-     * 写：`POST /UserItems/{itemId}/UserData`（SDK `ItemsApi.updateItemUserData`，body
-     * `UpdateUserItemDataDto.Rating`）。 清除：实测传 `Rating=null` 服务器不清除（保持原值），改为 `DELETE
-     * /UserItems/{itemId}/Rating` （SDK `UserLibraryApi.deleteUserItemRating`）——回读 `UserData.Rating`
-     * 缺省。该端点同时清 Likes，本 App 不写 Likes，无影响。 评分无本地镜像 → 失败不排队（[runServerOnlyUserDataWrite]），由 UI 提示重试。
-     */
-    override suspend fun setPersonalRating(itemId: UUID, rating: Double?): UserDataWriteOutcome {
-        // 详情 DTO 缓存里带着旧 Rating：写前失效，回读取服务端最新值（V2-WRITE-05）。
-        invalidateMetadataCache()
-        val outcome =
-            withContext(Dispatchers.IO) {
-                val userId = jellyfinApi.userId!!
-                runServerOnlyUserDataWrite {
-                    if (rating == null) {
-                        jellyfinApi.userLibraryApi.deleteUserItemRating(itemId, userId)
-                    } else {
-                        jellyfinApi.itemsApi.updateItemUserData(
-                            itemId = itemId,
-                            userId = userId,
-                            data = UpdateUserItemDataDto(rating = rating),
-                        )
-                    }
-                }
-            }
-        if (outcome is UserDataWriteOutcome.Confirmed) UserDataEvents.notifyRatingChanged()
-        return outcome
     }
 
     /**

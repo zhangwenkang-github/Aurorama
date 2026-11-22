@@ -39,14 +39,6 @@ interface FindroidItem {
     val unplayedItemCount: Int?
     val images: FindroidImages
     val chapters: List<FindroidChapter>
-
-    /**
-     * W8-T3：服务器 `UserData.Rating`（个人评分，0–10，单位「分」；7.5 = 3.75 星）。
-     *
-     * 只有电影 / 单集详情读取并展示它；其他条目类型保持 null（默认值，零改动）。
-     */
-    val personalRating: Double?
-        get() = null
 }
 
 suspend fun BaseItemDto.toFindroidItem(

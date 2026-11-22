@@ -104,20 +104,7 @@ constructor(
             is EpisodeAction.UnmarkAsPlayed -> setPlayed(played = false)
             is EpisodeAction.MarkAsFavorite -> setFavorite(favorite = true)
             is EpisodeAction.UnmarkAsFavorite -> setFavorite(favorite = false)
-            is EpisodeAction.SetRating -> setRating(action.rating)
             else -> Unit
-        }
-    }
-
-    /** W8-T3：评分写（无乐观更新；成功后重取详情回读服务端值，失败走 T1 提示）。 */
-    private fun setRating(rating: Double?) {
-        viewModelScope.launch {
-            val outcome = runCatching {
-                repository.setPersonalRating(episodeId, rating)
-            }
-                .getOrNull()
-            writeEventsChannel.send(outcome.toDetailWriteEvent())
-            loadEpisode(episodeId = episodeId)
         }
     }
 

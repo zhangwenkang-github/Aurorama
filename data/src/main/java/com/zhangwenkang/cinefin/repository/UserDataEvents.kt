@@ -21,17 +21,4 @@ object UserDataEvents {
     fun notifyFavoriteChanged() {
         _favoriteVersion.value += 1
     }
-
-    /**
-     * W8-T3：个人评分版本（`UserData.Rating`）。
-     *
-     * 单独一个版本位而不是复用 [favoriteVersion]：评分目前只在电影 / 单集详情展示，收藏版本位会连带收藏页 / 库网格重拉； 展示方订阅
-     * [ratingVersion]，版本变化时重取当前详情即可。
-     */
-    private val _ratingVersion = MutableStateFlow(0)
-    val ratingVersion: StateFlow<Int> = _ratingVersion.asStateFlow()
-
-    fun notifyRatingChanged() {
-        _ratingVersion.value += 1
-    }
 }

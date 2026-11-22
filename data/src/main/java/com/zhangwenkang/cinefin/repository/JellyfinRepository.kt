@@ -179,17 +179,6 @@ interface JellyfinRepository {
     suspend fun markAsUnplayed(itemId: UUID): UserDataWriteOutcome
 
     /**
-     * W8-T3：写个人评分（Jellyfin 12 实测端点：`POST /UserItems/{itemId}/UserData`，SDK
-     * `ItemsApi.updateItemUserData` + `UpdateUserItemDataDto.Rating`；[rating] 单位 1–10 分，`null` =
-     * 清除）。
-     *
-     * 清除实测必须走 `DELETE /UserItems/{itemId}/Rating`（SDK `UserLibraryApi.deleteUserItemRating`）——传
-     * `Rating=null` 不会清除。评分没有本地镜像：网络 / 5xx 直接返回可重试的 [UserDataWriteOutcome.Failed]，不做 `toBeSynced`
-     * 排队。
-     */
-    suspend fun setPersonalRating(itemId: UUID, rating: Double?): UserDataWriteOutcome
-
-    /**
      * W69：强制失效元数据缓存（下拉刷新 / 用户主动要求最新数据）。
      *
      * 在线实现清空会话缓存，之后的读取直接打服务器；离线实现是空操作（离线数据本就来自本地库）。

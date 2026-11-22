@@ -508,12 +508,6 @@ class JellyfinRepositoryOfflineImpl(
             database.setUserDataToBeSynced(userId, itemId, true)
         }
 
-    /** W8-T3：评分没有本地镜像（离线库不存 Rating），无法回传——按可重试失败如实上报。 */
-    override suspend fun setPersonalRating(itemId: UUID, rating: Double?): UserDataWriteOutcome =
-        UserDataWriteOutcome.Failed(
-            UserDataWriteFailure.Network(message = "personal rating requires a server")
-        )
-
     /** 无账号离线模式没有可写用户：明确给出失败，而不是无声地什么都不做。 */
     private suspend fun offlineUserDataWrite(
         persist: suspend (userId: UUID) -> Unit

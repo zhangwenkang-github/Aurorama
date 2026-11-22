@@ -16,9 +16,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -56,7 +54,6 @@ import com.zhangwenkang.cinefin.presentation.film.components.ExtraInfoText
 import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
-import com.zhangwenkang.cinefin.presentation.film.components.RatingDialog
 import com.zhangwenkang.cinefin.presentation.film.components.VideoMetadataBar
 import com.zhangwenkang.cinefin.presentation.film.components.communityRatingText
 import com.zhangwenkang.cinefin.presentation.film.components.detailBodyMode
@@ -93,7 +90,6 @@ fun EpisodeScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val viewLabel = stringResource(CoreR.string.snackbar_view)
-    var ratingDialogOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(true) {
         viewModel.loadEpisode(episodeId = episodeId)
@@ -179,23 +175,7 @@ fun EpisodeScreen(
             detailDownloadViewModel.enqueueItem(item = episode, storageIndex = storageIndex)
         },
         onRetry = { viewModel.loadEpisode(episodeId = episodeId) },
-        onRatingClick = { ratingDialogOpen = true },
     )
-
-    if (ratingDialogOpen) {
-        RatingDialog(
-            currentRating = state.episode?.personalRating,
-            onRatingSelected = { rating ->
-                ratingDialogOpen = false
-                viewModel.onAction(EpisodeAction.SetRating(rating))
-            },
-            onClear = {
-                ratingDialogOpen = false
-                viewModel.onAction(EpisodeAction.SetRating(null))
-            },
-            onDismissRequest = { ratingDialogOpen = false },
-        )
-    }
 }
 
 @Composable
@@ -209,7 +189,6 @@ private fun EpisodeScreenLayout(
     onDownloaderAction: (DownloaderAction) -> Unit,
     onDownloadClick: (FindroidEpisode, Int) -> Unit,
     onRetry: () -> Unit = {},
-    onRatingClick: (() -> Unit)? = null,
 ) {
     val safePadding = rememberSafePadding()
 
@@ -257,7 +236,6 @@ private fun EpisodeScreenLayout(
                                     false -> onAction(EpisodeAction.MarkAsFavorite)
                                 }
                             },
-                            onRatingClick = onRatingClick,
                             onTrailerClick = {},
                             onDownloadClick = { storageIndex ->
                                 onDownloadClick(episode, storageIndex)
