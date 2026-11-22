@@ -68,9 +68,9 @@ object ServerCredentialScope {
  * 视频端点（`/Videos/{id}/stream`）在本服务器上匿名可达，所以过去不注头也能播；音乐走 `/Audio/{itemId}/universal` 必须带头，否则 401（旧实现的
  * `?api_key=` 在 Jellyfin 12 上就是 401 根因）。
  *
- * 注头时机 = 每次 [DataSource.open]：读 [credentials] 当前值 → 同源则写头，否则清空（不残留上一次的头）。
- * 非 http(s) 的条目（`file://`、下载引擎落盘的**无 scheme 裸路径**）由 [ServerAuthDataSource] 委托给
- * `FileDataSource`，不经过 HTTP 数据源（W7-T5b：已下载音乐离线起播曾因裸路径被当 URL 报 MalformedURLException）。
+ * 注头时机 = 每次 [DataSource.open]：读 [credentials] 当前值 → 同源则写头，否则清空（不残留上一次的头）。 非 http(s)
+ * 的条目（`file://`、下载引擎落盘的**无 scheme 裸路径**）由 [ServerAuthDataSource] 委托给 `FileDataSource`，不经过 HTTP
+ * 数据源（W7-T5b：已下载音乐离线起播曾因裸路径被当 URL 报 MalformedURLException）。
  *
  * 已知边界：media3 的 [DefaultHttpDataSource] 在**同协议跨主机重定向**时会沿用请求头（它没有逐跳剥离钩子）， 这里用
  * `allowCrossProtocolRedirects = false` 兜住跨协议降级；播放地址由本 App 构造、只指向当前服务器且 不请求远端媒体（不传
