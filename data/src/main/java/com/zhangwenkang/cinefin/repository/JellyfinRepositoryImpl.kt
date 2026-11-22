@@ -2149,6 +2149,9 @@ class JellyfinRepositoryImpl(
      * W8-T6：读取条目元数据快照（名称 / 简介 / 排序名称）。
      *
      * 直连服务器而不走会话缓存：对话框要展示的是服务器当前值，编辑后以服务端为准。任何异常都返回 null，入口据此禁用提交。
+     *
+     * 排序名称取 `forcedSortName ?: sortName`：`sortName` 是服务器按库存 / 标题派生的只读回显值，只有 `forcedSortName`
+     * 才是用户自定义项（Jellyfin 12.4.0 `ItemUpdateController` 只消费后者）。预填显示当前生效的排序名：有自定义显自定义，无自定义显示派生值。
      */
     override suspend fun fetchItemMetadataSnapshot(itemId: UUID): ItemMetadataSnapshot? =
         withContext(Dispatchers.IO) {
@@ -2167,6 +2170,8 @@ class JellyfinRepositoryImpl(
      *
      * 服务器按提交的 DTO 覆盖更新，因此先 GET 完整 DTO、只 `copy` 三个可编辑字段再提交；网络 / 5xx / 403 都不做本地改动
      * （不排队补偿），成功后失效会话缓存并广播内容变更，由详情页重新加载。
+     *
+     * 排序名称写 `forcedSortName`：服务端只认这个字段（`sortName` 是派生只读回显值，提交后被忽略）；传 null 等于清除自定义排序名，回落到派生值。
      */
     override suspend fun updateItemMetadata(
         itemId: UUID,
@@ -2179,7 +2184,7 @@ class JellyfinRepositoryImpl(
                 val current = currentItemDto(itemId)
                 jellyfinApi.itemUpdateApi.updateItem(
                     itemId,
-                    current.copy(name = name, overview = overview, sortName = sortName),
+                    current.copy(name = name, overview = overview, forcedSortName = sortName),
                 )
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -2199,7 +2204,7 @@ class JellyfinRepositoryImpl(
             itemId = id,
             name = name.orEmpty(),
             overview = overview,
-            sortName = sortName,
+            sortName = forcedSortName ?: sortName,
         )
 
     /**

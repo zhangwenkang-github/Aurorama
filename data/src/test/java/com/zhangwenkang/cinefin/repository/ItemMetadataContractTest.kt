@@ -27,10 +27,11 @@ import org.junit.Test
 
 /**
  * W8-T6 契约：编辑元数据只走 SDK 官方 `POST /Items/{itemId}`（[ItemUpdateApi.updateItem]），且提交的 DTO 只改名称 / 简介 /
- * 排序名称。
+ * 强制排序名。
  *
- * Jellyfin 服务端按提交的 DTO 覆盖更新：任何字段缺失都会被清空，因此必须先 GET 完整条目、只 `copy` 三个可编辑字段。 编辑不可排队补偿：服务器拒绝 /
- * 网络失败时本地库不做任何改动。
+ * 排序名必须写 `forcedSortName`：Jellyfin 12.4.0 `ItemUpdateController` 只消费该字段，`sortName` 是服务器派生的只读回显值
+ * （测试服实证：提交 `sortName` 返回 204 但不生效）。服务端按提交的 DTO 覆盖更新，因此必须先 GET 完整条目、只 `copy` 三个可编辑
+ * 字段；编辑不可排队补偿，服务器拒绝 / 网络失败时本地库不做任何改动。
  */
 class ItemMetadataContractTest {
     private val database = mockk<ServerDatabaseDao>(relaxed = true)
@@ -64,7 +65,7 @@ class ItemMetadataContractTest {
         )
 
     @Test
-    fun `更新只提 updateItem 一次且仅名称简介排序名称三个字段变化`() = runBlocking {
+    fun `更新只提 updateItem 一次且仅名称简介强制排序名三个字段变化`() = runBlocking {
         coEvery { userLibraryApi.getItem(itemId = ITEM_ID, userId = USER_ID) } returns
             Response(CURRENT_DTO, 200, emptyMap())
         val captured = slot<BaseItemDto>()
@@ -79,10 +80,17 @@ class ItemMetadataContractTest {
 
         assertEquals(UserDataWriteOutcome.Confirmed, outcome)
         coVerify(exactly = 1) { itemUpdateApi.updateItem(ITEM_ID, capture(captured)) }
+        // 服务端只消费 ForcedSortName；sortName 是派生只读回显值，必须保持 GET 回来的原值。
         assertEquals(
-            CURRENT_DTO.copy(name = "新名称", overview = "新简介", sortName = "新排序名称"),
+            CURRENT_DTO.copy(
+                name = "新名称",
+                overview = "新简介",
+                forcedSortName = "新排序名称",
+            ),
             captured.captured,
         )
+        assertEquals("新排序名称", captured.captured.forcedSortName)
+        assertEquals("旧排序名称", captured.captured.sortName)
         assertEquals("PG-13", captured.captured.officialRating)
         assertEquals(2020, captured.captured.productionYear)
         coVerify(exactly = 0) { database.deleteMovie(any()) }
@@ -149,7 +157,7 @@ class ItemMetadataContractTest {
     }
 
     @Test
-    fun `快照映射名称简介与排序名称`() = runBlocking {
+    fun `快照映射名称简介与排序名称_无自定义排序名时回落派生值`() = runBlocking {
         coEvery { userLibraryApi.getItem(itemId = ITEM_ID, userId = USER_ID) } returns
             Response(CURRENT_DTO, 200, emptyMap())
 
@@ -164,6 +172,16 @@ class ItemMetadataContractTest {
             ),
             snapshot,
         )
+    }
+
+    @Test
+    fun `快照优先使用强制排序名`() = runBlocking {
+        coEvery { userLibraryApi.getItem(itemId = ITEM_ID, userId = USER_ID) } returns
+            Response(CURRENT_DTO.copy(forcedSortName = "自定义排序名"), 200, emptyMap())
+
+        val snapshot = repository.fetchItemMetadataSnapshot(ITEM_ID)
+
+        assertEquals("自定义排序名", snapshot?.sortName)
     }
 
     @Test
