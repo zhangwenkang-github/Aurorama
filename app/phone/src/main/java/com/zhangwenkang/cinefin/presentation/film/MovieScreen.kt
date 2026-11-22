@@ -49,6 +49,7 @@ import com.zhangwenkang.cinefin.core.presentation.dummy.dummyVideoMetadata
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDeleteRules
+import com.zhangwenkang.cinefin.film.presentation.detail.DetailEditRules
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailWriteEvent
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieAction
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieState
@@ -67,6 +68,8 @@ import com.zhangwenkang.cinefin.presentation.film.components.DetailHero
 import com.zhangwenkang.cinefin.presentation.film.components.DetailLoadError
 import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeInfo
 import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeState
+import com.zhangwenkang.cinefin.presentation.film.components.EditMetadataDialog
+import com.zhangwenkang.cinefin.presentation.film.components.EditServerMetadataButton
 import com.zhangwenkang.cinefin.presentation.film.components.ExtraInfoText
 import com.zhangwenkang.cinefin.presentation.film.components.InfoText
 import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
@@ -84,6 +87,7 @@ import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.presentation.utils.rememberScrollMemoryState
+import com.zhangwenkang.cinefin.repository.ItemMetadataSnapshot
 import com.zhangwenkang.cinefin.utils.ObserveAsEvents
 import java.util.UUID
 import kotlinx.coroutines.launch
@@ -111,6 +115,12 @@ fun MovieScreen(
     val downloaderState by downloaderViewModel.state.collectAsStateWithLifecycle()
     val downloadStatusViewModel: DownloadStatusViewModel = hiltViewModel()
     val downloadBadges by downloadStatusViewModel.badges.collectAsStateWithLifecycle()
+    val canEditMetadata by viewModel.canEditMetadata.collectAsStateWithLifecycle()
+    val metadataSnapshot by viewModel.metadataSnapshot.collectAsStateWithLifecycle()
+    val metadataSnapshotLoading by viewModel.metadataSnapshotLoading.collectAsStateWithLifecycle()
+    val metadataSaving by viewModel.metadataSaving.collectAsStateWithLifecycle()
+    var editMetadataDialogOpen by remember { mutableStateOf(false) }
+    var editMetadataRequested by remember { mutableStateOf(false) }
 
     LaunchedEffect(true) { viewModel.loadMovie(movieId = movieId) }
 
@@ -165,6 +175,24 @@ fun MovieScreen(
         }
     }
 
+    // W8-T6：编辑元数据成功关闭对话框（详情由 VM 重载）；失败 / 权限拒绝走同一条 Snackbar 通道。
+    LaunchedEffect(Unit) {
+        viewModel.metadataEvents.collect { event ->
+            if (event == DetailWriteEvent.Confirmed) editMetadataDialogOpen = false
+            detailWriteEventMessage(context, event)?.let { message ->
+                snackbarHostState.showSnackbar(message = message)
+            }
+        }
+    }
+
+    // W8-T6：快照读取完成后才展示对话框（取不到也展示，字段禁用）。
+    LaunchedEffect(editMetadataRequested, metadataSnapshotLoading) {
+        if (editMetadataRequested && !metadataSnapshotLoading) {
+            editMetadataDialogOpen = true
+            editMetadataRequested = false
+        }
+    }
+
     MovieScreenLayout(
         state = state,
         scrollKey = "movie:$movieId",
@@ -198,6 +226,18 @@ fun MovieScreen(
         onRetry = { viewModel.loadMovie(movieId = movieId) },
         offlineMode = isOfflineMode,
         onDeleteConfirmed = { viewModel.deleteItem() },
+        canEditMetadata = canEditMetadata,
+        editMetadataSnapshot = metadataSnapshot,
+        editMetadataDialogOpen = editMetadataDialogOpen,
+        editMetadataSaving = metadataSaving,
+        onEditMetadataClick = {
+            editMetadataRequested = true
+            viewModel.loadMetadataSnapshot()
+        },
+        onSaveMetadata = { name, overview, sortName ->
+            viewModel.saveMetadata(name = name, overview = overview, sortName = sortName)
+        },
+        onDismissEditMetadata = { editMetadataDialogOpen = false },
     )
 }
 
@@ -218,6 +258,13 @@ private fun MovieScreenLayout(
     onRetry: () -> Unit = {},
     offlineMode: Boolean = false,
     onDeleteConfirmed: () -> Unit = {},
+    canEditMetadata: Boolean = false,
+    editMetadataSnapshot: ItemMetadataSnapshot? = null,
+    editMetadataDialogOpen: Boolean = false,
+    editMetadataSaving: Boolean = false,
+    onEditMetadataClick: () -> Unit = {},
+    onSaveMetadata: (name: String, overview: String?, sortName: String?) -> Unit = { _, _, _ -> },
+    onDismissEditMetadata: () -> Unit = {},
 ) {
     val safePadding = rememberSafePadding()
     val gutter = rememberPageGutter()
@@ -287,6 +334,17 @@ private fun MovieScreenLayout(
                             modifier = Modifier.fillMaxWidth(),
                             heroLayout = heroLayout,
                         )
+                        if (
+                            DetailEditRules.shouldShowEditAction(
+                                canEditMetadata = canEditMetadata,
+                                offlineMode = offlineMode,
+                            )
+                        ) {
+                            EditServerMetadataButton(
+                                onClick = onEditMetadataClick,
+                                modifier = Modifier.padding(top = CinefinSpacing.Space2),
+                            )
+                        }
                         if (
                             DetailDeleteRules.shouldShowDeleteAction(
                                 canDelete = movie.canDelete,
@@ -398,6 +456,15 @@ private fun MovieScreenLayout(
                     onDismiss = { deleteServerDialogOpen = false },
                 )
             }
+        }
+
+        if (editMetadataDialogOpen) {
+            EditMetadataDialog(
+                snapshot = editMetadataSnapshot,
+                saving = editMetadataSaving,
+                onSave = onSaveMetadata,
+                onDismiss = onDismissEditMetadata,
+            )
         }
 
         CinefinSnackbarHost(

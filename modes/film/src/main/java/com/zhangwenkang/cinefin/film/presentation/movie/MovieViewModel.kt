@@ -12,12 +12,15 @@ import com.zhangwenkang.cinefin.models.FindroidItemPerson
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidSource
 import com.zhangwenkang.cinefin.models.VideoMetadata
+import com.zhangwenkang.cinefin.repository.ItemMetadataSnapshot
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.UserDataWriteOutcome
+import com.zhangwenkang.cinefin.repository.UserPolicyStore
 import com.zhangwenkang.cinefin.repository.catalog.CatalogMovieQuery
 import com.zhangwenkang.cinefin.repository.catalog.CatalogReadOutcome
 import com.zhangwenkang.cinefin.repository.catalog.CatalogReadPort
 import com.zhangwenkang.cinefin.repository.catalog.CatalogScope
+import com.zhangwenkang.cinefin.repository.localStateChanged
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
@@ -41,6 +44,8 @@ private constructor(
     private val appPreferences: AppPreferences,
     private val parseVideoMetadata: suspend (FindroidSource) -> VideoMetadata,
     private val peopleDispatcher: CoroutineDispatcher,
+    /** W8-T6：元数据编辑入口的权限来源；测试构造器不注入时保持 fail-closed。 */
+    private val userPolicyStore: UserPolicyStore?,
     @Suppress("UNUSED_PARAMETER") constructorMarker: Unit,
 ) : ViewModel() {
     @Inject
@@ -49,12 +54,14 @@ private constructor(
         repository: JellyfinRepository,
         appPreferences: AppPreferences,
         videoMetadataParser: VideoMetadataParser,
+        userPolicyStore: UserPolicyStore,
     ) : this(
         catalogReadPort = catalogReadPort,
         repository = repository,
         appPreferences = appPreferences,
         parseVideoMetadata = videoMetadataParser::parse,
         peopleDispatcher = Dispatchers.Default,
+        userPolicyStore = userPolicyStore,
         constructorMarker = Unit,
     )
 
@@ -64,12 +71,14 @@ private constructor(
         appPreferences: AppPreferences,
         parseVideoMetadata: suspend (FindroidSource) -> VideoMetadata,
         peopleDispatcher: CoroutineDispatcher,
+        userPolicyStore: UserPolicyStore? = null,
     ) : this(
         catalogReadPort = catalogReadPort,
         repository = repository,
         appPreferences = appPreferences,
         parseVideoMetadata = parseVideoMetadata,
         peopleDispatcher = peopleDispatcher,
+        userPolicyStore = userPolicyStore,
         constructorMarker = Unit,
     )
 
@@ -83,6 +92,39 @@ private constructor(
     /** W8-T5：删除服务器条目的结果；[DetailWriteEvent.Confirmed] = 屏幕关闭详情页，其余弹 Snackbar。 */
     private val deleteEventsChannel = Channel<DetailWriteEvent>(Channel.BUFFERED)
     val deleteEvents = deleteEventsChannel.receiveAsFlow()
+
+    /** W8-T6：当前账号能否编辑元数据（管理员专属）；未拉取 / 身份切换后一律 false（fail-closed）。 */
+    private val _canEditMetadata = MutableStateFlow(false)
+    val canEditMetadata = _canEditMetadata.asStateFlow()
+
+    /** W8-T6：编辑对话框预填快照；null = 服务器当前值未取到（字段禁用）。 */
+    private val _metadataSnapshot = MutableStateFlow<ItemMetadataSnapshot?>(null)
+    val metadataSnapshot = _metadataSnapshot.asStateFlow()
+
+    /** W8-T6：快照读取中——屏幕等它结束后再展示对话框。 */
+    private val _metadataSnapshotLoading = MutableStateFlow(false)
+    val metadataSnapshotLoading = _metadataSnapshotLoading.asStateFlow()
+
+    /** W8-T6：提交中——对话框据此禁用保存按钮。 */
+    private val _metadataSaving = MutableStateFlow(false)
+    val metadataSaving = _metadataSaving.asStateFlow()
+
+    /** W8-T6：编辑结果；[DetailWriteEvent.Confirmed] = 屏幕关闭对话框，其余走既有 Snackbar 文案。 */
+    private val metadataEventsChannel = Channel<DetailWriteEvent>(Channel.BUFFERED)
+    val metadataEvents = metadataEventsChannel.receiveAsFlow()
+
+    init {
+        val policyStore = userPolicyStore
+        if (policyStore != null) {
+            viewModelScope.launch {
+                runCatching { policyStore.ensureLoaded() }
+                policyStore.access.collect { access ->
+                    _canEditMetadata.value = access.canEditMetadata()
+                }
+            }
+        }
+    }
+
     private val contentRequests = LatestContentRequest()
 
     lateinit var movieId: UUID
@@ -279,6 +321,37 @@ private constructor(
         viewModelScope.launch {
             val outcome = runCatching { repository.deleteItem(movieId) }.getOrNull()
             deleteEventsChannel.send(outcome.toDetailWriteEvent())
+        }
+    }
+
+    /** W8-T6：打开编辑对话框前先取服务器当前值；取不到（null）时对话框字段禁用。 */
+    fun loadMetadataSnapshot() {
+        _metadataSnapshotLoading.value = true
+        _metadataSnapshot.value = null
+        viewModelScope.launch {
+            _metadataSnapshot.value =
+                runCatching { repository.fetchItemMetadataSnapshot(movieId) }.getOrNull()
+            _metadataSnapshotLoading.value = false
+        }
+    }
+
+    /** W8-T6：提交元数据编辑。成功后重取详情（以服务端为准）并由屏幕关闭对话框；失败走既有 Snackbar 文案。 */
+    fun saveMetadata(name: String, overview: String?, sortName: String?) {
+        if (_metadataSaving.value) return
+        _metadataSaving.value = true
+        viewModelScope.launch {
+            val outcome = runCatching {
+                repository.updateItemMetadata(
+                    itemId = movieId,
+                    name = name,
+                    overview = overview,
+                    sortName = sortName,
+                )
+            }
+                .getOrNull()
+            _metadataSaving.value = false
+            if (outcome?.localStateChanged == true) loadMovie(movieId)
+            metadataEventsChannel.send(outcome.toDetailWriteEvent())
         }
     }
 }

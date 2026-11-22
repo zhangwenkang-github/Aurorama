@@ -88,4 +88,9 @@
     <string name="detail_delete_server_action">删除服务器文件</string>
     <string name="detail_delete_server_message">将删除服务器上的《%1$s》，文件不可还原。本地缓存与下载记录将一并清理。</string>
     <string name="detail_delete_server_confirm">删除</string>
+    <string name="detail_edit_metadata_action">编辑元数据</string>
+    <string name="detail_edit_metadata_name">名称</string>
+    <string name="detail_edit_metadata_sort_name">排序名称</string>
+    <string name="detail_edit_metadata_overview">简介</string>
+    <string name="detail_edit_metadata_save">保存</string>
 </resources>

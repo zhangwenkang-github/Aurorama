@@ -2146,6 +2146,63 @@ class JellyfinRepositoryImpl(
     }
 
     /**
+     * W8-T6：读取条目元数据快照（名称 / 简介 / 排序名称）。
+     *
+     * 直连服务器而不走会话缓存：对话框要展示的是服务器当前值，编辑后以服务端为准。任何异常都返回 null，入口据此禁用提交。
+     */
+    override suspend fun fetchItemMetadataSnapshot(itemId: UUID): ItemMetadataSnapshot? =
+        withContext(Dispatchers.IO) {
+            try {
+                currentItemDto(itemId).toMetadataSnapshot()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                Timber.w(error, "读取条目 %s 的元数据快照失败", itemId)
+                null
+            }
+        }
+
+    /**
+     * W8-T6：编辑条目元数据（`POST /Items/{itemId}`）。
+     *
+     * 服务器按提交的 DTO 覆盖更新，因此先 GET 完整 DTO、只 `copy` 三个可编辑字段再提交；网络 / 5xx / 403 都不做本地改动
+     * （不排队补偿），成功后失效会话缓存并广播内容变更，由详情页重新加载。
+     */
+    override suspend fun updateItemMetadata(
+        itemId: UUID,
+        name: String,
+        overview: String?,
+        sortName: String?,
+    ): UserDataWriteOutcome =
+        withContext(Dispatchers.IO) {
+            try {
+                val current = currentItemDto(itemId)
+                jellyfinApi.itemUpdateApi.updateItem(
+                    itemId,
+                    current.copy(name = name, overview = overview, sortName = sortName),
+                )
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                return@withContext UserDataWriteOutcome.Failed(error.toUserDataWriteFailure())
+            }
+            invalidateMetadataCache()
+            UserDataEvents.notifyContentChanged()
+            UserDataWriteOutcome.Confirmed
+        }
+
+    private suspend fun currentItemDto(itemId: UUID): BaseItemDto =
+        jellyfinApi.userLibraryApi.getItem(itemId = itemId, userId = jellyfinApi.userId!!).content
+
+    private fun BaseItemDto.toMetadataSnapshot(): ItemMetadataSnapshot =
+        ItemMetadataSnapshot(
+            itemId = id,
+            name = name.orEmpty(),
+            overview = overview,
+            sortName = sortName,
+        )
+
+    /**
      * W8-T1：用户数据写（收藏 / 已看）的统一落点。
      *
      * W8-T1r：排队时触发一次带网络约束的补同步；服务器确认时顺手清掉该行残留的 `toBeSynced` 标志。

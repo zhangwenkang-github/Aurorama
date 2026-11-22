@@ -517,6 +517,23 @@ class JellyfinRepositoryOfflineImpl(
             UserDataWriteFailure.Unknown(status = null, message = "offline delete unsupported")
         )
 
+    /**
+     * W8-T6：元数据编辑是纯服务器操作，离线模式没有服务器当前值可读，也不存在可补偿的本地语义。
+     *
+     * 快照返回 null（对话框字段禁用），提交明确返回网络失败，由界面按「保存失败」提示；不做任何本地改动。
+     */
+    override suspend fun fetchItemMetadataSnapshot(itemId: UUID): ItemMetadataSnapshot? = null
+
+    override suspend fun updateItemMetadata(
+        itemId: UUID,
+        name: String,
+        overview: String?,
+        sortName: String?,
+    ): UserDataWriteOutcome =
+        UserDataWriteOutcome.Failed(
+            UserDataWriteFailure.Network("offline metadata edit unsupported")
+        )
+
     /** 无账号离线模式没有可写用户：明确给出失败，而不是无声地什么都不做。 */
     private suspend fun offlineUserDataWrite(
         persist: suspend (userId: UUID) -> Unit

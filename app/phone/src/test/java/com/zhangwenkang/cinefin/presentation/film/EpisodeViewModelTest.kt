@@ -6,12 +6,14 @@ import com.zhangwenkang.cinefin.film.presentation.detail.DetailWriteEvent
 import com.zhangwenkang.cinefin.film.presentation.episode.EpisodeViewModel
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidImages
+import com.zhangwenkang.cinefin.repository.ItemMetadataSnapshot
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.UserDataWriteFailure
 import com.zhangwenkang.cinefin.repository.UserDataWriteOutcome
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import java.lang.reflect.Proxy
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -93,6 +95,101 @@ class EpisodeViewModelTest {
 
         assertEquals(DetailWriteEvent.Failed, event)
     }
+
+    @Test
+    fun `保存元数据成功映射为 Confirmed 并重载详情`() = runBlocking {
+        val episodeId = UUID.randomUUID()
+        val loadCount = AtomicInteger(0)
+        val viewModel =
+            metadataViewModel(
+                episodeId = episodeId,
+                updateOutcome = UserDataWriteOutcome.Confirmed,
+                loadCount = loadCount,
+            )
+
+        viewModel.saveMetadata(name = "新名称", overview = "新简介", sortName = null)
+        val event = withTimeout(5_000) { viewModel.metadataEvents.first() }
+
+        assertEquals(DetailWriteEvent.Confirmed, event)
+        assertEquals(1, loadCount.get())
+    }
+
+    @Test
+    fun `保存元数据权限拒绝映射为 PermissionDenied 且不重载详情`() = runBlocking {
+        val episodeId = UUID.randomUUID()
+        val loadCount = AtomicInteger(0)
+        val viewModel =
+            metadataViewModel(
+                episodeId = episodeId,
+                updateOutcome =
+                    UserDataWriteOutcome.Failed(UserDataWriteFailure.PermissionDenied(403, null)),
+                loadCount = loadCount,
+            )
+
+        viewModel.saveMetadata(name = "新名称", overview = null, sortName = null)
+        val event = withTimeout(5_000) { viewModel.metadataEvents.first() }
+
+        assertEquals(DetailWriteEvent.PermissionDenied, event)
+        assertEquals(0, loadCount.get())
+    }
+
+    @Test
+    fun `保存元数据其他失败映射为 Failed`() = runBlocking {
+        val episodeId = UUID.randomUUID()
+        val viewModel =
+            metadataViewModel(
+                episodeId = episodeId,
+                updateOutcome =
+                    UserDataWriteOutcome.Failed(UserDataWriteFailure.Unknown(null, "boom")),
+                loadCount = AtomicInteger(0),
+            )
+
+        viewModel.saveMetadata(name = "新名称", overview = null, sortName = null)
+        val event = withTimeout(5_000) { viewModel.metadataEvents.first() }
+
+        assertEquals(DetailWriteEvent.Failed, event)
+    }
+
+    private fun metadataViewModel(
+        episodeId: UUID,
+        updateOutcome: UserDataWriteOutcome,
+        loadCount: AtomicInteger,
+    ): EpisodeViewModel =
+        EpisodeViewModel(
+                repository = metadataRepository(episode(episodeId), updateOutcome, loadCount),
+                appPreferences = failingPreferences(),
+                videoMetadataParser = VideoMetadataParser,
+            )
+            .also { viewModel -> viewModel.episodeId = episodeId }
+
+    private fun metadataRepository(
+        episode: FindroidEpisode,
+        updateOutcome: UserDataWriteOutcome,
+        loadCount: AtomicInteger,
+    ): JellyfinRepository =
+        Proxy.newProxyInstance(
+            JellyfinRepository::class.java.classLoader,
+            arrayOf(JellyfinRepository::class.java),
+        ) { proxy, method, args ->
+            when (method.name) {
+                "getEpisode" -> {
+                    loadCount.incrementAndGet()
+                    episode
+                }
+                "updateItemMetadata" -> updateOutcome
+                "fetchItemMetadataSnapshot" ->
+                    ItemMetadataSnapshot(
+                        itemId = episode.id,
+                        name = episode.name,
+                        overview = episode.overview,
+                        sortName = null,
+                    )
+                "toString" -> "EpisodeViewModelMetadataTestRepository"
+                "hashCode" -> System.identityHashCode(proxy)
+                "equals" -> proxy === args?.firstOrNull()
+                else -> throw AssertionError("Unexpected repository call: ${method.name}")
+            }
+        } as JellyfinRepository
 
     private fun deletingViewModel(
         episodeId: UUID,

@@ -88,4 +88,9 @@
     <string name="detail_delete_server_action">Delete server file</string>
     <string name="detail_delete_server_message">This deletes “%1$s” from the server. The file cannot be recovered. Local cache and download records will also be cleaned up.</string>
     <string name="detail_delete_server_confirm">Delete</string>
+    <string name="detail_edit_metadata_action">Edit metadata</string>
+    <string name="detail_edit_metadata_name">Name</string>
+    <string name="detail_edit_metadata_sort_name">Sort name</string>
+    <string name="detail_edit_metadata_overview">Overview</string>
+    <string name="detail_edit_metadata_save">Save</string>
 </resources>

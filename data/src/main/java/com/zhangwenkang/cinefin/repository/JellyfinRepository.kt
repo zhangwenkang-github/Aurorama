@@ -187,6 +187,26 @@ interface JellyfinRepository {
     suspend fun deleteItem(itemId: UUID): UserDataWriteOutcome
 
     /**
+     * W8-T6：读取条目元数据（名称 / 简介 / 排序名称）的当前值，供编辑对话框预填。
+     *
+     * 任何异常都返回 null（fail-closed）：拿不到服务器当前值就不让用户改，避免用稀疏 DTO 覆盖其他字段。
+     */
+    suspend fun fetchItemMetadataSnapshot(itemId: UUID): ItemMetadataSnapshot?
+
+    /**
+     * W8-T6：编辑条目元数据（`POST /Items/{id}`）。
+     *
+     * 与删除一样**不排队补偿**：先 GET 完整 [org.jellyfin.sdk.model.api.BaseItemDto]，只覆盖名称 / 简介 / 排序名称
+     * 再提交；服务器拒绝或网络失败时本地不改动，只把 [UserDataWriteOutcome.Failed] 返回给调用方。
+     */
+    suspend fun updateItemMetadata(
+        itemId: UUID,
+        name: String,
+        overview: String?,
+        sortName: String?,
+    ): UserDataWriteOutcome
+
+    /**
      * W69：强制失效元数据缓存（下拉刷新 / 用户主动要求最新数据）。
      *
      * 在线实现清空会话缓存，之后的读取直接打服务器；离线实现是空操作（离线数据本就来自本地库）。

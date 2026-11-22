@@ -44,6 +44,7 @@ import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadEvent
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadState
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadViewModel
+import com.zhangwenkang.cinefin.film.presentation.detail.DetailEditRules
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailWriteEvent
 import com.zhangwenkang.cinefin.film.presentation.episode.EpisodeAction
 import com.zhangwenkang.cinefin.film.presentation.episode.EpisodeState
@@ -56,6 +57,8 @@ import com.zhangwenkang.cinefin.presentation.film.components.DeleteServerFileDia
 import com.zhangwenkang.cinefin.presentation.film.components.DetailBodyMode
 import com.zhangwenkang.cinefin.presentation.film.components.DetailHero
 import com.zhangwenkang.cinefin.presentation.film.components.DetailLoadError
+import com.zhangwenkang.cinefin.presentation.film.components.EditMetadataDialog
+import com.zhangwenkang.cinefin.presentation.film.components.EditServerMetadataButton
 import com.zhangwenkang.cinefin.presentation.film.components.ExtraInfoText
 import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
@@ -69,6 +72,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.showsViewAction
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.presentation.utils.rememberScrollMemoryState
+import com.zhangwenkang.cinefin.repository.ItemMetadataSnapshot
 import com.zhangwenkang.cinefin.utils.ObserveAsEvents
 import com.zhangwenkang.cinefin.utils.format
 import java.util.UUID
@@ -93,6 +97,12 @@ fun EpisodeScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val downloaderState by downloaderViewModel.state.collectAsStateWithLifecycle()
     val downloadSnapshot by detailDownloadViewModel.state.collectAsStateWithLifecycle()
+    val canEditMetadata by viewModel.canEditMetadata.collectAsStateWithLifecycle()
+    val metadataSnapshot by viewModel.metadataSnapshot.collectAsStateWithLifecycle()
+    val metadataSnapshotLoading by viewModel.metadataSnapshotLoading.collectAsStateWithLifecycle()
+    val metadataSaving by viewModel.metadataSaving.collectAsStateWithLifecycle()
+    var editMetadataDialogOpen by remember { mutableStateOf(false) }
+    var editMetadataRequested by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val viewLabel = stringResource(CoreR.string.snackbar_view)
@@ -141,6 +151,24 @@ fun EpisodeScreen(
                     snackbarHostState.showSnackbar(message = message)
                 }
             }
+        }
+    }
+
+    // W8-T6：编辑元数据成功关闭对话框（详情由 VM 重载）；失败 / 权限拒绝走同一条 Snackbar 通道。
+    LaunchedEffect(Unit) {
+        viewModel.metadataEvents.collect { event ->
+            if (event == DetailWriteEvent.Confirmed) editMetadataDialogOpen = false
+            detailWriteEventMessage(context, event)?.let { message ->
+                snackbarHostState.showSnackbar(message = message)
+            }
+        }
+    }
+
+    // W8-T6：快照读取完成后才展示对话框（取不到也展示，字段禁用）。
+    LaunchedEffect(editMetadataRequested, metadataSnapshotLoading) {
+        if (editMetadataRequested && !metadataSnapshotLoading) {
+            editMetadataDialogOpen = true
+            editMetadataRequested = false
         }
     }
 
@@ -196,6 +224,18 @@ fun EpisodeScreen(
         onRetry = { viewModel.loadEpisode(episodeId = episodeId) },
         offlineMode = isOfflineMode,
         onDeleteConfirmed = { viewModel.deleteItem() },
+        canEditMetadata = canEditMetadata,
+        editMetadataSnapshot = metadataSnapshot,
+        editMetadataDialogOpen = editMetadataDialogOpen,
+        editMetadataSaving = metadataSaving,
+        onEditMetadataClick = {
+            editMetadataRequested = true
+            viewModel.loadMetadataSnapshot()
+        },
+        onSaveMetadata = { name, overview, sortName ->
+            viewModel.saveMetadata(name = name, overview = overview, sortName = sortName)
+        },
+        onDismissEditMetadata = { editMetadataDialogOpen = false },
     )
 }
 
@@ -212,6 +252,13 @@ private fun EpisodeScreenLayout(
     onRetry: () -> Unit = {},
     offlineMode: Boolean = false,
     onDeleteConfirmed: () -> Unit = {},
+    canEditMetadata: Boolean = false,
+    editMetadataSnapshot: ItemMetadataSnapshot? = null,
+    editMetadataDialogOpen: Boolean = false,
+    editMetadataSaving: Boolean = false,
+    onEditMetadataClick: () -> Unit = {},
+    onSaveMetadata: (name: String, overview: String?, sortName: String?) -> Unit = { _, _, _ -> },
+    onDismissEditMetadata: () -> Unit = {},
 ) {
     val safePadding = rememberSafePadding()
 
@@ -275,6 +322,17 @@ private fun EpisodeScreenLayout(
                             downloadEnabled = episode.canDownload,
                             heroLayout = heroLayout,
                         )
+                        if (
+                            DetailEditRules.shouldShowEditAction(
+                                canEditMetadata = canEditMetadata,
+                                offlineMode = offlineMode,
+                            )
+                        ) {
+                            EditServerMetadataButton(
+                                onClick = onEditMetadataClick,
+                                modifier = Modifier.padding(top = MaterialTheme.spacings.small),
+                            )
+                        }
                         if (
                             DetailDeleteRules.shouldShowDeleteAction(
                                 canDelete = episode.canDelete,
@@ -355,6 +413,15 @@ private fun EpisodeScreenLayout(
                     onDismiss = { deleteServerDialogOpen = false },
                 )
             }
+        }
+
+        if (editMetadataDialogOpen) {
+            EditMetadataDialog(
+                snapshot = editMetadataSnapshot,
+                saving = editMetadataSaving,
+                onSave = onSaveMetadata,
+                onDismiss = onDismissEditMetadata,
+            )
         }
 
         CinefinSnackbarHost(
