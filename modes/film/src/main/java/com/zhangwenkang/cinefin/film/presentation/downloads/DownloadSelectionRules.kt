@@ -106,25 +106,29 @@ object DownloadSelectionRules {
     ): DownloadManagerState {
         val resolved = state.resolveDeletionResult(result)
         val retainedSelection = state.selection.filterNot { key -> key in resolved.succeededKeys }
-        return state.copy(
-            selection = retainedSelection,
-            selectionMode = retainedSelection.isNotEmpty(),
-            actionFailure =
-                if (retainedSelection.isNotEmpty()) {
-                    DownloadActionFailure.DELETE
-                } else {
-                    null
-                },
-            deletionFailureReason =
-                if (resolved.supersededKeys.isNotEmpty()) {
-                    DownloadDeletionFailureReason.SUPERSEDED
-                } else {
-                    null
-                },
-            deletionRecoveryEntries =
-                state.deletionRecoveryEntries.filterNot { it.entryKey in resolved.succeededKeys },
-            deletionSummary = resolved.toSummary(),
-        )
+        return state
+            .copy(
+                selection = retainedSelection,
+                selectionMode = retainedSelection.isNotEmpty(),
+                actionFailure =
+                    if (retainedSelection.isNotEmpty()) {
+                        DownloadActionFailure.DELETE
+                    } else {
+                        null
+                    },
+                deletionFailureReason =
+                    if (resolved.supersededKeys.isNotEmpty()) {
+                        DownloadDeletionFailureReason.SUPERSEDED
+                    } else {
+                        null
+                    },
+                deletionRecoveryEntries =
+                    state.deletionRecoveryEntries.filterNot {
+                        it.entryKey in resolved.succeededKeys
+                    },
+                deletionSummary = resolved.toSummary(),
+            )
+            .withCurrentSelectionSlot()
     }
 
     /** 本地数据先上屏时保留已完成键；完整服务器阶段仍由后续 validKeys 再裁剪。 */
@@ -352,3 +356,35 @@ internal fun DownloadDeletionResult.toSummary(
         supersededCount = supersededKeys.size,
     )
 }
+
+/**
+ * W7-T4（46 口径落地）：切换媒体类型筛选。
+ *
+ * 类型筛选 chips 即分区载体——折叠 / 选择状态按媒体类型分槽互换（内存态，不持久化），排序也按类型独立记忆；
+ * 故「切到音乐后再切回视频」不会串折叠、串多选，也不会把一种类型的选中项带进另一种类型的全选范围。 目标类型没有记忆时回到空选择 / 空折叠。
+ */
+fun DownloadManagerState.switchMediaFilter(filter: DownloadMediaFilter): DownloadManagerState {
+    if (filter == mediaFilter) return this
+    val savedSelection = selectionByFilter + (mediaFilter to selection)
+    val savedExpanded = expandedKeysByFilter + (mediaFilter to expandedKeys)
+    val restoredSelection = savedSelection[filter].orEmpty()
+    return copy(
+        mediaFilter = filter,
+        selectionByFilter = savedSelection,
+        expandedKeysByFilter = savedExpanded,
+        selection = restoredSelection,
+        selectionMode = restoredSelection.isNotEmpty(),
+        expandedKeys = savedExpanded[filter].orEmpty(),
+        actionFailure = null,
+        deletionFailureReason = null,
+        deletionSummary = null,
+    )
+}
+
+/** W7-T4：选择变化后把当前媒体类型的槽同步为最新选择（内存态记忆，不落盘）。 */
+fun DownloadManagerState.withCurrentSelectionSlot(): DownloadManagerState =
+    copy(selectionByFilter = selectionByFilter + (mediaFilter to selection))
+
+/** W7-T4：折叠变化后把当前媒体类型的槽同步为最新折叠集（内存态记忆，不落盘）。 */
+fun DownloadManagerState.withCurrentExpandedSlot(): DownloadManagerState =
+    copy(expandedKeysByFilter = expandedKeysByFilter + (mediaFilter to expandedKeys))

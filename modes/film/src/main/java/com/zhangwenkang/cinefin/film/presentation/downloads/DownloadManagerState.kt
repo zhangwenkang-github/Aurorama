@@ -60,6 +60,16 @@ data class DownloadManagerState(
     /** W34：已展开的容器 key（默认全部折叠，用户点开后写入）。 */
     val expandedKeys: Set<String> = emptySet(),
     val mediaFilter: DownloadMediaFilter = DownloadMediaFilter.ALL,
+    /**
+     * W7-T4：按媒体类型分槽记忆的折叠状态（切换筛选时互换；内存态，不落盘）。
+     *
+     * 46 口径：类型筛选 chips 即分区载体——不同媒体类型不共享折叠 / 选择 / 排序状态。
+     */
+    val expandedKeysByFilter: Map<DownloadMediaFilter, Set<String>> = emptyMap(),
+    /** W7-T4：按媒体类型分槽记忆的多选状态（切换筛选时互换；内存态，不落盘）。 */
+    val selectionByFilter: Map<DownloadMediaFilter, List<String>> = emptyMap(),
+    /** W7-T4：按媒体类型分槽的用户排序选择（默认 = 现有分组排序；不落盘）。 */
+    val sortModes: Map<DownloadMediaFilter, DownloadSortMode> = emptyMap(),
     /** W34：书籍离线文件占用（阅读器 `books/`，不在 DownloadManager 目录里）。 */
     val bookStorageBytes: Long = 0L,
     val storage: DownloadStorageUsage = DownloadStorageUsage(0L, 0L, 0L),
@@ -95,6 +105,10 @@ data class DownloadManagerState(
 
     val hasSelection: Boolean
         get() = selection.isNotEmpty()
+
+    /** W7-T4：当前媒体筛选下的用户排序（未选过 = 现有分组排序）。 */
+    val sortMode: DownloadSortMode
+        get() = sortModes[mediaFilter] ?: DownloadSortMode.DEFAULT
 
     /** 三组容器合并（钻取详情页按 key 查找 / 批量操作用）。 */
     val allContainers: List<DownloadHierarchyContainer>
@@ -344,6 +358,9 @@ sealed interface DownloadAction {
 
     /** W34：媒体类型筛选。 */
     data class SetMediaFilter(val filter: DownloadMediaFilter) : DownloadAction
+
+    /** W7-T4：用户排序（名称 / 下载时间 / 大小 / 默认分组）；只作用于当前页签 + 当前筛选的同级节点。 */
+    data class SetSortMode(val mode: DownloadSortMode) : DownloadAction
 
     /** W34：选中层级里的单个条目。 */
     data class ToggleEntry(val key: String) : DownloadAction

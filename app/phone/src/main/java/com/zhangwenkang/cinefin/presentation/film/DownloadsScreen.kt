@@ -54,6 +54,9 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadAction
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadActionFailure
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadBookSection
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadBookSectionGroup
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadBookSectionRules
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadDeletionFailureReason
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadDetailRow
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadDrilldownRules
@@ -65,11 +68,13 @@ import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadMediaFilter
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadPendingAction
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadPlaybackRequest
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadSelectionRules
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadSortMode
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadsViewModel
 import com.zhangwenkang.cinefin.film.presentation.downloads.allEntries
 import com.zhangwenkang.cinefin.film.presentation.downloads.deletionProjection
 import com.zhangwenkang.cinefin.film.presentation.downloads.detailRows
 import com.zhangwenkang.cinefin.models.FindroidItem
+import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadBookSectionHeader
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadConfirmDialog
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadDrilldownHeader
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadGridBlock
@@ -80,6 +85,7 @@ import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadListSkeleton
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadSeasonCard
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadSelectionActionId
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadSelectionActionSpec
+import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadSortMenu
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadTopLevelCard
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadTopLevelRow
 import com.zhangwenkang.cinefin.presentation.film.downloads.deletionStatusText
@@ -301,35 +307,43 @@ private fun DownloadsScreenLayout(
             Spacer(Modifier.height(CinefinSpacing.Space3))
 
             Row(
-                modifier =
-                    Modifier.fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = horizontalPadding),
-                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = horizontalPadding),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                CinefinFilterChip(
-                    text =
-                        stringResource(CoreR.string.download_tasks_active) +
-                            " ${state.activeCount}",
-                    selected = tab == DownloadTab.ACTIVE,
-                    onClick = { tab = DownloadTab.ACTIVE },
-                    compact = true,
-                )
-                CinefinFilterChip(
-                    text =
-                        stringResource(CoreR.string.download_tasks_failed) +
-                            " ${state.failedCount}",
-                    selected = tab == DownloadTab.FAILED,
-                    onClick = { tab = DownloadTab.FAILED },
-                    compact = true,
-                )
-                CinefinFilterChip(
-                    text =
-                        stringResource(CoreR.string.download_tasks_completed) +
-                            " ${state.completedCount}",
-                    selected = tab == DownloadTab.COMPLETED,
-                    onClick = { tab = DownloadTab.COMPLETED },
-                    compact = true,
+                Row(
+                    modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+                ) {
+                    CinefinFilterChip(
+                        text =
+                            stringResource(CoreR.string.download_tasks_active) +
+                                " ${state.activeCount}",
+                        selected = tab == DownloadTab.ACTIVE,
+                        onClick = { tab = DownloadTab.ACTIVE },
+                        compact = true,
+                    )
+                    CinefinFilterChip(
+                        text =
+                            stringResource(CoreR.string.download_tasks_failed) +
+                                " ${state.failedCount}",
+                        selected = tab == DownloadTab.FAILED,
+                        onClick = { tab = DownloadTab.FAILED },
+                        compact = true,
+                    )
+                    CinefinFilterChip(
+                        text =
+                            stringResource(CoreR.string.download_tasks_completed) +
+                                " ${state.completedCount}",
+                        selected = tab == DownloadTab.COMPLETED,
+                        onClick = { tab = DownloadTab.COMPLETED },
+                        compact = true,
+                    )
+                }
+                // W7-T4（需求 51）：排序入口固定在页签行右侧，作用范围 = 当前页签 + 当前筛选的同级节点。
+                Spacer(Modifier.size(CinefinSpacing.Space2))
+                DownloadSortMenu(
+                    selected = state.sortMode,
+                    onSelect = { mode -> onAction(DownloadAction.SetSortMode(mode)) },
                 )
             }
 
@@ -397,6 +411,8 @@ private fun DownloadsScreenLayout(
                         OverviewList(
                             deletionState = state,
                             containers = state.containersFor(tab.group),
+                            mediaFilter = state.mediaFilter,
+                            sortMode = state.sortMode,
                             emptyTitle =
                                 stringResource(
                                     when (tab) {
@@ -431,6 +447,7 @@ private fun DownloadsScreenLayout(
             DownloadDetailPane(
                 deletionState = state,
                 container = drilldown,
+                sortMode = state.sortMode,
                 pageGutter = horizontalPadding,
                 selectionMode = state.selectionMode,
                 selection = state.selection,
@@ -510,6 +527,7 @@ private val DownloadTab.group: DownloadTaskGroup
 private fun DownloadDetailPane(
     deletionState: DownloadManagerState,
     container: DownloadHierarchyContainer,
+    sortMode: DownloadSortMode,
     pageGutter: Dp,
     selectionMode: Boolean,
     selection: List<String>,
@@ -524,8 +542,8 @@ private fun DownloadDetailPane(
     var expandedSeasons by remember(container.key) { mutableStateOf<Set<String>>(emptySet()) }
     val listState = rememberLazyListState()
     val rows =
-        remember(container.key, container, expandedSeasons) {
-            detailRows(container, expandedSeasons)
+        remember(container.key, container, expandedSeasons, sortMode) {
+            detailRows(container, expandedSeasons, sortMode)
         }
 
     // W59：进入详情自动展开第一个进行中的季（没有进行中 → 第一个未完成），并滚到该季可见。
@@ -534,7 +552,7 @@ private fun DownloadDetailPane(
         if (auto in expandedSeasons) return@LaunchedEffect
         val updated = expandedSeasons + auto
         expandedSeasons = updated
-        val index = detailRows(container, updated).indexOfFirst { it.key == auto }
+        val index = detailRows(container, updated, sortMode).indexOfFirst { it.key == auto }
         if (index >= 0) {
             withFrameNanos {}
             listState.animateScrollToItem(index + 1)
@@ -621,6 +639,8 @@ private fun DownloadDetailPane(
 private fun OverviewList(
     deletionState: DownloadManagerState,
     containers: List<DownloadHierarchyContainer>,
+    mediaFilter: DownloadMediaFilter,
+    sortMode: DownloadSortMode,
     emptyTitle: String,
     emptyIconRes: Int,
     selectionMode: Boolean,
@@ -653,9 +673,9 @@ private fun OverviewList(
         return
     }
     val rows =
-        remember(containers) {
-            // W59：顶层排序 进行中 → 失败 → 已完成（同组按最近更新时间，再按标题）。
-            DownloadDrilldownRules.sortForDisplay(containers).map { container ->
+        remember(containers, sortMode) {
+            // W59：顶层排序 进行中 → 失败 → 已完成（同组按最近更新时间，再按标题）；W7-T4 支持用户排序。
+            DownloadDrilldownRules.sortForDisplay(containers, sortMode).map { container ->
                 DownloadHierarchyRow.ContainerRow(
                     key = container.key,
                     container = container,
@@ -664,6 +684,29 @@ private fun OverviewList(
                 )
             }
         }
+
+    // W7-T4（需求 44）：书籍筛选下按类型分区（电子书 / 有声书 / 漫画），分区头可折叠。
+    if (mediaFilter == DownloadMediaFilter.BOOK) {
+        BookSectionList(
+            deletionState = deletionState,
+            groups =
+                remember(containers, sortMode) {
+                    DownloadBookSectionRules.group(
+                        containers = DownloadDrilldownRules.sortForDisplay(containers, sortMode),
+                        sortMode = sortMode,
+                    )
+                },
+            selectionMode = selectionMode,
+            selection = selection,
+            pendingActions = pendingActions,
+            pageGutter = pageGutter,
+            onAction = onAction,
+            onOpenDetail = onOpenDetail,
+            onRequestDeleteEntry = onRequestDeleteEntry,
+            onRequestDeleteContainer = onRequestDeleteContainer,
+        )
+        return
+    }
     val contentPadding = PaddingValues(top = CinefinSpacing.Space3, bottom = CinefinSpacing.Space8)
     val listModifier = Modifier.fillMaxSize().padding(horizontal = pageGutter)
 
@@ -749,6 +792,62 @@ private fun OverviewList(
                             onRequestDeleteContainer = onRequestDeleteContainer,
                         )
                     }
+            }
+        }
+    }
+}
+
+/** W7-T4（需求 44）：书籍区按类型分区渲染；分区折叠状态只在本次页面会话内记忆（不跨媒体类型串）。 */
+@Composable
+private fun BookSectionList(
+    deletionState: DownloadManagerState,
+    groups: List<DownloadBookSectionGroup>,
+    selectionMode: Boolean,
+    selection: List<String>,
+    pendingActions: Map<String, DownloadPendingAction>,
+    pageGutter: Dp,
+    onAction: (DownloadAction) -> Unit,
+    onOpenDetail: (String) -> Unit,
+    onRequestDeleteEntry: (key: String, title: String) -> Unit,
+    onRequestDeleteContainer: (key: String, title: String) -> Unit,
+) {
+    var collapsedSections by remember { mutableStateOf(emptySet<DownloadBookSection>()) }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(horizontal = pageGutter),
+        contentPadding = PaddingValues(top = CinefinSpacing.Space3, bottom = CinefinSpacing.Space8),
+        verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
+    ) {
+        groups.forEach { group ->
+            item(key = "book-section:${group.section.name}") {
+                DownloadBookSectionHeader(
+                    section = group.section,
+                    count = group.containers.size,
+                    collapsed = group.section in collapsedSections,
+                    onToggle = {
+                        collapsedSections =
+                            if (group.section in collapsedSections) {
+                                collapsedSections - group.section
+                            } else {
+                                collapsedSections + group.section
+                            }
+                    },
+                )
+            }
+            if (group.section !in collapsedSections) {
+                items(items = group.containers, key = { container -> container.key }) { container ->
+                    OverviewItem(
+                        deletionState = deletionState,
+                        container = container,
+                        compact = true,
+                        selectionMode = selectionMode,
+                        selection = selection,
+                        pendingActions = pendingActions,
+                        onAction = onAction,
+                        onOpenDetail = onOpenDetail,
+                        onRequestDeleteEntry = onRequestDeleteEntry,
+                        onRequestDeleteContainer = onRequestDeleteContainer,
+                    )
+                }
             }
         }
     }

@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
@@ -71,6 +73,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadAction
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadBookSection
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadContainerTaskAction
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadDeletionProjection
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadDeletionSummary
@@ -80,6 +83,7 @@ import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyEnt
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyStatus
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchySubContainer
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadPendingAction
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadSortMode
 import com.zhangwenkang.cinefin.film.presentation.downloads.allEntries
 import com.zhangwenkang.cinefin.film.presentation.downloads.effectiveDownloadedBytes
 import com.zhangwenkang.cinefin.film.presentation.downloads.expectedTotalBytes
@@ -679,6 +683,20 @@ internal fun DownloadTopLevelRow(
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f),
                         )
+                        // W7-T4（需求 45）：书籍格式徽标（EPUB / PDF / M4B…），扩展名未知时不显示。
+                        container.formatLabel?.let { badge ->
+                            Spacer(Modifier.width(CinefinSpacing.Space2))
+                            Text(
+                                text = badge,
+                                style = CinefinType.LabelSmall,
+                                color = colors.onSurfaceVariant,
+                                maxLines = 1,
+                                modifier =
+                                    Modifier.clip(CinefinShapes.Xs)
+                                        .background(colors.surfaceContainerHigh)
+                                        .padding(horizontal = 6.dp, vertical = 1.dp),
+                            )
+                        }
                     }
                     Spacer(Modifier.height(CinefinSpacing.Space1))
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -774,6 +792,136 @@ internal fun DownloadTopLevelRow(
         )
     }
 }
+
+/** W7-T4：排序菜单文案（DEFAULT 走「排序」总标签，作为未选排序时的触发器文字）。 */
+internal fun DownloadSortMode.menuLabelRes(): Int =
+    when (this) {
+        DownloadSortMode.DEFAULT -> CoreR.string.download_sort_default
+        DownloadSortMode.NAME -> CoreR.string.download_sort_name
+        DownloadSortMode.DOWNLOAD_TIME -> CoreR.string.download_sort_time
+        DownloadSortMode.SIZE -> CoreR.string.download_sort_size
+    }
+
+/**
+ * W7-T4（需求 51）：页签行右侧的排序文字菜单。
+ *
+ * 没有现成 `CinefinOverflowMenu` 组件，按设计口径用文字菜单：触发器显示当前排序（未选 = 「排序」）， 菜单四档 = 默认（现有分组排序）/ 名称 / 下载时间 /
+ * 大小；作用范围由调用方限定为当前页签 + 当前筛选的同级节点。
+ */
+@Composable
+internal fun DownloadSortMenu(
+    selected: DownloadSortMode,
+    onSelect: (DownloadSortMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalCinefinColors.current
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier = modifier) {
+        CinefinButton(
+            text =
+                stringResource(
+                    if (selected == DownloadSortMode.DEFAULT) {
+                        CoreR.string.download_sort
+                    } else {
+                        selected.menuLabelRes()
+                    }
+                ),
+            onClick = { expanded = true },
+            variant = CinefinButtonVariant.Text,
+            size = CinefinButtonSize.Small,
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            shape = CinefinShapes.Card,
+            containerColor = colors.surfaceContainerHighest,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
+        ) {
+            DownloadSortMode.entries.forEach { mode ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = stringResource(mode.menuLabelRes()),
+                            style = CinefinType.BodyMedium,
+                            color =
+                                if (mode == selected) colors.onSurface else colors.onSurfaceVariant,
+                        )
+                    },
+                    onClick = {
+                        expanded = false
+                        onSelect(mode)
+                    },
+                    trailingIcon =
+                        if (mode == selected) {
+                            {
+                                Icon(
+                                    painter = painterResource(CoreR.drawable.ic_check),
+                                    contentDescription = null,
+                                    tint = colors.onSurface,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                        } else {
+                            null
+                        },
+                )
+            }
+        }
+    }
+}
+
+/** W7-T4（需求 44）：书籍区类型分区标题（电子书 / 有声书 / 漫画），可折叠。 */
+@Composable
+internal fun DownloadBookSectionHeader(
+    section: DownloadBookSection,
+    count: Int,
+    collapsed: Boolean,
+    onToggle: () -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    val label = stringResource(section.labelRes())
+    Row(
+        modifier =
+            Modifier.fillMaxWidth()
+                .clip(CinefinShapes.Xs)
+                .clickable(onClick = onToggle)
+                .padding(vertical = CinefinSpacing.Space1),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = CinefinType.TitleSmall,
+            color = colors.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.width(CinefinSpacing.Space2))
+        Text(
+            text = count.toString(),
+            style = CinefinType.BodySmall,
+            color = colors.onSurfaceVariant,
+            maxLines = 1,
+        )
+        Spacer(Modifier.weight(1f))
+        Icon(
+            painter =
+                painterResource(
+                    if (collapsed) CoreR.drawable.ic_chevron_down else CoreR.drawable.ic_chevron_up
+                ),
+            contentDescription = label,
+            tint = colors.onSurfaceVariant,
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
+private fun DownloadBookSection.labelRes(): Int =
+    when (this) {
+        DownloadBookSection.EBOOK -> CoreR.string.download_book_section_ebook
+        DownloadBookSection.AUDIOBOOK -> CoreR.string.download_book_section_audiobook
+        DownloadBookSection.COMIC -> CoreR.string.download_book_section_comic
+    }
 
 /** 行尾任务操作键（暂停 / 继续 / 重试 + 删除），统一右对齐。 */
 @Composable

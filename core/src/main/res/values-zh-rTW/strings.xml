@@ -281,4 +281,13 @@
     <string name="download_precheck_book_offline">下載後可在書架離線閱讀</string>
     <string name="download_precheck_batch_items_count">將下載 %1$d 項</string>
     <string name="download_precheck_batch_items_truncated">將下載前 %1$d 項（約 %2$s），剩餘 %3$d 項空間不足</string>
+    <string name="download_precheck_show_without_seasons">此節目無季分組，將下載全部 %1$d 集</string>
+    <string name="download_sort">排序</string>
+    <string name="download_sort_default">預設</string>
+    <string name="download_sort_name">名稱</string>
+    <string name="download_sort_time">下載時間</string>
+    <string name="download_sort_size">大小</string>
+    <string name="download_book_section_ebook">電子書</string>
+    <string name="download_book_section_audiobook">有聲書</string>
+    <string name="download_book_section_comic">漫畫</string>
 </resources>

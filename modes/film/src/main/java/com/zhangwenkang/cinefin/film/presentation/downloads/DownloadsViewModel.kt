@@ -113,6 +113,10 @@ internal object BookDownloadProjectionRules {
         allowOffline: Boolean,
         /** 只有识别为有声书时才非 0（V2-DOWNLOAD-34）；电子书为 0，界面不显示时长。 */
         runtimeTicks: Long = 0L,
+        /** W7-T4：服务器原始扩展名（格式徽标）；未知不显示。 */
+        bookContainer: String? = null,
+        /** W7-T4：书籍类型分区；识别不了由构建器归电子书。 */
+        bookSection: DownloadBookSection? = null,
     ): DownloadHierarchyEntry =
         DownloadHierarchyEntry(
             itemId = file.itemId,
@@ -127,6 +131,8 @@ internal object BookDownloadProjectionRules {
             sizeBytes = file.sizeBytes,
             imageUri = imageUri,
             runtimeTicks = runtimeTicks,
+            bookContainer = bookContainer,
+            bookSection = bookSection,
             serverId = owner?.serverId,
             userId = owner?.userId?.toString(),
             allowOffline = allowOffline,
@@ -138,6 +144,10 @@ internal object BookDownloadProjectionRules {
         imageUri: String?,
         allowOffline: Boolean,
         runtimeTicks: Long = 0L,
+        /** W7-T4：服务器原始扩展名（格式徽标）；未知不显示。 */
+        bookContainer: String? = null,
+        /** W7-T4：书籍类型分区；识别不了由构建器归电子书。 */
+        bookSection: DownloadBookSection? = null,
     ): DownloadHierarchyEntry {
         val entryStatus = task.status.toDownloadTaskStatus()
         return DownloadHierarchyEntry(
@@ -156,6 +166,8 @@ internal object BookDownloadProjectionRules {
             updatedAt = task.updatedAtEpochMillis,
             imageUri = imageUri,
             runtimeTicks = runtimeTicks,
+            bookContainer = bookContainer,
+            bookSection = bookSection,
             bookDetail = task.error,
             serverId = task.serverId,
             userId = task.userId?.toString(),
@@ -339,38 +351,39 @@ constructor(
             }
         }
         return copy(
-            selection = result.selection,
-            selectionMode = result.selection.isNotEmpty(),
-            pendingActions = pendingActions.mapKeys { (key, _) -> migrated[key]?.key ?: key },
-            deletionPendingBatches = migratedOwners.mapValues { (_, owners) -> owners.toSet() },
-            deletionAliases = activeAliases + migratedAliases,
-            deletionAliasBatches = activeAliasBatches + migratedAliasBatches,
-            actionFailure =
-                if (result.ambiguousIntentKeys.isNotEmpty()) {
-                    DownloadActionFailure.DELETE
-                } else {
-                    actionFailure
-                },
-            deletionFailureReason =
-                if (result.ambiguousIntentKeys.isNotEmpty()) {
-                    null
-                } else {
-                    deletionFailureReason
-                },
-            deletionRecoveryEntries =
-                deletionRecoveryEntries.map { entry ->
-                    val target = migrated[entry.entryKey]
-                    if (target == null) {
-                        entry
+                selection = result.selection,
+                selectionMode = result.selection.isNotEmpty(),
+                pendingActions = pendingActions.mapKeys { (key, _) -> migrated[key]?.key ?: key },
+                deletionPendingBatches = migratedOwners.mapValues { (_, owners) -> owners.toSet() },
+                deletionAliases = activeAliases + migratedAliases,
+                deletionAliasBatches = activeAliasBatches + migratedAliasBatches,
+                actionFailure =
+                    if (result.ambiguousIntentKeys.isNotEmpty()) {
+                        DownloadActionFailure.DELETE
                     } else {
-                        DownloadDeletionRecoveryEntry(
-                            entryKey = target.key,
-                            canonicalIdentity = target.canonicalIdentity,
-                        )
-                    }
-                },
-            deletionSummary = deletionSummary,
-        )
+                        actionFailure
+                    },
+                deletionFailureReason =
+                    if (result.ambiguousIntentKeys.isNotEmpty()) {
+                        null
+                    } else {
+                        deletionFailureReason
+                    },
+                deletionRecoveryEntries =
+                    deletionRecoveryEntries.map { entry ->
+                        val target = migrated[entry.entryKey]
+                        if (target == null) {
+                            entry
+                        } else {
+                            DownloadDeletionRecoveryEntry(
+                                entryKey = target.key,
+                                canonicalIdentity = target.canonicalIdentity,
+                            )
+                        }
+                    },
+                deletionSummary = deletionSummary,
+            )
+            .withCurrentSelectionSlot()
     }
 
     private var sessionJob: Job? = null
@@ -532,10 +545,16 @@ constructor(
                         } else {
                             current.expandedKeys + action.key
                         }
-                    current.copy(expandedKeys = expanded)
+                    current.copy(expandedKeys = expanded).withCurrentExpandedSlot()
                 }
             is DownloadAction.SetMediaFilter ->
-                _state.update { it.copy(mediaFilter = action.filter) }
+                _state.update { it.switchMediaFilter(action.filter) }
+            is DownloadAction.SetSortMode ->
+                _state.update { current ->
+                    current.copy(
+                        sortModes = current.sortModes + (current.mediaFilter to action.mode)
+                    )
+                }
             is DownloadAction.DeleteContainer -> deleteContainer(action.key)
             is DownloadAction.DeleteEntry -> deleteEntry(action.key)
             is DownloadAction.ToggleOffline -> setOfflineAllowed(action.key)
@@ -589,14 +608,16 @@ constructor(
             DownloadAction.PlaySelected -> playSelected()
             is DownloadAction.SelectKeys ->
                 _state.update { current ->
-                    current.copy(
-                        selectionMode = action.keys.isNotEmpty(),
-                        selection = action.keys,
-                        actionFailure = null,
-                        deletionFailureReason = null,
-                        deletionRecoveryEntries = emptyList(),
-                        deletionSummary = null,
-                    )
+                    current
+                        .copy(
+                            selectionMode = action.keys.isNotEmpty(),
+                            selection = action.keys,
+                            actionFailure = null,
+                            deletionFailureReason = null,
+                            deletionRecoveryEntries = emptyList(),
+                            deletionSummary = null,
+                        )
+                        .withCurrentSelectionSlot()
                 }
             DownloadAction.DeleteSelected -> deleteSelected()
             is DownloadAction.Pause ->
@@ -738,14 +759,16 @@ constructor(
     private fun toggleSelectionMode() {
         _state.update { current ->
             if (current.selectionMode) {
-                current.copy(
-                    selectionMode = false,
-                    selection = emptyList(),
-                    actionFailure = null,
-                    deletionFailureReason = null,
-                    deletionRecoveryEntries = emptyList(),
-                    deletionSummary = null,
-                )
+                current
+                    .copy(
+                        selectionMode = false,
+                        selection = emptyList(),
+                        actionFailure = null,
+                        deletionFailureReason = null,
+                        deletionRecoveryEntries = emptyList(),
+                        deletionSummary = null,
+                    )
+                    .withCurrentSelectionSlot()
             } else {
                 current.copy(
                     selectionMode = true,
@@ -761,27 +784,30 @@ constructor(
     private fun toggleSelection(key: String) {
         _state.update { current ->
             val selection = DownloadSelectionRules.toggleSelection(current, key)
-            current.copy(
-                selection = selection,
-                selectionMode = selection.isNotEmpty(),
-                actionFailure = null,
-                deletionFailureReason = null,
-                deletionRecoveryEntries = emptyList(),
-                deletionSummary = null,
-            )
+            current
+                .copy(
+                    selection = selection,
+                    selectionMode = selection.isNotEmpty(),
+                    actionFailure = null,
+                    deletionFailureReason = null,
+                    deletionRecoveryEntries = emptyList(),
+                    deletionSummary = null,
+                )
+                .withCurrentSelectionSlot()
         }
     }
 
     private fun clearSelection() {
         _state.update {
             it.copy(
-                selection = emptyList(),
-                selectionMode = false,
-                actionFailure = null,
-                deletionFailureReason = null,
-                deletionRecoveryEntries = emptyList(),
-                deletionSummary = null,
-            )
+                    selection = emptyList(),
+                    selectionMode = false,
+                    actionFailure = null,
+                    deletionFailureReason = null,
+                    deletionRecoveryEntries = emptyList(),
+                    deletionSummary = null,
+                )
+                .withCurrentSelectionSlot()
         }
     }
 
@@ -1628,6 +1654,8 @@ constructor(
                     offlineAllowMap = snapshot.offlineAllowMap,
                     artwork = snapshot.artworkById[task.itemId],
                     runtimeTicks = bookMetadata[task.itemId]?.runtimeTicks ?: 0L,
+                    bookContainer = bookMetadata[task.itemId]?.container,
+                    bookSection = bookMetadata[task.itemId]?.section,
                 )
             }
         val failedBookEntries =
@@ -1637,6 +1665,8 @@ constructor(
                     offlineAllowMap = snapshot.offlineAllowMap,
                     artwork = snapshot.artworkById[task.itemId],
                     runtimeTicks = bookMetadata[task.itemId]?.runtimeTicks ?: 0L,
+                    bookContainer = bookMetadata[task.itemId]?.container,
+                    bookSection = bookMetadata[task.itemId]?.section,
                 )
             }
         val remoteEntries =
@@ -1976,9 +2006,18 @@ constructor(
                     mediaKind = mediaKind,
                     container = container,
                 )
-            if (name != null || imageUrl != null || runtimeTicks > 0L) {
+            // W7-T4：格式徽标（扩展名）与类型分区同源，只认服务器已取回字段。
+            val formatContainer =
+                DownloadBookFormatRules.containerOf((item as? FindroidFolder)?.sourcePath)
+            if (name != null || imageUrl != null || runtimeTicks > 0L || formatContainer != null) {
                 cachedBookMetadata[id] =
-                    BookMetadata(name = name, imageUrl = imageUrl, runtimeTicks = runtimeTicks)
+                    BookMetadata(
+                        name = name,
+                        imageUrl = imageUrl,
+                        runtimeTicks = runtimeTicks,
+                        container = formatContainer,
+                        section = DownloadBookFormatRules.section(mediaKind, formatContainer),
+                    )
             }
         }
         return cachedBookMetadata.filterKeys { it in bookIds }
@@ -2172,6 +2211,10 @@ constructor(
                     is FindroidMovie -> item.runtimeTicks
                     else -> 0L
                 },
+            // W7-T4：书籍格式徽标与类型分区（服务器元数据缺失时保持 null / 电子书回落）。
+            bookContainer = bookMetadata[item.id]?.container,
+            bookSection =
+                if (mediaKind == DownloadMediaKind.BOOK) bookMetadata[item.id]?.section else null,
             albumName = song?.albumName,
             artist = song?.artist,
             trackIndex = song?.indexNumber ?: 0,
@@ -2262,6 +2305,8 @@ constructor(
             imageUri = artwork?.localImage?.uri ?: artwork?.generatedCover?.uri,
             allowOffline = offlineAllowMap[itemId] ?: true,
             runtimeTicks = serverMetadata?.runtimeTicks ?: 0L,
+            bookContainer = serverMetadata?.container,
+            bookSection = serverMetadata?.section,
         )
 
     /**
@@ -2274,6 +2319,8 @@ constructor(
         offlineAllowMap: Map<UUID, Boolean>,
         artwork: LocalArtworkSnapshot?,
         runtimeTicks: Long = 0L,
+        bookContainer: String? = null,
+        bookSection: DownloadBookSection? = null,
     ): DownloadHierarchyEntry =
         BookDownloadProjectionRules.activeEntry(
             task = this,
@@ -2281,6 +2328,8 @@ constructor(
             imageUri = artwork?.generatedCover?.uri,
             allowOffline = offlineAllowMap[itemId] ?: true,
             runtimeTicks = runtimeTicks,
+            bookContainer = bookContainer,
+            bookSection = bookSection,
         )
 
     /** W63：带并发上限的 map（服务器元数据补齐阶段用，避免一次性打出几十个请求）。 */
@@ -2384,6 +2433,10 @@ constructor(
         val imageUrl: String?,
         /** V2-DOWNLOAD-34：只有识别为有声书时才带时长；电子书为 0。 */
         val runtimeTicks: Long = 0L,
+        /** W7-T4：服务器原始扩展名（小写、无点）；未知不显示格式徽标。 */
+        val container: String? = null,
+        /** W7-T4：书籍类型分区（电子书 / 有声书 / 漫画）。 */
+        val section: DownloadBookSection = DownloadBookSection.EBOOK,
     )
 
     override fun onCleared() {

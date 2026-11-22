@@ -76,6 +76,8 @@ fun BatchDownloadDialog(
     /** W7-T1：空间预检与移动数据提示并入本确认框（需求 50；null = 不预检）。 */
     availableBytes: Long? = null,
     networkPrompt: DownloadNetworkPrompt = DownloadNetworkPrompt.NONE,
+    /** W7-T4：无季节目（整剧没有季分组）——确认框给专项说明（需求 39）。 */
+    seasonlessShow: Boolean = false,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -189,10 +191,17 @@ fun BatchDownloadDialog(
                     selection != null -> {
                         Text(
                             text =
-                                stringResource(
-                                    CoreR.string.detail_download_batch_count,
-                                    finalSelectedIds.size,
-                                ),
+                                if (seasonlessShow) {
+                                    stringResource(
+                                        CoreR.string.download_precheck_show_without_seasons,
+                                        finalSelectedIds.size,
+                                    )
+                                } else {
+                                    stringResource(
+                                        CoreR.string.detail_download_batch_count,
+                                        finalSelectedIds.size,
+                                    )
+                                },
                             style = CinefinType.TitleSmall,
                             color = colors.onSurface,
                         )

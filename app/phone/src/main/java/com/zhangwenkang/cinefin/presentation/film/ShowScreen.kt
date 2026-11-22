@@ -207,6 +207,11 @@ fun ShowScreen(
     )
 
     if (batchDialogVisible) {
+        // W7-T4（需求 39）：无季节目 = 整剧集都没有季名分组，确认框给「此节目无季分组」专项说明。
+        val seasonlessShow =
+            state.downloadTargets.orEmpty().let { targets ->
+                targets.isNotEmpty() && targets.all { it.seasonName.isNullOrBlank() }
+            }
         BatchDownloadDialog(
             title = stringResource(CoreR.string.detail_download_batch_title_show),
             episodes = state.downloadTargets,
@@ -222,6 +227,7 @@ fun ShowScreen(
             onDismiss = { batchDialogVisible = false },
             availableBytes = DownloadPrecheckEnvironment.availableBytes(context, 0),
             networkPrompt = DownloadPrecheckEnvironment.networkPrompt(context),
+            seasonlessShow = seasonlessShow,
         )
     }
 }

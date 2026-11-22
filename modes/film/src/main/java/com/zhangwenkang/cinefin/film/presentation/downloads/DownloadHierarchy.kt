@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.film.presentation.downloads
 
+import com.zhangwenkang.cinefin.repository.BookAudioRules
 import com.zhangwenkang.cinefin.utils.CanonicalDownloadAction
 import com.zhangwenkang.cinefin.utils.DownloadCanonicalIdentity
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
@@ -56,6 +57,14 @@ data class DownloadHierarchyEntry(
     val trackIndex: Int = 0,
     /** 书籍容器：聚合信息行文案（体积 / 状态）。 */
     val bookDetail: String? = null,
+    /**
+     * W7-T4：书籍原始文件扩展名（小写、无点；取服务器元数据）。
+     *
+     * 本地书籍文件落盘为 `books/<itemId>.book`，扩展名只能来自服务器条目，拿不到就是 null（界面不显示徽标，不造数据）。
+     */
+    val bookContainer: String? = null,
+    /** W7-T4：书籍类型分区（电子书 / 有声书 / 漫画）；识别不了由构建器归电子书。 */
+    val bookSection: DownloadBookSection? = null,
     /** W36：该条目是否允许在离线模式观看（对应 sources.allowOffline / 书籍偏好）。 */
     val allowOffline: Boolean = true,
     /** Canonical snapshot leaf capabilities; null means this is not an active engine task. */
@@ -86,6 +95,120 @@ enum class DownloadHierarchyStatus {
     PAUSED,
     FAILED,
     COMPLETED,
+}
+
+/** W7-T4：书籍类型分区（下载中心书籍区的三段分区；顺序即展示顺序）。 */
+enum class DownloadBookSection {
+    EBOOK,
+    AUDIOBOOK,
+    COMIC,
+}
+
+/**
+ * W7-T4：书籍格式徽标 / 类型分区的纯函数口径。
+ *
+ * - 格式徽标 = 服务器原始路径的扩展名（大写）；不在已知集合里就不显示（未知不造数据）；
+ * - 类型分区 = 漫画（cbz/cbr…）优先，其次有声书（复用 T3 的 [BookAudioRules] 识别口径），其余归电子书。
+ */
+object DownloadBookFormatRules {
+
+    private val COMIC_CONTAINERS = setOf("cbz", "cbr", "cb7", "cbt")
+
+    private val KNOWN_CONTAINERS =
+        setOf(
+            // 电子书
+            "epub",
+            "pdf",
+            "mobi",
+            "azw",
+            "azw3",
+            "fb2",
+            "txt",
+            "djvu",
+            "doc",
+            "docx",
+            "rtf",
+            "html",
+            "htm",
+            "md",
+            // 漫画
+            "cbz",
+            "cbr",
+            "cb7",
+            "cbt",
+            // 有声书
+            "m4b",
+            "m4a",
+            "mp3",
+            "flac",
+            "opus",
+            "aac",
+            "ogg",
+            "wav",
+            "alac",
+        )
+
+    /** 从服务器原始路径取小写扩展名；没有扩展名 / 不像扩展名时返回 null。 */
+    fun containerOf(path: String?): String? {
+        val name =
+            path?.trim()?.substringAfterLast('/')?.substringAfterLast('\\')?.takeIf {
+                it.isNotBlank()
+            } ?: return null
+        val extension = name.substringAfterLast('.', "").trim().lowercase()
+        return extension.takeIf { value ->
+            value.isNotEmpty() && value.length <= 5 && value.all { it.isLetterOrDigit() }
+        }
+    }
+
+    /** 徽标文字：已知格式返回大写扩展名，未知返回 null（界面不显示徽标）。 */
+    fun badge(container: String?): String? =
+        container?.trim()?.lowercase()?.takeIf { it in KNOWN_CONTAINERS }?.uppercase()
+
+    /** 类型分区：漫画 → 有声书 → 电子书（识别不了归电子书，不猜）。 */
+    fun section(mediaKind: String?, container: String?): DownloadBookSection {
+        val normalized = container?.trim()?.lowercase()
+        return when {
+            normalized in COMIC_CONTAINERS -> DownloadBookSection.COMIC
+            BookAudioRules.isAudiobook(mediaKind, normalized) -> DownloadBookSection.AUDIOBOOK
+            else -> DownloadBookSection.EBOOK
+        }
+    }
+}
+
+/**
+ * W7-T4：视频季归属口径——特别篇 / SP / 无季归属统一进显式「其他」折叠组。
+ *
+ * 判定只看季名：服务器 `Specials`（各语言常见别名）或缺失季名都归「其他」；不拿季号 0 作判据 —— 快照里的 `seasonIndex` 缺省为 0，用它会把普通季误收进「其他」。
+ */
+object DownloadSeasonGrouping {
+
+    /** 「其他」组组名（与既有「未知季」「未分类」同类，纯函数内固定中文文案）。 */
+    const val OTHER_GROUP_TITLE = "其他"
+
+    /** 「其他」组容器 key 后缀（同一节目下唯一）。 */
+    const val OTHER_SEASON_KEY = "other"
+
+    private val SPECIAL_SEASON_NAMES =
+        setOf(
+            "specials",
+            "special",
+            "sp",
+            "extras",
+            "特別篇",
+            "特别篇",
+            "特辑",
+            "特輯",
+            "番外",
+            "其他",
+            "未知季",
+            "未分类",
+            "未分類",
+        )
+
+    fun isOther(seasonName: String?): Boolean {
+        val name = seasonName?.trim()?.lowercase().orEmpty()
+        return name.isEmpty() || name in SPECIAL_SEASON_NAMES
+    }
 }
 
 /**
@@ -168,6 +291,8 @@ data class DownloadHierarchySubContainer(
     val totalBytes: Long = 0L,
     val speedBytesPerSecond: Long = 0L,
     val etaSeconds: Long? = null,
+    /** W7-T4：是否为「其他」归集组（特别篇 / SP / 无季归属）；排序时永远排在普通季之后。 */
+    val otherGroup: Boolean = false,
 ) : DownloadHierarchyChild {
     val progress: Float
         get() = if (totalCount > 0) completedCount.toFloat() / totalCount else 0f
@@ -199,6 +324,10 @@ data class DownloadHierarchyContainer(
     val totalBytes: Long = 0L,
     val speedBytesPerSecond: Long = 0L,
     val etaSeconds: Long? = null,
+    /** W7-T4：书籍格式徽标（EPUB / PDF / M4B…）；非书籍或扩展名未知为 null。 */
+    val formatLabel: String? = null,
+    /** W7-T4：书籍类型分区；非书籍为 null。 */
+    val bookSection: DownloadBookSection? = null,
 ) {
     val progress: Float
         get() = if (totalCount > 0) completedCount.toFloat() / totalCount else 0f
@@ -370,49 +499,14 @@ object DownloadHierarchyBuilder {
         group: VideoShowGroup,
         entries: List<DownloadHierarchyEntry>,
     ): DownloadHierarchyContainer {
-        val seasons =
-            entries
-                .groupBy { it.seasonId }
-                .map { (seasonId, seasonEntries) ->
-                    val sorted =
-                        seasonEntries.sortedWith(
-                            compareBy<DownloadHierarchyEntry> { it.episodeIndex }.thenBy { it.name }
-                        )
-                    val statuses = sorted.map { it.toHierarchyStatus() }
-                    val completed = sorted.count { it.status == DownloadTaskStatus.COMPLETED }
-                    val aggregate = DownloadAggregateRules.of(sorted)
-                    DownloadHierarchySubContainer(
-                        key =
-                            childContainerKey(
-                                listOf(
-                                        group.seriesId,
-                                        group.serverId,
-                                        group.userId,
-                                    )
-                                    .joinToString("|"),
-                                "${seasonId ?: "unknown"}",
-                            ),
-                        title = sorted.first().seasonName ?: "未知季",
-                        detail =
-                            episodeDetail(
-                                completed = completed,
-                                total = sorted.size,
-                                status = aggregateStatus(statuses),
-                            ),
-                        status = aggregateStatus(statuses),
-                        completedCount = completed,
-                        totalCount = sorted.size,
-                        sizeBytes = sorted.sumOf { it.sizeBytes },
-                        // W59：季只用自己的海报（缺图 → 类型占位，不跨级回退）。
-                        imageUri = sorted.firstNotNullOfOrNull { it.seasonImageUri },
-                        children = sorted.map { DownloadHierarchyLeaf(it.key, it) },
-                        downloadedBytes = aggregate.downloadedBytes,
-                        totalBytes = aggregate.totalBytes,
-                        speedBytesPerSecond = aggregate.speedBytesPerSecond,
-                        etaSeconds = aggregate.etaSeconds,
-                    )
-                }
-                .sortedBy { it.title }
+        val showKey = listOf(group.seriesId, group.serverId, group.userId).joinToString("|")
+        val otherEntries = entries.filter { DownloadSeasonGrouping.isOther(it.seasonName) }
+        val regularEntries = entries.filterNot { DownloadSeasonGrouping.isOther(it.seasonName) }
+        val seasons = buildList {
+            addAll(buildSeasonContainers(showKey, regularEntries))
+            // W7-T4：特别篇 / SP / 无季归属合并为一个显式「其他」组，始终排在季卡之后。
+            if (otherEntries.isNotEmpty()) add(buildOtherSeason(showKey, otherEntries))
+        }
 
         val allEntries = seasons.flatMap { it.children.map { leaf -> leaf.entry } }
         val statuses = allEntries.map { it.toHierarchyStatus() }
@@ -441,6 +535,71 @@ object DownloadHierarchyBuilder {
             totalBytes = aggregate.totalBytes,
             speedBytesPerSecond = aggregate.speedBytesPerSecond,
             etaSeconds = aggregate.etaSeconds,
+        )
+    }
+
+    /** 普通季：按季 ID 分桶，季内按集号；季卡按标题排序（W7-T4 前的既有口径）。 */
+    private fun buildSeasonContainers(
+        showKey: String,
+        entries: List<DownloadHierarchyEntry>,
+    ): List<DownloadHierarchySubContainer> =
+        entries
+            .groupBy { it.seasonId }
+            .map { (seasonId, seasonEntries) ->
+                seasonContainer(
+                    key = childContainerKey(showKey, "${seasonId ?: "unknown"}"),
+                    title = seasonEntries.firstNotNullOfOrNull { it.seasonName },
+                    sorted = seasonEntries,
+                )
+            }
+            .sortedBy { it.title }
+
+    /** W7-T4：「其他」组——所有特别篇 / SP / 无季归属集合并成一卡，视觉与季卡同语言。 */
+    private fun buildOtherSeason(
+        showKey: String,
+        entries: List<DownloadHierarchyEntry>,
+    ): DownloadHierarchySubContainer =
+        seasonContainer(
+            key = childContainerKey(showKey, DownloadSeasonGrouping.OTHER_SEASON_KEY),
+            title = DownloadSeasonGrouping.OTHER_GROUP_TITLE,
+            sorted = entries,
+            otherGroup = true,
+        )
+
+    private fun seasonContainer(
+        key: String,
+        title: String?,
+        sorted: List<DownloadHierarchyEntry>,
+        otherGroup: Boolean = false,
+    ): DownloadHierarchySubContainer {
+        val ordered =
+            sorted.sortedWith(
+                compareBy<DownloadHierarchyEntry> { it.episodeIndex }.thenBy { it.name }
+            )
+        val statuses = ordered.map { it.toHierarchyStatus() }
+        val completed = ordered.count { it.status == DownloadTaskStatus.COMPLETED }
+        val aggregate = DownloadAggregateRules.of(ordered)
+        return DownloadHierarchySubContainer(
+            key = key,
+            title = title ?: DownloadSeasonGrouping.OTHER_GROUP_TITLE,
+            detail =
+                episodeDetail(
+                    completed = completed,
+                    total = ordered.size,
+                    status = aggregateStatus(statuses),
+                ),
+            status = aggregateStatus(statuses),
+            completedCount = completed,
+            totalCount = ordered.size,
+            sizeBytes = ordered.sumOf { it.sizeBytes },
+            // W59：季只用自己的海报（缺图 → 类型占位，不跨级回退）。
+            imageUri = ordered.firstNotNullOfOrNull { it.seasonImageUri },
+            children = ordered.map { DownloadHierarchyLeaf(it.key, it) },
+            downloadedBytes = aggregate.downloadedBytes,
+            totalBytes = aggregate.totalBytes,
+            speedBytesPerSecond = aggregate.speedBytesPerSecond,
+            etaSeconds = aggregate.etaSeconds,
+            otherGroup = otherGroup,
         )
     }
 
@@ -514,7 +673,7 @@ object DownloadHierarchyBuilder {
                     .thenBy { it.title }
             )
 
-    /** 书籍：每本书一个容器（无子项，直接展示封面与体积）。 */
+    /** 书籍：每本书一个容器（无子项，直接展示封面与体积）；W7-T4 追加格式徽标与类型分区。 */
     private fun buildBookContainers(
         entries: List<DownloadHierarchyEntry>
     ): List<DownloadHierarchyContainer> =
@@ -539,6 +698,8 @@ object DownloadHierarchyBuilder {
                     totalBytes = aggregate.totalBytes,
                     speedBytesPerSecond = aggregate.speedBytesPerSecond,
                     etaSeconds = aggregate.etaSeconds,
+                    formatLabel = DownloadBookFormatRules.badge(entry.bookContainer),
+                    bookSection = entry.bookSection ?: DownloadBookSection.EBOOK,
                 )
             }
 }
@@ -548,6 +709,40 @@ private data class VideoShowGroup(
     val serverId: String?,
     val userId: String?,
 )
+
+/** W7-T4：书籍区一个类型分区（电子书 / 有声书 / 漫画）及其书籍容器（分区内已按当前排序）。 */
+data class DownloadBookSectionGroup(
+    val section: DownloadBookSection,
+    val containers: List<DownloadHierarchyContainer>,
+)
+
+/**
+ * W7-T4：书籍区按类型分区（需求 44）。
+ *
+ * - 分区顺序 = [DownloadBookSection] 声明顺序（电子书 / 有声书 / 漫画）；
+ * - 空分区不渲染；
+ * - 分区内排序沿用 [DownloadSortRules]（同级节点排序，不跨分区混排）。
+ */
+object DownloadBookSectionRules {
+
+    fun group(
+        containers: List<DownloadHierarchyContainer>,
+        sortMode: DownloadSortMode = DownloadSortMode.DEFAULT,
+    ): List<DownloadBookSectionGroup> {
+        val books = containers.filter { it.mediaKind == DownloadMediaKind.BOOK }
+        return DownloadBookSection.entries.mapNotNull { section ->
+            val members = books.filter { (it.bookSection ?: DownloadBookSection.EBOOK) == section }
+            if (members.isEmpty()) {
+                null
+            } else {
+                DownloadBookSectionGroup(
+                    section = section,
+                    containers = DownloadSortRules.sortContainers(members, sortMode),
+                )
+            }
+        }
+    }
+}
 
 private data class MusicAlbumGroup(
     val albumName: String,
