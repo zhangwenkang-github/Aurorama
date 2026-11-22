@@ -35,6 +35,8 @@ data class FindroidEpisode(
     override val images: FindroidImages,
     override val chapters: List<FindroidChapter>,
     override val trickplayInfo: Map<String, FindroidTrickplayInfo>?,
+    /** W8-T3：`UserData.Rating`（0–10）；离线合成条目没有该字段，保持 null。 */
+    override val personalRating: Double? = null,
 ) : FindroidItem, FindroidSources
 
 suspend fun BaseItemDto.toFindroidEpisode(
@@ -85,6 +87,7 @@ suspend fun BaseItemDto.toFindroidEpisode(
             chapters = toFindroidChapters(),
             trickplayInfo =
                 trickplay?.mapValues { it.value[it.value.keys.max()]!!.toFindroidTrickplayInfo() },
+            personalRating = userData?.rating,
         )
     } catch (_: NullPointerException) {
         null

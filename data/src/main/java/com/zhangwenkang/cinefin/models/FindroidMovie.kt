@@ -35,6 +35,8 @@ data class FindroidMovie(
     override val trickplayInfo: Map<String, FindroidTrickplayInfo>?,
     /** 服务器原始条目类型（例如 `AUDIO` / `VIDEO` / `MOVIE`）；本地合成条目为 null。 */
     val kind: String? = null,
+    /** W8-T3：`UserData.Rating`（0–10）；离线合成条目没有该字段，保持 null。 */
+    override val personalRating: Double? = null,
 ) : FindroidItem, FindroidSources
 
 suspend fun BaseItemDto.toFindroidMovie(
@@ -78,6 +80,7 @@ suspend fun BaseItemDto.toFindroidMovie(
         trickplayInfo =
             trickplay?.mapValues { it.value[it.value.keys.max()]!!.toFindroidTrickplayInfo() },
         kind = type?.name,
+        personalRating = userData?.rating,
     )
 }
 

@@ -71,6 +71,18 @@ private fun InvalidStatusException.toUserDataWriteFailure(): UserDataWriteFailur
         else -> UserDataWriteFailure.Unknown(code, message)
     }
 
+/** 无本地镜像的服务器写（如个人评分）：成功 / 失败如实上报，不做 `toBeSynced` 排队。 */
+internal suspend fun runServerOnlyUserDataWrite(remote: suspend () -> Unit): UserDataWriteOutcome {
+    try {
+        remote()
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (error: Exception) {
+        return UserDataWriteOutcome.Failed(error.toUserDataWriteFailure())
+    }
+    return UserDataWriteOutcome.Confirmed
+}
+
 /**
  * 统一写事务（V2-WRITE-05/09）。
  *

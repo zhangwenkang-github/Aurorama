@@ -55,4 +55,7 @@
     <string name="write_permission_denied">沒有權限修改該條目</string>
     <string name="write_failed">儲存失敗，請稍後重試</string>
     <string name="batch_write_queued">已儲存 %1$d 項，連線後自動同步</string>
+    <string name="detail_action_rating">評分</string>
+    <string name="rating_dialog_title">評分</string>
+    <string name="rating_clear">清除</string>
 </resources>

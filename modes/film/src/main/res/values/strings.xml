@@ -85,4 +85,7 @@
     <string name="write_permission_denied">No permission to change this item</string>
     <string name="write_failed">Could not save this change</string>
     <string name="batch_write_queued">%1$d item(s) saved — will sync when online</string>
+    <string name="detail_action_rating">Rate</string>
+    <string name="rating_dialog_title">Rate</string>
+    <string name="rating_clear">Clear</string>
 </resources>

@@ -13,6 +13,9 @@ sealed interface EpisodeAction {
 
     data object UnmarkAsFavorite : EpisodeAction
 
+    /** W8-T3：写个人评分（1–10 分；null = 清除）。 */
+    data class SetRating(val rating: Double?) : EpisodeAction
+
     data object OnBackClick : EpisodeAction
 
     data object OnHomeClick : EpisodeAction

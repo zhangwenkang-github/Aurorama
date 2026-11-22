@@ -257,7 +257,17 @@ private constructor(
             is MovieAction.MarkAsFavorite -> writeUserData { repository.markAsFavorite(movieId) }
             is MovieAction.UnmarkAsFavorite ->
                 writeUserData { repository.unmarkAsFavorite(movieId) }
+            is MovieAction.SetRating -> setRating(action.rating)
             else -> Unit
+        }
+    }
+
+    /** W8-T3：评分写（无乐观更新；成功后重取详情回读服务端值，失败走 T1 提示）。 */
+    private fun setRating(rating: Double?) {
+        viewModelScope.launch {
+            val outcome = runCatching { repository.setPersonalRating(movieId, rating) }.getOrNull()
+            writeEventsChannel.send(outcome.toDetailWriteEvent())
+            loadMovie(movieId)
         }
     }
 

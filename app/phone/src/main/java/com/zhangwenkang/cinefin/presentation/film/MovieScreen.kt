@@ -22,8 +22,10 @@ import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -67,6 +69,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.LumenInfoTable
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
+import com.zhangwenkang.cinefin.presentation.film.components.RatingDialog
 import com.zhangwenkang.cinefin.presentation.film.components.VideoMetadataBar
 import com.zhangwenkang.cinefin.presentation.film.components.communityRatingText
 import com.zhangwenkang.cinefin.presentation.film.components.detailBodyMode
@@ -100,6 +103,7 @@ fun MovieScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val viewLabel = stringResource(CoreR.string.snackbar_view)
+    var ratingDialogOpen by remember { mutableStateOf(false) }
 
     val state by viewModel.state.collectAsStateWithLifecycle()
     val downloaderState by downloaderViewModel.state.collectAsStateWithLifecycle()
@@ -177,7 +181,23 @@ fun MovieScreen(
         },
         onDownloaderAction = { action -> downloaderViewModel.onAction(action) },
         onRetry = { viewModel.loadMovie(movieId = movieId) },
+        onRatingClick = { ratingDialogOpen = true },
     )
+
+    if (ratingDialogOpen) {
+        RatingDialog(
+            currentRating = state.movie?.personalRating,
+            onRatingSelected = { rating ->
+                ratingDialogOpen = false
+                viewModel.onAction(MovieAction.SetRating(rating))
+            },
+            onClear = {
+                ratingDialogOpen = false
+                viewModel.onAction(MovieAction.SetRating(null))
+            },
+            onDismissRequest = { ratingDialogOpen = false },
+        )
+    }
 }
 
 /**
@@ -195,6 +215,7 @@ private fun MovieScreenLayout(
     onAction: (MovieAction) -> Unit,
     onDownloaderAction: (DownloaderAction) -> Unit,
     onRetry: () -> Unit = {},
+    onRatingClick: (() -> Unit)? = null,
 ) {
     val safePadding = rememberSafePadding()
     val gutter = rememberPageGutter()
@@ -250,6 +271,7 @@ private fun MovieScreenLayout(
                                     false -> onAction(MovieAction.MarkAsFavorite)
                                 }
                             },
+                            onRatingClick = onRatingClick,
                             onTrailerClick = { uri -> onAction(MovieAction.PlayTrailer(uri)) },
                             onDownloadClick = { storageIndex ->
                                 onDownloaderAction(DownloaderAction.Download(movie, storageIndex))

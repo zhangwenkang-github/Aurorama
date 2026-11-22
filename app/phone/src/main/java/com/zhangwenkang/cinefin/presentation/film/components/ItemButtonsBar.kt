@@ -39,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
+import com.zhangwenkang.cinefin.R as AppR
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
@@ -53,8 +54,10 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
+import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadState
+import com.zhangwenkang.cinefin.film.presentation.detail.ratingLabel
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
@@ -77,6 +80,8 @@ fun ItemButtonsBar(
     onPlayClick: (startFromBeginning: Boolean) -> Unit,
     onMarkAsPlayedClick: () -> Unit,
     onMarkAsFavoriteClick: () -> Unit,
+    /** W8-T3：评分键（仅电影 / 单集传入；null = 不显示第五键）。 */
+    onRatingClick: (() -> Unit)? = null,
     onDownloadClick: (storageIndex: Int) -> Unit,
     onDownloadCancelClick: () -> Unit,
     onDownloadDeleteClick: () -> Unit,
@@ -215,6 +220,7 @@ fun ItemButtonsBar(
                         },
                     onMarkAsPlayedClick = onMarkAsPlayedClick,
                     onMarkAsFavoriteClick = onMarkAsFavoriteClick,
+                    onRatingClick = onRatingClick,
                     degraded = detailHeroActionsDegraded(screenWidthDp),
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -439,6 +445,7 @@ private fun DetailHeroActionButtons(
     download: HeroDownloadAction?,
     onMarkAsPlayedClick: () -> Unit,
     onMarkAsFavoriteClick: () -> Unit,
+    onRatingClick: (() -> Unit)?,
     degraded: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -447,6 +454,11 @@ private fun DetailHeroActionButtons(
     val favoriteLabel = stringResource(CoreR.string.detail_action_favorite)
     val favoriteIcon =
         if (item.favorite) CoreR.drawable.ic_bookmark_filled else CoreR.drawable.ic_bookmark
+    val ratingKeyLabel =
+        ratingLabel(item.personalRating) ?: stringResource(FilmR.string.detail_action_rating)
+    val ratingIcon =
+        if ((item.personalRating ?: 0.0) > 0.0) AppR.drawable.ic_star_filled
+        else CoreR.drawable.ic_star
 
     if (degraded) {
         Column(
@@ -489,6 +501,16 @@ private fun DetailHeroActionButtons(
                     onClick = onMarkAsFavoriteClick,
                     modifier = Modifier.weight(1f),
                 )
+                onRatingClick?.let { click ->
+                    HeroActionKey(
+                        icon = ratingIcon,
+                        label = ratingKeyLabel,
+                        selected = (item.personalRating ?: 0.0) > 0.0,
+                        enabled = true,
+                        onClick = click,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
     } else {
@@ -531,6 +553,16 @@ private fun DetailHeroActionButtons(
                 onClick = onMarkAsFavoriteClick,
                 modifier = Modifier.weight(1f),
             )
+            onRatingClick?.let { click ->
+                HeroActionKey(
+                    icon = ratingIcon,
+                    label = ratingKeyLabel,
+                    selected = (item.personalRating ?: 0.0) > 0.0,
+                    enabled = true,
+                    onClick = click,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }
