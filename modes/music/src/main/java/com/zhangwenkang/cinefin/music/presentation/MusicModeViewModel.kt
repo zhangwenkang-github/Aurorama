@@ -34,6 +34,7 @@ import com.zhangwenkang.cinefin.music.data.PlaylistExchangeAdapter
 import com.zhangwenkang.cinefin.music.data.PlaylistExchangeDocument
 import com.zhangwenkang.cinefin.music.data.PlaylistExchangeEntry
 import com.zhangwenkang.cinefin.music.data.PlaylistExchangeException
+import com.zhangwenkang.cinefin.music.data.ServerPlaylistCreateOutcome
 import com.zhangwenkang.cinefin.music.data.TrackRef
 import com.zhangwenkang.cinefin.music.data.groupAlbums
 import com.zhangwenkang.cinefin.music.data.groupArtists
@@ -1593,6 +1594,9 @@ constructor(
         return visibleSongs().filter { it.playlistSelectionKey() in selection }
     }
 
+    /** W8-T4：批量「加入歌单」的选中曲目（作用域与批量动作条一致）。 */
+    fun batchSelectedSongs(): List<MusicSong> = selectedSongs()
+
     private fun batchCaps(song: MusicSong, downloadState: SongDownloadState): SongBatchCaps =
         musicSongBatchCaps(
             song = song,
@@ -2223,6 +2227,84 @@ constructor(
                         "加入歌单失败",
                         error.message ?: "本地歌单写入失败，请稍后重试",
                     )
+                }
+        }
+    }
+
+    /** W8-T4：新建服务器歌单。空名不写服务器；成功后只按服务端回读刷新（不做本地乐观插入）。 */
+    fun createServerPlaylist(name: String) {
+        val normalized = normalizedServerPlaylistName(name)
+        if (normalized == null) {
+            _uiState.update { it.copy(errorTitle = "新建服务器歌单失败", errorMessage = "歌单名不能为空") }
+            return
+        }
+        viewModelScope.launch {
+            val outcome = runCatching { repository.createServerPlaylist(normalized) }.getOrNull()
+            when (outcome) {
+                is ServerPlaylistCreateOutcome.Created -> refresh(forceServerPlaylistRefresh = true)
+                is ServerPlaylistCreateOutcome.Failed ->
+                    _uiState.update {
+                        it.copy(
+                            errorTitle = "新建服务器歌单失败",
+                            errorMessage = outcome.failure.writeErrorMessage("无法写入服务器歌单"),
+                        )
+                    }
+                null ->
+                    _uiState.update {
+                        it.copy(
+                            errorTitle = "新建服务器歌单失败",
+                            errorMessage = "无法写入服务器歌单",
+                        )
+                    }
+            }
+        }
+    }
+
+    /** W8-T4：把选中曲目加入服务器歌单（只取服务器来源曲目，一次批量请求）。 */
+    fun addSongsToServerPlaylist(playlistId: UUID, songs: List<MusicSong>) {
+        val itemIds = serverPlaylistItemIds(songs)
+        if (itemIds.isEmpty()) return
+        viewModelScope.launch {
+            val outcome = runCatching { repository.addToPlaylist(playlistId, itemIds) }.getOrNull()
+            if (outcome is UserDataWriteOutcome.Failed) {
+                val failure = outcome.failure
+                _uiState.update {
+                    it.copy(
+                        errorTitle = "加入歌单失败",
+                        errorMessage = failure.writeErrorMessage("无法写入服务器歌单"),
+                    )
+                }
+                return@launch
+            }
+            if (outcome == null) {
+                _uiState.update {
+                    it.copy(
+                        errorTitle = "加入歌单失败",
+                        errorMessage = "无法写入服务器歌单",
+                    )
+                }
+                return@launch
+            }
+            val detail = _uiState.value.detail as? MusicDetail.Playlist
+            clearBatchSelection()
+            refresh(forceServerPlaylistRefresh = true)
+            if (detail?.playlist?.id == playlistId) reloadServerPlaylistDetail(playlistId)
+        }
+    }
+
+    /** W8-T4：写成功后按服务端回读当前打开的服务器歌单。 */
+    private fun reloadServerPlaylistDetail(playlistId: UUID) {
+        viewModelScope.launch {
+            runCatching { repository.getPlaylistSongs(playlistId) }
+                .onSuccess { songs ->
+                    _uiState.update { state ->
+                        val detail = state.detail as? MusicDetail.Playlist
+                        if (detail != null && detail.playlist.id == playlistId) {
+                            state.copy(detail = detail.copy(songs = songs, loading = false))
+                        } else {
+                            state
+                        }
+                    }
                 }
         }
     }

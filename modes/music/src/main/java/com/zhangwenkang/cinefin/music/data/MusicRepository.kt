@@ -6,6 +6,7 @@ import com.zhangwenkang.cinefin.repository.MetadataNamespace
 import com.zhangwenkang.cinefin.repository.MetadataSnapshotReadResult
 import com.zhangwenkang.cinefin.repository.MetadataSnapshotStore
 import com.zhangwenkang.cinefin.repository.UserDataEvents
+import com.zhangwenkang.cinefin.repository.UserDataWriteFailure
 import com.zhangwenkang.cinefin.repository.UserDataWriteOutcome
 import com.zhangwenkang.cinefin.repository.toUserDataWriteFailure
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
@@ -18,11 +19,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
+import org.jellyfin.sdk.model.api.CreatePlaylistDto
 import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.MediaStreamType
+import org.jellyfin.sdk.model.api.MediaType
 import org.jellyfin.sdk.model.api.SortOrder
 import org.jellyfin.sdk.model.api.request.GetInstantMixFromSongRequest
 
@@ -138,6 +141,17 @@ data class MusicLibrary(
     val artists: List<MusicArtist>,
 )
 
+/**
+ * W8-T4：新建服务器歌单的结果。
+ *
+ * 成功只认服务器返回的歌单 id（禁止本地乐观插入）；失败沿用 W8-T1 的分类，由 UI 区分权限拒绝与可重试失败。
+ */
+sealed interface ServerPlaylistCreateOutcome {
+    data class Created(val playlistId: UUID) : ServerPlaylistCreateOutcome
+
+    data class Failed(val failure: UserDataWriteFailure) : ServerPlaylistCreateOutcome
+}
+
 /** 音乐曲库仓库（W1 R2 建立，W2 R2 扩展浏览维度）。 */
 interface MusicRepository {
     /**
@@ -161,6 +175,19 @@ interface MusicRepository {
 
     /** W58：把曲目从服务器歌单移除（编辑歌单，非删除媒体；纯服务器写白名单）。W8-T1：结果区分权限拒绝与可重试失败。 */
     suspend fun removeFromPlaylist(playlistId: UUID, itemId: UUID): UserDataWriteOutcome
+
+    /**
+     * W8-T4：在服务器新建音频歌单（`POST /Playlists`），[itemIds] 非空时同一次请求内一并加入。
+     *
+     * 结果以服务器返回的歌单 id 为准；成功后清歌单卡片缓存，由调用方按服务端回读刷新列表。
+     */
+    suspend fun createServerPlaylist(
+        name: String,
+        itemIds: List<UUID> = emptyList(),
+    ): ServerPlaylistCreateOutcome
+
+    /** W8-T4：把曲目加入服务器歌单（`POST /Playlists/{id}/Items`）。W8-T1：结果区分权限拒绝与可重试失败。 */
+    suspend fun addToPlaylist(playlistId: UUID, itemIds: List<UUID>): UserDataWriteOutcome
 
     /**
      * W5-T12（MUSIC-14 Auto DJ）：以 [seedItemId] 为种子的即时混排曲目（`GET /Audio/{itemId}/instant-mix`，只读）。
@@ -188,6 +215,26 @@ internal fun instantMixRequest(
         enableImages = true,
         enableUserData = true,
     )
+
+/**
+ * W8-T4：解析服务端返回的歌单 id。
+ *
+ * Jellyfin 实测（10.11）返回 32 位无连字符十六进制（如 `8f3d487b0e86f69c0a841aa9aaa157ac`），标准 UUID 文本（8-4-4-4-12）
+ * 也要兼容；两种都解析不了时抛 [IllegalArgumentException]，由统一写边界归为 `Unknown` 失败。
+ */
+private fun parseServerPlaylistId(raw: String): UUID {
+    val trimmed = raw.trim()
+    val dashed =
+        if (trimmed.length == SERVER_ID_HEX_LENGTH && '-' !in trimmed) {
+            "${trimmed.substring(0, 8)}-${trimmed.substring(8, 12)}-${trimmed.substring(12, 16)}-" +
+                "${trimmed.substring(16, 20)}-${trimmed.substring(20, 32)}"
+        } else {
+            trimmed
+        }
+    return UUID.fromString(dashed)
+}
+
+private const val SERVER_ID_HEX_LENGTH = 32
 
 @Singleton
 class MusicRepositoryImpl
@@ -307,18 +354,19 @@ constructor(
     override suspend fun setFavorite(itemId: UUID, favorite: Boolean): UserDataWriteOutcome =
         withContext(Dispatchers.IO) {
             musicServerWrite(
-                remote = {
-                    if (favorite) {
-                        jellyfinApi.userLibraryApi.markFavoriteItem(itemId)
-                    } else {
-                        jellyfinApi.userLibraryApi.unmarkFavoriteItem(itemId)
-                    }
-                },
-                onConfirmed = {
-                    // W60b：音乐收藏也属于条目级收藏的单一数据源（其它页面的收藏角标靠它刷新）。
-                    UserDataEvents.notifyFavoriteChanged()
-                },
-            )
+                    remote = {
+                        if (favorite) {
+                            jellyfinApi.userLibraryApi.markFavoriteItem(itemId)
+                        } else {
+                            jellyfinApi.userLibraryApi.unmarkFavoriteItem(itemId)
+                        }
+                    },
+                    onConfirmed = {
+                        // W60b：音乐收藏也属于条目级收藏的单一数据源（其它页面的收藏角标靠它刷新）。
+                        UserDataEvents.notifyFavoriteChanged()
+                    },
+                )
+                .toUserDataWriteOutcome()
         }
 
     override suspend fun removeFromPlaylist(
@@ -328,18 +376,90 @@ constructor(
         val namespace = currentNamespace()
         return withContext(Dispatchers.IO) {
             musicServerWrite(
-                remote = {
-                    jellyfinApi.playlistsApi.removeItemFromPlaylist(
-                        playlistId = playlistId.toString(),
-                        entryIds = listOf(itemId.toString()),
-                    )
-                },
-                onConfirmed = {
-                    namespace?.let { playlistCardCache.invalidate(it, PLAYLIST_CARD_CACHE_KEY) }
-                },
-            )
+                    remote = {
+                        jellyfinApi.playlistsApi.removeItemFromPlaylist(
+                            playlistId = playlistId.toString(),
+                            entryIds = listOf(itemId.toString()),
+                        )
+                    },
+                    onConfirmed = {
+                        namespace?.let { playlistCardCache.invalidate(it, PLAYLIST_CARD_CACHE_KEY) }
+                    },
+                )
+                .toUserDataWriteOutcome()
         }
     }
+
+    override suspend fun createServerPlaylist(
+        name: String,
+        itemIds: List<UUID>,
+    ): ServerPlaylistCreateOutcome {
+        val namespace = currentNamespace()
+        return withContext(Dispatchers.IO) {
+            when (
+                val write =
+                    musicServerWrite(
+                        remote = {
+                            val userId = jellyfinApi.userId ?: error("尚未登录服务器")
+                            val created =
+                                jellyfinApi.playlistsApi
+                                    .createPlaylist(
+                                        CreatePlaylistDto(
+                                            name = name,
+                                            ids = itemIds,
+                                            userId = userId,
+                                            mediaType = MediaType.AUDIO,
+                                            users = emptyList(),
+                                            isPublic = false,
+                                        )
+                                    )
+                                    .content
+                            parseServerPlaylistId(created.id)
+                        },
+                        onConfirmed = {
+                            namespace?.let {
+                                playlistCardCache.invalidate(it, PLAYLIST_CARD_CACHE_KEY)
+                            }
+                        },
+                    )
+            ) {
+                is MusicServerWrite.Written -> ServerPlaylistCreateOutcome.Created(write.value)
+                is MusicServerWrite.Rejected -> ServerPlaylistCreateOutcome.Failed(write.failure)
+            }
+        }
+    }
+
+    override suspend fun addToPlaylist(
+        playlistId: UUID,
+        itemIds: List<UUID>,
+    ): UserDataWriteOutcome {
+        val namespace = currentNamespace()
+        return withContext(Dispatchers.IO) {
+            musicServerWrite(
+                    remote = {
+                        val userId = jellyfinApi.userId ?: error("尚未登录服务器")
+                        jellyfinApi.playlistsApi.addItemToPlaylist(playlistId, itemIds, userId)
+                    },
+                    onConfirmed = {
+                        namespace?.let { playlistCardCache.invalidate(it, PLAYLIST_CARD_CACHE_KEY) }
+                    },
+                )
+                .toUserDataWriteOutcome()
+        }
+    }
+
+    /** 写边界结果：成功值（如新建歌单 id）只在服务器确认后交给调用方映射。 */
+    private sealed interface MusicServerWrite<out T> {
+        data class Written<T>(val value: T) : MusicServerWrite<T>
+
+        data class Rejected(val failure: UserDataWriteFailure) : MusicServerWrite<Nothing>
+    }
+
+    private fun MusicServerWrite<*>.toUserDataWriteOutcome(): UserDataWriteOutcome =
+        when (this) {
+            is MusicServerWrite.Written -> UserDataWriteOutcome.Confirmed
+            is MusicServerWrite.Rejected -> UserDataWriteOutcome.Failed(failure)
+        }
 
     /**
      * W8-T1：音乐侧服务器写统一错误边界。
@@ -347,18 +467,18 @@ constructor(
      * 音乐收藏 / 歌单条目没有本地镜像可排队（`toBeSynced` 只覆盖持有本地库的条目），所以失败如实上报为 [UserDataWriteOutcome.Failed]，由
      * `UserDataWriteFailure.retryable` 让 UI 区分权限拒绝与可重试失败。
      */
-    private suspend fun musicServerWrite(
-        remote: suspend () -> Unit,
-        onConfirmed: suspend () -> Unit,
-    ): UserDataWriteOutcome =
+    private suspend fun <T> musicServerWrite(
+        remote: suspend () -> T,
+        onConfirmed: suspend (T) -> Unit,
+    ): MusicServerWrite<T> =
         try {
-            remote()
-            onConfirmed()
-            UserDataWriteOutcome.Confirmed
+            val value = remote()
+            onConfirmed(value)
+            MusicServerWrite.Written(value)
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (error: Exception) {
-            UserDataWriteOutcome.Failed(error.toUserDataWriteFailure())
+            MusicServerWrite.Rejected(error.toUserDataWriteFailure())
         }
 
     override suspend fun getFavoriteSongs(): List<MusicSong> =

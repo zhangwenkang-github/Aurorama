@@ -53,4 +53,14 @@ dependencies {
     implementation(libs.jellyfin.core)
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation(libs.slf4j.api)
+    testImplementation("io.mockk:mockk:1.13.16")
+}
+
+// 单测里 mockk 经 SLF4J 找绑定；core 带进来的 Android 绑定（uk.uuid.slf4j）在 JVM 上会调
+// android.util.Log 而失败，测试运行时排掉它，改用 testImplementation 的 slf4j-api（与 data 模块同口径）。
+configurations.configureEach {
+    if (name.endsWith("UnitTestRuntimeClasspath")) {
+        exclude(group = "uk.uuid.slf4j", module = "slf4j-android")
+    }
 }

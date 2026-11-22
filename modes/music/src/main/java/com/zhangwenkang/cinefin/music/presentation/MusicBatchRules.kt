@@ -18,6 +18,8 @@ enum class MusicBatchAction {
     PLAY,
     DOWNLOAD,
     FAVORITE,
+    /** W8-T4：把选中曲目加入歌单（本地 / 服务器歌单在对话框里选择）。 */
+    ADD_TO_PLAYLIST,
     /** 仅删本地（已下载文件 / 索引）；纯服务器条目不提供。 */
     DELETE,
     /** 只出现在歌单详情：把选中曲目从该歌单移除（服务器写操作，非删除媒体）。 */
@@ -114,6 +116,7 @@ internal fun musicBatchActionEnabled(
         MusicBatchAction.PLAY -> selected.isNotEmpty()
         MusicBatchAction.DOWNLOAD -> selected.any { it.canDownload }
         MusicBatchAction.FAVORITE -> selected.isNotEmpty()
+        MusicBatchAction.ADD_TO_PLAYLIST -> selected.isNotEmpty()
         MusicBatchAction.DELETE -> selected.any { it.canDelete }
         MusicBatchAction.REMOVE_FROM_PLAYLIST -> inPlaylist && selected.isNotEmpty()
     }

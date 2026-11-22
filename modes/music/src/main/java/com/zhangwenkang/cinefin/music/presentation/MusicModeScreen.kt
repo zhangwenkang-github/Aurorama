@@ -265,6 +265,7 @@ fun MusicModeScreen(
     var pendingBatchDelete by remember { mutableStateOf(false) }
     var createPlaylistDialogOpen by rememberSaveable { mutableStateOf(false) }
     var createPlaylistRequestId by rememberSaveable { mutableStateOf<String?>(null) }
+    var createServerPlaylistDialogOpen by rememberSaveable { mutableStateOf(false) }
     var renamePlaylistDialogId by rememberSaveable { mutableStateOf<String?>(null) }
     var renamePlaylistDialogName by rememberSaveable { mutableStateOf("") }
     var deletePlaylistDialogId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -667,6 +668,7 @@ fun MusicModeScreen(
                                     createPlaylistRequestId = UUID.randomUUID().toString()
                                     createPlaylistDialogOpen = true
                                 },
+                                onCreateServerPlaylist = { createServerPlaylistDialogOpen = true },
                                 onRenameLocalPlaylist = { playlist ->
                                     renamePlaylistDialogId = playlist.id.toString()
                                     renamePlaylistDialogName = playlist.name
@@ -703,6 +705,7 @@ fun MusicModeScreen(
                         onDownload = requestBatchDownload,
                         onFavorite = viewModel::favoriteSelected,
                         onDelete = { pendingBatchDelete = true },
+                        onAddToPlaylist = { pendingPlaylistSongs = viewModel.batchSelectedSongs() },
                         onRemoveFromPlaylist = viewModel::removeSelectedFromPlaylist,
                     )
                 } else {
@@ -1092,6 +1095,19 @@ fun MusicModeScreen(
             )
         }
 
+        if (createServerPlaylistDialogOpen) {
+            PlaylistNameDialog(
+                title = "新建服务器歌单",
+                initialName = "",
+                confirmLabel = "创建",
+                onConfirm = { name ->
+                    viewModel.createServerPlaylist(name)
+                    createServerPlaylistDialogOpen = false
+                },
+                onDismiss = { createServerPlaylistDialogOpen = false },
+            )
+        }
+
         renamePlaylistDialogId?.let { playlistId ->
             PlaylistNameDialog(
                 title = "重命名本地歌单",
@@ -1118,10 +1134,15 @@ fun MusicModeScreen(
         }
 
         if (pendingPlaylistSongs.isNotEmpty()) {
-            AddToLocalPlaylistDialog(
-                playlists = state.playlists.filter { it.kind == MusicPlaylistKind.LOCAL },
+            AddToPlaylistDialog(
+                playlists = state.playlists,
+                songs = pendingPlaylistSongs,
                 onSelect = { playlist ->
-                    viewModel.addSongsToLocalPlaylist(playlist.id, pendingPlaylistSongs)
+                    if (playlist.kind == MusicPlaylistKind.SERVER) {
+                        viewModel.addSongsToServerPlaylist(playlist.id, pendingPlaylistSongs)
+                    } else {
+                        viewModel.addSongsToLocalPlaylist(playlist.id, pendingPlaylistSongs)
+                    }
                     pendingPlaylistSongs = emptyList()
                 },
                 onDismiss = { pendingPlaylistSongs = emptyList() },
@@ -1194,23 +1215,27 @@ private fun DeleteLocalPlaylistDialog(onConfirm: () -> Unit, onDismiss: () -> Un
 }
 
 @Composable
-private fun AddToLocalPlaylistDialog(
+private fun AddToPlaylistDialog(
     playlists: List<MusicPlaylist>,
+    songs: List<MusicSong>,
     onSelect: (MusicPlaylist) -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("加入本地歌单") },
+        title = { Text("加入歌单") },
         text = {
             if (playlists.isEmpty()) {
-                Text("还没有本地歌单，请先在「歌单」页新建。")
+                Text("还没有歌单，请先在「歌单」页新建。")
             } else {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     playlists.forEach { playlist ->
                         CinefinButton(
-                            text = playlist.name,
+                            text = playlistAddRowLabel(playlist),
                             onClick = { onSelect(playlist) },
+                            enabled =
+                                playlist.kind == MusicPlaylistKind.LOCAL ||
+                                    canAddToServerPlaylist(playlist, songs),
                             variant = CinefinButtonVariant.Text,
                             size = CinefinButtonSize.Small,
                         )
@@ -1694,6 +1719,7 @@ private fun LibraryPane(
     onAlbumBatchToggle: (MusicAlbum) -> Unit = {},
     onAddToLocalPlaylist: ((MusicSong) -> Unit)? = null,
     onCreateLocalPlaylist: () -> Unit = {},
+    onCreateServerPlaylist: () -> Unit = {},
     onRenameLocalPlaylist: (MusicPlaylist) -> Unit = {},
     onDeleteLocalPlaylist: (MusicPlaylist) -> Unit = {},
     onImportLocalPlaylist: () -> Unit = {},
@@ -1746,6 +1772,7 @@ private fun LibraryPane(
                 emptyCopy = emptyCopy,
                 onPlaylistClick = onPlaylistClick,
                 onCreateLocalPlaylist = onCreateLocalPlaylist,
+                onCreateServerPlaylist = onCreateServerPlaylist,
                 onImportLocalPlaylist = onImportLocalPlaylist,
                 onRenameLocalPlaylist = onRenameLocalPlaylist,
                 onDeleteLocalPlaylist = onDeleteLocalPlaylist,
@@ -1965,6 +1992,7 @@ private fun PlaylistList(
     emptyCopy: MusicEmptyCopy,
     onPlaylistClick: (MusicPlaylist) -> Unit,
     onCreateLocalPlaylist: () -> Unit,
+    onCreateServerPlaylist: () -> Unit,
     onImportLocalPlaylist: () -> Unit,
     onRenameLocalPlaylist: (MusicPlaylist) -> Unit,
     onDeleteLocalPlaylist: (MusicPlaylist) -> Unit,
@@ -1973,6 +2001,7 @@ private fun PlaylistList(
         Column(modifier = Modifier.fillMaxSize()) {
             PlaylistCreateAction(
                 onCreateLocalPlaylist = onCreateLocalPlaylist,
+                onCreateServerPlaylist = onCreateServerPlaylist,
                 onImportLocalPlaylist = onImportLocalPlaylist,
             )
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -1985,6 +2014,7 @@ private fun PlaylistList(
         item(key = "local-playlist-create") {
             PlaylistCreateAction(
                 onCreateLocalPlaylist = onCreateLocalPlaylist,
+                onCreateServerPlaylist = onCreateServerPlaylist,
                 onImportLocalPlaylist = onImportLocalPlaylist,
             )
         }
@@ -2039,6 +2069,7 @@ private fun PlaylistList(
 @Composable
 private fun PlaylistCreateAction(
     onCreateLocalPlaylist: () -> Unit,
+    onCreateServerPlaylist: () -> Unit,
     onImportLocalPlaylist: () -> Unit,
 ) {
     Row(
@@ -2055,6 +2086,12 @@ private fun PlaylistCreateAction(
             CinefinButton(
                 text = "新建本地歌单",
                 onClick = onCreateLocalPlaylist,
+                size = CinefinButtonSize.Small,
+                variant = CinefinButtonVariant.Outlined,
+            )
+            CinefinButton(
+                text = "新建服务器歌单",
+                onClick = onCreateServerPlaylist,
                 size = CinefinButtonSize.Small,
                 variant = CinefinButtonVariant.Outlined,
             )
@@ -2425,7 +2462,7 @@ private fun SongRow(
                         DropdownMenuItem(
                             text = {
                                 Text(
-                                    text = "加入本地歌单",
+                                    text = "加入歌单",
                                     style = CinefinType.BodyMedium,
                                     color = colors.onSurface,
                                 )
@@ -2881,6 +2918,7 @@ private fun MusicBatchActionBar(
     onPlay: () -> Unit,
     onDownload: () -> Unit,
     onFavorite: () -> Unit,
+    onAddToPlaylist: () -> Unit,
     onDelete: () -> Unit,
     onRemoveFromPlaylist: () -> Unit,
 ) {
@@ -2912,6 +2950,12 @@ private fun MusicBatchActionBar(
             label = "收藏",
             iconRes = CoreR.drawable.ic_bookmark,
             onClick = onFavorite,
+        )
+        BatchActionButton(
+            enabled = isEnabled(MusicBatchAction.ADD_TO_PLAYLIST),
+            label = "加入歌单",
+            iconRes = CoreR.drawable.ic_plus,
+            onClick = onAddToPlaylist,
         )
         BatchActionButton(
             enabled = isEnabled(MusicBatchAction.DELETE),
@@ -3095,7 +3139,7 @@ private fun SongContextSheet(
             )
             SongContextAction(
                 icon = CoreR.drawable.ic_plus,
-                label = "加入播放列表",
+                label = "加入歌单",
                 onClick = onAddToPlaylist,
             )
             // 音频信息（MUSIC-34）：W5-T6 起启用
