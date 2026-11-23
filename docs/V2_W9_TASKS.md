@@ -13,6 +13,7 @@
 - **T5 部分收口（2026-11-23 会话12，K60 断网实证：⑥✅/F4可见✅/F4可播❌→残项 F4b）**：三 commit（deepseek）——`ac91523f`（F4 根因1=在线分支失败从不读已下载曲库，修=`MusicLibrarySourceLoader` 降级+只填空不覆盖；⑥根因=`MetadataSnapshotStore` contentGeneration 是进程内代次、冷启动全失效，修=跨进程可读+浏览类 30 天离线服务窗口）+ `5f1b8027`（下载页已完成音乐单击直开本地播放，复用 `DownloadPlaybackRequest.Music` 通道）+ `49e8f5fd`（可播返修：离线索引宽容判据 vs `getCompletedSource` SQL 死认 `'COMPLETED'`——「两套已完成判据」继 F1b 后第二次现身；新增 `getDownloadedLocalSource` 按 itemId 直查只看文件存在、`MusicTrackResolver` 先本地短路，红→绿契约 5 条）。K60 断网（`svc wifi/data disable` 温和手段，验后恢复）实证：首页/媒体库缓存渲染无「加载数据错误」、降级曲库 songs=1 带日志铁证；**F4 可播重复失败**：tap 歌曲行零 resolve 日志（播放器空开、无会话），按播放键走持久化队列快照里的旧流 URL（jellyfins，非当前 jellyfin-test 会话）→ UnknownHost/BUFFERING 卡死——根因=队列快照恢复路径不重新解析，登记残项 **F4b（P1）**（见裁定登记）。观察：降级曲库冷启动单曲不稳定（三曲轮换）；下载页 `getDownloads()` 不含 Audio → `5f1b8027` 真机不可验、仅单测作证。证据 `F:\Develop\code_data\qa\w9-t5\`。
 - **F4b 已收口（2026-11-23 会话13，`407e4a39`，deepseek，K60 断网实证绿）**：根因=`MusicQueueStore` 持久化的 `mediaSourceUri` 是上会话产物（旧主机 jellyfins/旧 UserId），恢复路径（`MusicQueuePersister.load`/`resumeRestored`/歌单快照复用）当已解析结果直接交播放器，从不重解析。修复=恢复快照非本地地址逐条走 `getDownloadedLocalSource` 本地短路（命中换本地路径、未命中保留、恢复阶段零网络）+ 起播前当前曲按 `MusicTrackResolver` 当前链重解析（失败沿用快照）+ 歌单快照复用只信任本地可播地址 + `restoredTrackSource` 按 `isLocalPlaybackUri` 判本地（修下载绝对路径误标 SERVER）。红→绿契约 6 条、`:modes:music` 425 测试全绿；K60 断网定式实证：快照当前曲带旧 jellyfins URL → 点播放无 ExoPlayer 错误、`media_session PLAYING` position 5.8s→17.8s 推进；未下载曲目仍按原行为跳过。**遗留观察**：①降级曲库 songs=1 真因=K60 `sources` 表仅 1 行、另 3 个文件是无下载行的孤儿文件（「缺稳定排序」推测不成立；孤儿对账/清理是否立卡待裁定）；②`resumeRestored` 异步化有极短窗口：解析中编辑恢复队列，本次起播用进入时快照。至此 **T5 全收口（⑥/F4可见/F4可播全绿）**。
 - **T4 已收口（2026-11-23 会话13，`e74b4f9c`，deepseek，Pad 温和断网实证绿）**：⑦SyncWorker 扫描集扩为 movies/episodes/shows/seasons ∪ 该用户全部 toBeSynced 行（季/剧页面只建 userdata 行无表投影，旧 Worker 必漏；seasons 经所属剧 serverId 归属；推送/清标记抽成 `UserDataSyncQueue` 可测函数）；⑤音乐收藏写失败原不排队（纯 UPDATE 连本地 userdata 行都没有）——修=收藏落库前先 `getUserDataOrCreateNew` 建行 + `MusicRepository.setFavorite` 委托 `JellyfinRepository.markAsFavorite`（复用 W8-T1 `UserDataWriteOutcome` 统一写模型，实物=`data/.../repository/UserDataWriteOutcome.kt` + `IdentityWriteCoordinator` 无关、调度=`WorkManagerUserDataSyncScheduler`，零新错误体系）+ 无投影条目只推 `isFavorite`（避免整包覆盖清服务端 played/进度）+ 排队时经既有 snackbar 提示「已保存，联网后自动同步」（与影视同口径；角标刷新经统一写路径自带 `notifyFavoriteChanged` 无回归）。测试：core 7 + data 5 + music 8 新增全绿。Pad 断网实证：季（表 0 行）与音乐收藏各落 `toBeSynced=1`，恢复 Wi-Fi 10s 内清零，服务器回读两者 favorite=True 且音乐 played=True 未被覆盖（验毕已还原）。**遗留**：`JellyfinRepositoryOfflineImpl.markAsFavorite` 仍纯 UPDATE（离线模式无音乐入口暂不可达）；`:data:connectedDebugAndroidTest` 预存 AAPT 打包失败（`attr/colorControlNormal`，与本次无关）。
+- **T6 已收口（2026-11-23 会话13，`5b1adfa3`/`bbde067d`/`fb3cdcf1`，deepseek，门禁全绿；③④⑩ 真机点验待 Kimi 抽查窗口）**：③删除当前地址被拒改为经 setup 模块既有 Channel→Flow 事件模式发 `CannotDeleteCurrentAddress` + `CinefinSnackbarHost` 可见反馈（setup 模块首次引入测试源集，2 条单测）；④`primaryImageUrls`/`musicTrackCache` 加 `RepositoryCacheIdentity(baseUrl,userId)` 身份键（封面键=(identity,itemId)、曲库改单槽 (identity,tracks)，TTL 语义不变，A/B 身份契约 2 条）；⑩季页头部「季 · N」取 `state.episodes.size`、删除后只靠 RESUMED 时序重取——修=`SeasonViewModel` init 订阅 `UserDataEvents.contentVersion.drop(1)` 广播当下 `loadSeason`（14→13 集即时刷新单测）。**⑨目检命中→立案 NOW P2（见裁定登记）**：K60 实测 411dp 下 6 按钮动作行外沿 291.8dp；360dp 等效内宽 328dp < 需求 345–353dp，超出 17–25dp，`CinefinBatchBar` Row+SpaceBetween 无 weight/横滚，末按钮有挤出风险——**设计裁定（Kimi）= 动作行横向滚动**（按钮保 44dp 触控面，大屏无变化）。单测：setup 2 / data 513 / modes:film 225 / app:phone 607 全绿。
 - **设备与取证约束（新）**：Pad=43af8627 直连测试服 admin，**飞行模式测试禁用**（ZTE CPE 蜂窝脆弱，掉注册 47+ 分钟）——离线场景真机取证改用 K60=8e875894（生产服只读，浏览/离线播放等只读场景可用；一切写验证仍只用 Pad + 测试服）。写补偿末环（断网写→恢复补传）若需 Pad 断网，改用「关 Wi-Fi/拔 CPE 网线」等温和手段先试，触发异常即停止上报。**K60 断网定式（会话12 定型）**：`svc wifi disable` + `svc data disable`，`dumpsys connectivity` 确认 none 后取证，验毕 `enable` 恢复。
 - **通用约束（每卡继承，不在卡内复述）**：构建 `./gradlew.bat :app:phone:assembleDebug --console=plain` + 根 `ktfmtCheck` + 相关模块单测绿；每任务一子代理一 commit；**会话13 起 adb 取证下放子代理（用户拍板，Kimi 额度有限；设备纪律不变：Pad 飞行模式禁用仅温和断网、K60 断网定式验后恢复、异常即停）**，真机证据由 Kimi 按质量门审查；红线见 `AGENTS.md`；证据清单 = 构建/测试输出关键行 + diff 摘要 + 真机文本取证。安装用 `:app:phone:installLibreDebug`（`installDebug` 有 flavor 歧义）。
 
@@ -40,14 +41,14 @@
 |------|------|------|-----------|
 | ① | T0 裁定 LATER 四项写能力：Likes / 合集创建加入 / 刷新元数据 / 图片上传删除 | LATER（维持） | WRITE-01 完备度扩展，2.0 内不排期，W10/2.x 候选 |
 | ② | 全局搜索结果区不渲染（T7 复现：`GET /Items?searchTerm=` 正常返回但结果区空白，指针 `SearchState.kt:38-52`） | **NOW P1** | **W9-T3 ✅ 已收口**（`2b82145e`，会话12 Pad 双路径实证；根因=NavHost 固定高度约束压垮 M3 SearchBar 结果区） |
-| ③ | `ServerAddressesViewModel` 删当前地址被拒无 UI 反馈（仅 Timber 日志） | **NOW P2** | W9-T6；会话7 设备事故的直接诱因之一 |
-| ④ | WRITE-11 轻缺口：`primaryImageUrls`/`musicTrackCache` 无身份 60s TTL 缓存（`JellyfinRepositoryImpl.kt:206/208`） | **NOW P2** | W9-T6；多服隔离收口，小改动 |
+| ③ | `ServerAddressesViewModel` 删当前地址被拒无 UI 反馈（仅 Timber 日志） | **NOW P2** | **W9-T6 ✅ 已收口**（`5b1adfa3`，snackbar 反馈） |
+| ④ | WRITE-11 轻缺口：`primaryImageUrls`/`musicTrackCache` 无身份 60s TTL 缓存（`JellyfinRepositoryImpl.kt:206/208`） | **NOW P2** | **W9-T6 ✅ 已收口**（`bbde067d`，身份键） |
 | ⑤ | 音乐域收藏写失败不排队（与影视详情路径补偿策略不统一，WRITE-05 ⚠️+ 残留） | **NOW P1** | **W9-T4 ✅ 已收口**（`e74b4f9c`，会话13 Pad 断网实证） |
 | ⑥ | 飞行模式下媒体库/首页直出「加载数据错误」不降级 Room 缓存 | **NOW P1** | **W9-T5 ✅ 已收口**（`ac91523f`：快照跨进程可读 + 浏览类 30 天离线窗口；会话12 K60 断网实证首页/媒体库缓存渲染） |
 | ⑦ | T1r 遗留：SyncWorker 只扫 movies/episodes，季/剧排队写不补传（WRITE-08 ⚠️+ 残留） | **NOW P1** | **W9-T4 ✅ 已收口**（`e74b4f9c`） |
 | ⑧ | T3' 遗留：主题感知评分色（黄铜直引 `ColorDark.tertiaryDark`）+ 音乐域评分显示（T3b） | LATER | 评分色=主题 token 打磨；T3b 挂 W5 音乐链 |
-| ⑨ | T4 遗留：6 按钮批量条 360dp 竖屏挤压风险 + 新建/加入后 refresh 粒度 | 拆分：目检 **NOW P2**（W9-T6，K60 只读目检）；refresh 粒度重构 LATER | 目检若命中再立案 |
-| ⑩ | T5 遗留：季页头部「季 · N」计数删除后当页不刷新 | **NOW P2** | W9-T6 |
+| ⑨ | T4 遗留：6 按钮批量条 360dp 竖屏挤压风险 + 新建/加入后 refresh 粒度 | 拆分：目检 **NOW P2** → **目检命中已立案 NOW P2**（修复=W9-T6b，设计裁定=动作行横向滚动）；refresh 粒度重构 LATER | 目检证据 `qa/w9-t6/`，超 17–25dp |
+| ⑩ | T5 遗留：季页头部「季 · N」计数删除后当页不刷新 | **NOW P2** | **W9-T6 ✅ 已收口**（`fb3cdcf1`，订阅 contentVersion） |
 | ⑪ | T3 备份分支 `backup/w8-t3-personal-rating` 个人评分写入启用裁定 | **DROP（不启用）** | 需求账本无个人评分条目（T3 转向已裁定正确需求=服务器评分展示，T3' 已交付）；且已探明写评分会顺带翻转服务端 Likes，语义有副作用。**分支保留不删备查**；未来用户明确要个人评分时再评估 rebase（届时需重验 Jellyfin 12 端点行为） |
 | ⑫ | T6 观察：`adb input text` 空格需 `%s` 转义（环境级，非缺陷） | **DROP（转环境记忆）** | 补入 engramory 环境/取证条目，不占任务卡 |
 
@@ -100,8 +101,7 @@
 - **目标**：③`ServerAddressesViewModel.deleteAddress` 被拒时给 snackbar 反馈（现仅 Timber）；④`primaryImageUrls`/`musicTrackCache` 60s TTL 缓存加 (serverId,userId) 身份键（`JellyfinRepositoryImpl.kt:206/208`，WRITE-11 轻缺口收口）；⑩季页头部「季 · N」计数删除后当页刷新；⑨6 按钮批量条 360dp 竖屏挤压 K60 只读目检（命中再立案，refresh 粒度重构 = LATER）。
 - **验收方向**：③④⑩ 各配单测/契约 + 真机点验；⑨ dumpsys/目检即结。
 - 派 deepseek，1 卡（小项可卡内分 commit）。
-
-### T7 书籍通知接入（F5，P2）
+- **✅ 已收口（2026-11-23 会话13，`5b1adfa3`/`bbde067d`/`fb3cdcf1`）**：③④⑩ 根因/修复/测试见状态块；⑨目检命中立案（设计裁定=动作行横向滚动，见裁定登记）。
 
 - **目标**：BookDownloadManager 完成/失败通知接入 + 点击直达阅读器（复用 W7-T5 `DownloadNotificationDestination` 扩展模式），不可达回退下载页已完成分组。
 - **验收方向**：通知出现+直达（无服务端书籍样本时用既有本地书重下/契约作证；S1 样本到位后 T8 补真机全链路）。
@@ -119,6 +119,7 @@
 
 ## 裁定登记（W9）
 
+- **T6b 批量条小屏挤压修复（2026-11-23 会话13 立案，NOW P2，W9-T6 ⑨目检命中）**：K60 实测（411.4dp）6 按钮动作行外沿 291.8dp，360dp 等效内宽 328dp < 需求 345–353dp，超 17–25dp；`CinefinBatchBar`（`app/phone/.../selection/MediaBatchUi.kt`）Row+SpaceBetween、动作 4dp 间距、按钮 44dp 固定，无 weight/横滚，末按钮有挤出风险。**设计裁定（Kimi，2026-11-23）= 动作行横向滚动**（按钮保 44dp 触控面；大屏视觉无变化；不采用两行/缩按钮）。验收：360dp 竖屏全部 6 动作可滚动可达可点、411dp 不回归；uiautomator bounds 取证。证据 `F:\Develop\code_data\qa\w9-t6\w9-t6-batch-bar-check.md` + `k60-playlist-batch-dump.xml`。派 deepseek 小卡（可与 T7 并行，文件域不重叠）。
 - **T5 残项 F4b（2026-11-23 会话12 登记，NOW P1，独立小卡）→ ✅ 已收口（会话13，`407e4a39`，K60 断网实证绿）**：队列快照恢复路径不重新解析媒体源——断网冷启动点降级曲库已下载曲目仅空开播放器（tap 零 resolve 日志、无媒体会话），按播放键用 `MusicQueueStore` 持久化快照里的旧流 URL（jellyfins，非当前 jellyfin-test 会话）→ UnknownHost、BUFFERING 卡死。修复=恢复条目按当前解析链重解析（含 `getDownloadedLocalSource` 本地短路，恢复阶段零网络）+ `MusicQueueStore` 持久化口径明确为「地址提示，不可直接信任」。证据 `F:\Develop\code_data\qa\w9-t5\`（`r4-tap-live.log`/`offline-play-fail.log`/r2–r4 dump 序列）。**衍生候选（待裁定）**：下载索引对账/孤儿文件清理小卡（K60 downloads 目录 3 个无下载行孤儿文件，既进不了降级曲库也无法被本地短路命中）。
 - **T5 观察项（会话12 登记）**：①降级曲库冷启动单曲不稳定——会话13 F4b 已定论：**不是排序问题**，是 K60 `sources` 表仅 1 行 + 3 个孤儿下载文件（无下载行），「轮换」的是恢复底栏/队列条目非曲库条目；孤儿对账是否立卡见上条衍生候选；②下载页 `getDownloads()` 不含 Audio 条目 → 下载页音乐单击直开本地（`5f1b8027`）真机不可验，仅 20 条单测作证；若未来下载页纳入 Audio 需补验；③`MovieScreen/EpisodeScreen` 严格快路径仍用旧 `completedLocalSource` 判据（与 F4 可播同族，LATER 候选）。
 
