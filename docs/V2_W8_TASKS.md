@@ -1,6 +1,6 @@
 # 2.0 W8 · 服务器写（任务卡）
 
-> 状态：`T1–T6 全部交付并 Pad 真机验收通过；T7 会话8 半程——admin 侧 5/5 绿+T1r 末环闭环+WRITE-11 审计闭环，zhangwenkang/w8limited 真机格 BLOCKED 于 Pad 蜂窝断连（详见 T7 卡），待网络续跑后 W8 收官`（2026-11-23；T6=425e155b+ef53444e+8a5eac2a+b9ce45fc；T4 77143ae0、T5 91d8d73b；T1 ea8b9c10+T1r e98632b4、T2 a98b4566、T3' a56cb0ec；T3 转向备份 backup/w8-t3-personal-rating 并 revert 6d09a52d；12 条判定最新见下方「T2/T3' 后判定变化」）
+> 状态：**W8 已收官**（2026-11-23 会话8：T1–T6 全部交付并 Pad 验收通过；T7 全量验收矩阵三账号全绿 + WRITE-11 隔离核查闭环 + 测试服终态无残留，详见 T7 卡与 `F:\Develop\code_data\qa\w8-t7\matrix.md`；T6=425e155b+ef53444e+8a5eac2a+b9ce45fc、T4 77143ae0、T5 91d8d73b、T1 ea8b9c10+T1r e98632b4、T2 a98b4566、T3' a56cb0ec；T3 转向备份 backup/w8-t3-personal-rating 并 revert 6d09a52d；12 条终判见下方「T2/T3' 后判定变化」；W9 backlog 移交清单在 T7 卡）
 > 依据：`docs/V2_REQUIREMENTS.md` §6（V2-WRITE 全 12 条）与 §15 波次表（W8 ← W3，依赖已满足）；设计唯一权威 `docs/V2_DESIGN.md`。
 
 ## 状态块（新会话先读这里）
@@ -15,7 +15,7 @@
   - T1r 遗留登记（非 T1r 引入）：①KEEP 竞态——排队时若同名家任务正运行且已越过该行，需下一次触发才补传（接受口径）；②**SyncWorker 只扫 movies/episodes 两表——季/剧的排队写不会被补传**（WRITE-08 既有缺口，T7 或新卡评估扩展）。
 - **T2 交付（2026-11-22，`a98b4566`）**：`UserPolicyStore`（按 serverId+userId 键控、StateFlow、fail-closed、切号不串）+ 纯函数 `canDeleteContent`（admin∥全局许可∥库白名单）/`canEditMetadata`（**仅管理员**——T2 实测：Jellyfin 12 `ItemUpdateController` 整体 RequiresElevation，zhangwenkang 全库 403、admin 204；T6 据此门控）；启动 READY 时刷新一次，同进程切号由写入口 `ensureLoaded()` 兜底。实测：w8limited 仅见动漫+书籍 2 库（服务端强制，App 零代码）。Pad 冒烟：冷启动 `GET /Users/Me` ×2 实证。15 条新单测全绿。
 - **T3 转向记录（2026-11-22 用户裁定）**：原「个人评分写入」系需求理解错误（原始需求文档无评分条目），正确需求 = 显示服务器评分元数据。已交付的 T3（`618c005a`，14 单测+测试服实测：7.5 精确回读、清除须走 `DELETE /UserItems/{id}/Rating`、写评分会顺带翻转服务端 Likes）已备份 `backup/w8-t3-personal-rating` 并主干 revert（`6d09a52d`），是否启用登记 W9。Pad 复验副产物：评分星条"off-by-one"实为 **uiautomator dump 与 input tap ~50px 坐标系偏差**（点击目标按 dump 坐标 +50 命中），对话框实现正确、无缺陷。新 T3' = 列表卡片评分徽标（定稿见任务卡）。
-- **T2–T5 后 12 条判定变化**：03（失败可见）❌→✅（T1 已修并真机验证）；04（权限门控）❌→⚠️（删除入口门控已随 T5 落地——条目级 canDelete；元数据编辑门控随 T6 落地后转 ✅）；09（403 区分）❌→✅（T1 错误模型）；05/08 ⚠️→⚠️+（T1/T1r 服务器先行+排队补同步已闭环，SyncWorker 季/剧缺口遗留）；06（二次确认）⚠️→✅（T5 删除确认 Pad 取证：取消零请求、确认才执行、文案含影响范围）；10 ❌→⚠️（受限用户 w8limited 就绪，覆盖测试随 T6–T7）。
+- **T2–T7 后 12 条终判（2026-11-23 W8 收官）**：01 ⚠️（核心写全覆盖，LATER 项 Likes/合集/刷新元数据/图片移交 W9）；02 ✅（新增端点逐条实证入各卡）；03 ✅（T1 错误模型+T7 失败可见真机）；04 ✅（T2/T5/T6 门控+T7 三账号反向门控复核）；05 ⚠️+（服务器先行+回读闭环达成，补偿策略不统一登记 W9）；06 ✅（T5）；07 ✅；08 ⚠️+（toBeSynced+SyncWorker 闭环+末环代码闭环，季/剧缺口登记 W9）；09 ✅（T1 错误模型）；10 ✅（w8limited 受限侧全格真机）；11 ✅（审计闭环+轻缺口登记 W9）；12 ✅（T7 三态矩阵全绿）。
 - **范围锚点**：V2-WRITE-01 = 写能力对齐官方客户端可比完备度；02–12 为横切纪律（端点依据官方 spec/源码 02；写失败用户可见且区分可重试 03；权限不足入口前置隐藏/禁用 04；禁乐观更新、以服务端确认为准 05/08；危险操作二次确认 06；用户级写=本人身份 07；403 不当网络错误重试 09；受限账号测试覆盖 10；多服务器隔离+环境可见 11；交付标准=成功/被拒/失败三态可见，不以「接口调通」为完成 12）。
 - **测试服务器政策（2026-11-22 用户拍板）**：`jellyfin-test.zhangwenkang.com`（Jellyfin 12.4.0）为独立可写测试服——资源可删除、可改元数据；优先操作已播放完内容。凭据位置 `F:\Develop\codex_work\Documents\Codex\资源.txt`（值不得进仓库/日志/报告/记忆/截图）。生产 `jellyfins.zhangwenkang.com` 依旧永久只读。
 - **测试服盘点（T0 实测，2026-11-22）**：
@@ -138,15 +138,15 @@ jellyfin-test.zhangwenkang.com 已获用户可写授权（可删除/改元数据
 - **会话7 观察（登记，非 T6 缺陷）**：①全局搜索输入 searchTerm 后 API 正常返回（Kekkon=12 集）但结果区不渲染（截图取证后删除），列入 T7 核查/W9 backlog；②`adb input text` 空格需 `%s` 转义，否则首空格截断。
 - **真机取证点**：编辑→详情新值+服务端回读→还原→回读原值；单集同链路全 App 闭环。依赖 T1+T2。
 
-### T7 全量验收矩阵 + 多服务器隔离核查（Kimi 主导，1 卡）⏳ 会话8 半程（2026-11-23，待 Pad 网络续跑）
+### T7 全量验收矩阵 + 多服务器隔离核查 ✅（2026-11-23，Kimi 主导，Pad 真机验收通过，矩阵全文 `F:\Develop\code_data\qa\w8-t7\matrix.md`）
 
-- **目标**：WRITE-12 三态矩阵验收（admin / zhangwenkang / w8limited × 全部写操作：权限正确成功、不足被拒且 UI 合理、失败可见）；WRITE-11 核查（`UserDataEvents` 全局单例作用域、切服后缓存/事件串扰）；收官报告 + W9 backlog 移交（含 T0 裁定 LATER 项：Likes/合集/刷新元数据/图片）。
-- **验收**：矩阵全绿 + 隔离核查结论入状态块；W8 状态置收官。
-- **会话8 已完成（Pad=43af8627 直连测试服 admin，logcat+服务端回读双证，矩阵全文 `F:\Develop\code_data\qa\w8-t7\matrix.md`）**：
-  - admin 侧 5/5 绿：收藏/已看 App 双向 toggle+回读+还原（萤火之森）；歌单创建+加入（W8-TEST-T7A→《我和你》→回读→API 删除 204 清理）；删除/元数据复用 T5/T6 记录；失败可见=飞行模式音乐域点收藏→「收藏失败/网络不可用，请检查网络后重试」弹窗带重试/关闭（WRITE-03）。
-  - **T1r 排队末环代码闭环**：`SyncWorker.kt:77-89` 仅服务端写成功才清排队行，会话7「删服务器前排队行=0」即补传成功铁证——末环收官，无需复测。
-  - **WRITE-11 审计结论**（explore 代理+复核）：写路径全走 `jellyfinApi.userId`、client 按 (serverId,userId) 原子重建、Room movies/episodes 带 serverId 键控、`UserPolicyStore` (serverId,userId) fail-closed、详情缓存 namespace 隔离——均安全；`UserDataEvents` 全局 object 不携身份但订阅方仅作重取信号、切服 popUpTo 重建——理论级；**新发现真实轻缺口**：`primaryImageUrls`/`musicTrackCache` 无身份 60s TTL 缓存（`JellyfinRepositoryImpl.kt:206/208`），切服 60s 内下载页可能显示上服务器封面/曲目元数据——登记 W9。
-  - admin 侧终态核对无残留；w8limited 密码已重置为 `w8limited-t7`（API 204）；zhangwenkang/w8limited 的 POST /Items 均 403、w8limited canDelete=false 已 API 预证。
-- **BLOCKED（2026-11-23 02:05 起）**：Pad 的 WiFi 上游是 **ZTE RedCap 移动热点（三 SIM 槽 CPE）**，飞行模式失败可见测试触发重连后蜂窝掉注册（信号「— —」、0b/s，T1 captive portal 同源根因），探测 47 分钟全 000 未自愈，CPE SIM 切换不擅自操作。**Pad 飞行模式写测试自此禁用**（每次重连都可能杀死蜂窝半小时以上）。
-- **待续跑（下会话入口，脚本与样本就绪 `F:\Develop\code_data\qa\w8-t7\`）**：①zhangwenkang App 登录复核反向门控（无编辑/删除入口 dump 取证）；②w8limited App 登录（密码 `w8limited-t7`）：仅见动漫+书籍 2 库取证、收藏/已看双向+回读+还原（样本 邻座的怪同学 OAD `c05b69e1`，起始 False/False）、删除/编辑入口隐藏 dump、音乐/歌单入口可见性口径；③会话7 全局搜索不渲染复核（代码指针：`SearchState.kt:38-52` 渲染门槛）；④WRITE-11 轻缺口真机抽查（可选）；⑤终态核对后 W8 置收官 + W9 backlog 移交（清单已在 matrix.md「观察登记」12 条）。
-- **写边界与还原声明**：矩阵复用 T1–T6 边界；终态核对测试服无 W8 残留（测试歌单已删、评分已清、元数据已还原——admin 侧已核对）。
+- **WRITE-12 三态矩阵全绿**（admin/zhangwenkang/w8limited × 收藏/已看/歌单创建加入/条目删除/元数据编辑/失败可见；logcat+服务端回读双证，Pad=43af8627 直连测试服）：
+  - admin 5/5：收藏/已看 App 双向 toggle+回读+还原（萤火之森）；歌单 W8-TEST-T7A 创建+加入《我和你》+回读+API 删除 204 清理；删除/元数据复用 T5/T6 全绿记录；失败可见=飞行模式音乐域点收藏→「收藏失败/网络不可用，请检查网络后重试」弹窗带重试/关闭。
+  - zhangwenkang：收藏/已看（T1）、歌单（T4）、失败可见（T1）复用全绿；反向门控会话8 复核——单集详情 dump 删除/编辑入口计数=0，API POST /Items→403 互证。
+  - w8limited（密码会话8 API 重置 `w8limited-t7`）：库隔离 UI 实证=侧轨音乐入口消失、媒体库仅动漫 93/书籍 8/Playlists 1；收藏/已看 App 双向+回读+还原（灵感少女 E1，POST/DELETE 直连日志在案）；删除/编辑入口计数=0（canDelete=false、POST /Items→403 互证）；歌单格=N/A+口径（无音乐库，服务端强制）。
+- **WRITE-11 闭环**（explore 代理审计+复核）：写路径全走 `jellyfinApi.userId`、client 按 (serverId,userId) 原子重建、Room movies/episodes 带 serverId 键控、`UserPolicyStore` fail-closed、详情缓存 namespace 隔离——安全；`UserDataEvents` 全局 object 不携身份但订阅方仅作重取信号、切服 popUpTo 重建——理论级；**新发现真实轻缺口**：`primaryImageUrls`/`musicTrackCache` 无身份 60s TTL 缓存（`JellyfinRepositoryImpl.kt:206/208`），切服 60s 内下载页可能显示上服务器封面/曲目元数据——登记 W9。
+- **T1r 排队末环代码闭环**：`SyncWorker.kt:77-89` 仅服务端写成功才清排队行，会话7「删服务器前排队行=0」即补传成功铁证。
+- **会话7 观察复核**：全局搜索不渲染**复现**（GET /Items?searchTerm=Tonari 12:10:54 发出、结果区空白，t7b.log 在案）——W9 立项，代码指针 `SearchState.kt:38-52`。
+- **终态核对无残留**：萤火之森 fav=False/played=True、我和你 fav=False、Re-Kan!E1 False/False、w8limited 收藏总数=0、歌单仅剩预存「测试播放列表」、T6 元数据原值。Pad 已切回 admin。
+- **设备环境新事实**：Pad 飞行模式写测试禁用（触发 ZTE RedCap CPE 蜂窝掉注册 47+ 分钟）；已写入环境记忆。
+- **W9 backlog 移交清单（12 条）**：①T0 裁定 LATER：Likes/合集创建加入/刷新元数据/图片上传删除；②会话7 全局搜索结果区不渲染（T7 复现，代码指针 `SearchState.kt:38-52`）；③会话7 `ServerAddressesViewModel` 删当前地址无 UI 反馈；④WRITE-11 轻缺口：`primaryImageUrls`/`musicTrackCache` 无身份 60s TTL 缓存（`JellyfinRepositoryImpl.kt:206/208`）；⑤音乐域收藏写不排队（与影视详情路径补偿策略不统一）；⑥飞行模式下媒体库/首页直出「加载数据错误」不降级 Room 缓存；⑦T1r 遗留：SyncWorker 只扫 movies/episodes 两表（季/剧排队写不补传）；⑧T3' 遗留：主题感知评分色、音乐域评分显示（T3b）；⑨T4 遗留：6 按钮批量条 360dp 竖屏挤压风险、新建/加入后 refresh 粒度；⑩T5 遗留：季页头部计数删除后当页不刷新；⑪T3 备份分支 backup/w8-t3-personal-rating 个人评分写入待裁定启用；⑫T6 会话5 观察：`adb input text` 空格需 `%s` 转义（环境级，非缺陷）。

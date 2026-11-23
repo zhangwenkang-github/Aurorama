@@ -2,7 +2,7 @@
 
 > **新会话第一步读这里**，再读所在波次/线文档的顶部状态块，最后查记忆库 `MEMORY.md`。
 > 本文件只放项目级事实与各线一句话状态；过程日志与历史细节在 `docs/archive/`（按需读取，不主动加载）。
-> 最后更新：2026-11-22　分支 `codex/v2-integration`
+> 最后更新：2026-11-23　分支 `codex/v2-integration`
 
 ## 1. 项目是什么
 
@@ -32,7 +32,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 线 | 状态 | 文档 |
 |----|------|------|
 | 1.4.1 | 🟢 **已发布**（2026-11-18）：master=`76f5350b`、tag `v1.4.1`、GitHub Release 双 APK | 发布目录 `releases/1.4.1-signed-r34-2026-11-17/` |
-| 2.0.0 | 🟡 **W8 进行中（T1–T6 全部交付并 Pad 验收通过；T7 会话8 半程：admin 侧 5/5 绿+T1r 末环闭环+WRITE-11 审计闭环，zhangwenkang/w8limited 真机格 BLOCKED 于 Pad 蜂窝断连）**（2026-11-23）；W9-T0 聚合顺延 | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · `V2_W8_TASKS.md` · `V2_W7_TASKS.md` |
+| 2.0.0 | 🟢 **W8 已收官**（2026-11-23 会话8）：T1–T7 全部交付并 Pad 真机验收通过——T7 三账号矩阵全绿（admin/zhangwenkang/w8limited × 6 类写操作三态）、WRITE-11 隔离核查闭环（新发现 60s TTL 缓存轻缺口登记 W9）、T1r 末环代码闭环、测试服终态无残留；12 条终判 ✅9/⚠️3/❌0；**焦点移交 W9**（backlog 12 条在 V2_W8_TASKS T7 卡） | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · `V2_W8_TASKS.md` · `V2_W7_TASKS.md` |
 | 播放器 | 🟢 W2 架构重构完成；W4 开工（2026-11-19）：T0 现状核对 + 任务卡定稿（T1–T7）；retrySeek 跨条目重建已修（`ccdafefa`）；生产 TLS `-0x7280` 复验通过（服务器侧修复生效，K60 mpv 正常播放） | `docs/V2_W4_TASKS.md` · `docs/V2_ARCHITECTURE.md` §3 |
 | 下载/离线 | 🟢 W7 已收官（2026-11-22）：55 条 = ✅51/⚠️4/❌0；修复卡 F1b 音乐重下载删档绕过 / F2 PENDING 滞留 / F4 音乐离线冷路径 / F5 书籍通知 / F6 作者折叠 / F7 引擎空转热循环，全登记 W9 聚合（F1 引擎层与 F3 已修销项） | `docs/V2_W7_TASKS.md` · `docs/DOWNLOAD_PLAN.md` |
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
@@ -41,34 +41,27 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-22）
 
-1. **2.0.0 W8 服务器写进行中（2026-11-23 会话8）**：T7 收官卡半程。**已绿**：admin 侧 5/5（收藏/已看双向+回读+还原、歌单创建+加入+清理、失败可见弹窗、删除/元数据复用 T5/T6）；T1r 排队末环代码闭环（`SyncWorker.kt:77-89` 仅写成功才清行，会话7 排队行=0 即铁证）；WRITE-11 审计闭环（写路径身份/Room 键控/policy/详情缓存安全，UserDataEvents 理论级；新发现无身份 60s TTL 封面/曲目缓存轻缺口登记 W9）；admin 侧终态无残留。**BLOCKED**：Pad 的 ZTE RedCap CPE 蜂窝掉注册（飞行模式测试触发，47 分钟未自愈）——**Pad 飞行模式写测试自此禁用**；zhangwenkang 复核 + w8limited App 侧（密码已重置 `w8limited-t7`，样本 邻座的怪同学 OAD `c05b69e1`）+ 会话7 搜索复核待网络续跑，脚本就绪 `F:\Develop\code_data\qa\w8-t7\`。
+1. **2.0.0 W8 服务器写已收官（2026-11-23 会话8）**：T1–T7 全部交付并 Pad 真机验收通过。T7 收官：WRITE-12 三账号矩阵全绿（admin 5/5 实测、zhangwenkang 复用+反向门控复核、w8limited 受限侧全格含库隔离 UI 实证）、WRITE-11 审计闭环（新发现无身份 60s TTL 封面/曲目缓存轻缺口）、T1r 末环代码闭环（`SyncWorker.kt:77-89` 仅写成功才清行）、会话7 搜索不渲染复现（W9 立项）、测试服终态无残留、Pad 已切回 admin。12 条终判 ✅9/⚠️3/❌0。**焦点移交 W9**：backlog 12 条在 `V2_W8_TASKS.md` T7 卡（含 W7 裁定登记项待聚合）。设备环境新事实：Pad 飞行模式写测试禁用（ZTE CPE 蜂窝脆弱）。
 2. **W7 下载域已收官（2026-11-22 会话4，HEAD `da4791d5`）**：55 条 = ✅51/⚠️4/❌0；⚠️ 全裁定（F1b/F2/F4/F5/F6/F7 + L1–L3 + O1 + S1，见 `V2_W7_TASKS.md`「裁定登记」）；F3（`d8ee43af`）与 F1 引擎层（`d5e8b119`）已修；F1b/F7 根因已定位、修复卡就绪（优先候选）；W9-T0 聚合顺延至 W8 收官后。
 3. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
-### W8 会话9 开工提示词（新会话直接粘贴；格式遵循 AGENTS.md「开工提示词统一标准」）
+### W9 会话10 开工提示词（新会话直接粘贴；格式遵循 AGENTS.md「开工提示词统一标准」）
 
 ```
 你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
 工作区：F:\Develop\code_data\work_tree\Aurorama\v2-merge-141（分支 codex/v2-integration）。
 开工读序：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V2_W8_TASKS.md 状态块
-→ 记忆库 MEMORY.md（读序外文件按需，不通读）。
-现状：W8 T1–T6 全部交付并 Pad 验收通过；T7 会话8 半程——admin 侧 5/5 绿、
-T1r 末环闭环、WRITE-11 审计闭环、admin 侧终态无残留（矩阵全文与 API 脚本
-在 F:\Develop\code_data\qa\w8-t7\）；HEAD 以 git log 为准；Pad=43af8627 直连
-测试服 admin。会话8 BLOCKED 项：Pad 的 ZTE CPE 蜂窝断连致 zhangwenkang/
-w8limited 真机格未跑——开工先 curl 探测 https://jellyfin-test.zhangwenkang.com
-/System/Info/Public 是否 200；**Pad 飞行模式写测试禁用**（会杀死 CPE 蜂窝）。
-本会话任务（1 卡，Kimi 主导真机）：W8-T7 续跑收官——①zhangwenkang App 登录
-复核反向门控（详情页无编辑/删除入口 dump 取证）；②w8limited App 登录（密码
-w8limited-t7，会话8 已 API 重置）：仅见动漫+书籍 2 库取证、收藏/已看双向
-+回读+还原（样本 邻座的怪同学 OAD c05b69e1，起始 False/False）、删除/编辑
-入口隐藏 dump、音乐/歌单入口可见性口径；③会话7 全局搜索不渲染复核（代码
-指针 SearchState.kt:38-52）；④终态核对无残留；⑤W9 backlog 移交（matrix.md
-「观察登记」12 条）后 W8 状态置收官。若网络仍不通：只收口文档、不动真机。
+（W9 backlog 在 T7 卡）→ 记忆库 MEMORY.md（读序外文件按需，不通读）。
+现状：W8 已收官（2026-11-23 会话8，T1–T7 全交付并 Pad 验收通过，12 条终判
+✅9/⚠️3/❌0，测试服无残留）；HEAD 以 git log 为准；Pad=43af8627 直连测试服
+admin；W7 backlog 在 docs/V2_W7_TASKS.md「裁定登记」。设备纪律：Pad 飞行模式
+写测试禁用（ZTE CPE 蜂窝脆弱）；w8limited 密码=w8limited-t7。
+本会话任务（1 卡）：W9-T0 聚合裁定——汇总 W7 裁定登记 + W8 backlog 12 条
+（V2_W8_TASKS T7 卡），逐条裁定 NOW/LATER/DROP 并排优先级，产出 W9 任务卡
+骨架（含 T3 个人评分备份分支启用裁定、全局搜索不渲染立项）；本卡为文档工作，
+无代码改动，无需真机。
 设计分权：设计以 docs/V2_DESIGN.md 为准，deepseek 零设计权。
-门禁与纪律：见 AGENTS.md 质量门/红线；子代理禁 adb；真机取证 Kimi 做（Pad=
-43af8627，对话框坐标按 dump+50 修正或 Tab+Enter 键盘导航；Pad 无中文输入）；
-K60 连生产服禁写。
+门禁与纪律：见 AGENTS.md 质量门/红线；子代理禁 adb；真机取证 Kimi 做。
 交接：收口按 AGENTS.md 五件事，提示词按统一标准填槽更新。
 ```
 
