@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.repository
 
+import java.io.IOException
 import java.nio.file.Files
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -250,11 +251,81 @@ class MetadataSnapshotSwrTest {
         }
     }
 
-    private suspend fun withSwr(block: suspend (Fixture) -> Unit) {
+    @Test
+    fun `cold start reads the snapshot left by the previous process generation`() = runBlocking {
+        withSwr { fixture ->
+            val previousSession = MetadataFence(fixture.namespace, contentGeneration = 3L)
+            assertTrue(
+                fixture.store.write(previousSession, "views", "cached-before-restart")
+                    is MetadataSnapshotWriteResult.Success
+            )
+
+            // 重启后当前代次 = 0；断网（fetch 必失败）也必须返回上次缓存，而不是抛错给页面。
+            val value = fixture.read("views") { error("network must not be needed") }
+
+            assertEquals("cached-before-restart", value)
+        }
+    }
+
+    @Test
+    fun `browse snapshot older than the refresh window still serves offline inside the read window`() =
+        runBlocking {
+            withSwr(startNow = 40L * 24 * 60 * 60 * 1000L) { fixture ->
+                val twentyDaysAgo = fixture.now - 20L * 24 * 60 * 60 * 1000L
+                fixture.seedSnapshot("views", "offline-views", twentyDaysAgo)
+
+                val read = fixture.readWithMetadata("views") { error("network must not be needed") }
+
+                assertEquals("offline-views", read.value)
+                assertEquals(MetadataSnapshotFreshness.STALE, read.freshness)
+                assertEquals(twentyDaysAgo, read.observedAtEpochMs)
+            }
+        }
+
+    @Test
+    fun `search snapshots keep the shorter offline window`() {
+        val searchPolicy = MetadataSnapshotTtlPolicy.forKey("search:sample")
+        val browsePolicy = MetadataSnapshotTtlPolicy.forKey("views")
+
+        assertEquals(searchPolicy.maxAgeMs, searchPolicy.readMaxAgeMs)
+        assertTrue(browsePolicy.readMaxAgeMs > browsePolicy.maxAgeMs)
+    }
+
+    @Test
+    fun `without any snapshot the network failure still reaches the page`() = runBlocking {
+        withSwr { fixture ->
+            val failure = runCatching {
+                fixture.read("views") { throw IOException("offline") }
+            }
+                .exceptionOrNull()
+
+            assertTrue(failure is IOException)
+        }
+    }
+
+    @Test
+    fun `search snapshot outside its window is not served`() = runBlocking {
+        withSwr { fixture ->
+            val twoDaysAgo = fixture.now - 2L * 24 * 60 * 60 * 1000L
+            fixture.seedSnapshot("search:sample", "old-hits", twoDaysAgo)
+
+            val failure = runCatching {
+                fixture.read("search:sample") { throw IOException("offline") }
+            }
+                .exceptionOrNull()
+
+            assertTrue(failure is IOException)
+        }
+    }
+
+    private suspend fun withSwr(
+        startNow: Long = 10_000_000L,
+        block: suspend (Fixture) -> Unit,
+    ) {
         val directory = Files.createTempDirectory("metadata-swr-test").toFile()
         try {
             val namespace = MetadataNamespace("server-a", "user-a")
-            var now = 10_000_000L
+            var now = startNow
             lateinit var fixture: Fixture
             val cache = MetadataCache(namespace = { fixture.namespace }, clock = { now })
             val store = MetadataSnapshotStore(directory = directory, clock = { now })

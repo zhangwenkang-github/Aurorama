@@ -52,6 +52,29 @@ class MetadataSnapshotStoreTest {
     }
 
     @Test
+    fun `snapshot written by a previous process generation stays readable after a restart`() {
+        val directory = Files.createTempDirectory("metadata-generation-restart").toFile()
+        try {
+            val store = MetadataSnapshotStore(directory)
+            val namespace = MetadataNamespace("server-a", "user-a")
+            // 上一进程做过下拉刷新（代次 3）后写下的快照；进程重启后当前代次回到 0。
+            val previousSession = MetadataFence(namespace, contentGeneration = 3L)
+            val restarted = MetadataFence(namespace, contentGeneration = 0L)
+
+            assertTrue(
+                store.write(previousSession, "views", "cached")
+                    is MetadataSnapshotWriteResult.Success
+            )
+
+            val hit = store.read(restarted, "views", Long.MAX_VALUE)
+            assertTrue(hit is MetadataSnapshotReadResult.Hit)
+            assertEquals("cached", (hit as MetadataSnapshotReadResult.Hit).value)
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
     fun `namespace invalidation removes only its own files`() {
         val directory = Files.createTempDirectory("metadata-namespace-clear").toFile()
         try {

@@ -265,7 +265,13 @@ internal constructor(
         if (envelope.string("logicalKey") != logicalKey) {
             return cleanupMiss(file, MetadataSnapshotMissReason.KEY_MISMATCH)
         }
-        if (envelope.primitive("contentGeneration")?.longOrNull != fence.contentGeneration) {
+        val envelopeGeneration = envelope.primitive("contentGeneration")?.longOrNull
+        if (envelopeGeneration == null) {
+            return cleanupMiss(file, MetadataSnapshotMissReason.MALFORMED)
+        }
+        // W9-T5（⑥）：contentGeneration 是**进程内**的失效代次，进程重启后回到 0。此时磁盘上的快照就是上次已知内容，
+        // 冷启动断网必须能读到它（否则每次下拉刷新都会让重启后的离线缓存全部失效）；同进程内代次不符仍视为失效并清理。
+        if (envelopeGeneration != fence.contentGeneration && fence.contentGeneration != 0L) {
             return cleanupMiss(file, MetadataSnapshotMissReason.NAMESPACE_MISMATCH)
         }
 

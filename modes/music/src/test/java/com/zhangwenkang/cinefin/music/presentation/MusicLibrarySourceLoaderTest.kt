@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.music.presentation
 
 import com.zhangwenkang.cinefin.music.data.MusicLibrary
 import com.zhangwenkang.cinefin.music.data.MusicPlaylist
+import com.zhangwenkang.cinefin.music.data.MusicSong
 import java.io.IOException
 import java.util.UUID
 import kotlinx.coroutines.CompletableDeferred
@@ -26,6 +27,17 @@ class MusicLibrarySourceLoaderTest {
         )
 
     private fun emptyLibrary() = MusicLibrary(emptyList(), emptyList(), emptyList())
+
+    private fun downloadedSong(name: String) =
+        MusicSong(
+            itemId = UUID.fromString("99999999-8888-4777-8666-555555555555"),
+            name = name,
+            albumName = "一路生花",
+            artist = "测试艺人",
+            indexNumber = 1,
+            runtimeTicks = 0L,
+            imageUri = null,
+        )
 
     @Test
     fun `library failure still publishes an existing playlist summary`() = runBlocking {
@@ -191,6 +203,86 @@ class MusicLibrarySourceLoaderTest {
         assertEquals(0, serverPlaylistCalls)
         assertEquals(localLibrary, result.library)
         assertEquals(emptyList<MusicPlaylist>(), result.playlists)
+    }
+
+    @Test
+    fun `server library failure falls back to the downloaded offline library`() = runBlocking {
+        val downloaded =
+            MusicLibrary(
+                songs = listOf(downloadedSong("一路生花")),
+                albums = emptyList(),
+                artists = emptyList(),
+            )
+        val published = mutableListOf<MusicLibrary>()
+        val offlineError = IOException("HTTP host unreachable")
+
+        val result =
+            loadMusicLibrarySources(
+                offline = false,
+                forceServerPlaylistRefresh = false,
+                loadLibrary = { throw offlineError },
+                loadOfflineLibrary = { downloaded },
+                loadPlaylists = { emptyList() },
+                onLibraryLoaded = { published += it },
+                onPlaylistsLoaded = {},
+            )
+
+        // 冷启动断网：在线曲库失败 → 已下载音乐必须上屏（songs > 0），错误保留为页面提示。
+        assertEquals(emptyList<MusicLibrary>(), published)
+        assertEquals(downloaded, result.library)
+        assertTrue(result.libraryFallback)
+        val library = requireNotNull(result.library)
+        assertEquals(1, library.songs.size)
+        assertEquals(offlineError, result.libraryError)
+        assertFalse(
+            shouldShowBlockingMusicError(
+                errorMessage = offlineError.message,
+                hasRenderableContent = library.songs.isNotEmpty(),
+            )
+        )
+    }
+
+    @Test
+    fun `server library failure keeps the error state when nothing is downloaded`() = runBlocking {
+        val published = mutableListOf<MusicLibrary>()
+        val offlineError = IOException("HTTP host unreachable")
+
+        val result =
+            loadMusicLibrarySources(
+                offline = false,
+                forceServerPlaylistRefresh = false,
+                loadLibrary = { throw offlineError },
+                loadOfflineLibrary = { emptyLibrary() },
+                loadPlaylists = { emptyList() },
+                onLibraryLoaded = { published += it },
+                onPlaylistsLoaded = {},
+            )
+
+        assertEquals(emptyList<MusicLibrary>(), published)
+        assertNull(result.library)
+        assertFalse(result.libraryFallback)
+        assertEquals(offlineError, result.libraryError)
+        assertTrue(shouldShowBlockingMusicError(offlineError.message, false))
+    }
+
+    @Test
+    fun `server library failure ignores a broken offline library read`() = runBlocking {
+        val offlineError = IOException("HTTP host unreachable")
+
+        val result =
+            loadMusicLibrarySources(
+                offline = false,
+                forceServerPlaylistRefresh = false,
+                loadLibrary = { throw offlineError },
+                loadOfflineLibrary = { throw IOException("sidecar unreadable") },
+                loadPlaylists = { emptyList() },
+                onLibraryLoaded = { error("failed offline read must not publish") },
+                onPlaylistsLoaded = {},
+            )
+
+        assertNull(result.library)
+        assertFalse(result.libraryFallback)
+        assertEquals(offlineError, result.libraryError)
     }
 
     @Test

@@ -1170,12 +1170,17 @@ constructor(
                     return@launch
                 }
 
-                sources.library?.let { serverLibrary = it }
+                // W9-T5（F4）：降级曲库（已下载）只在原本没有曲库时填补，绝不覆盖已上屏的服务器曲库。
+                val onlineLibrary = sources.library.takeIf { !sources.libraryFallback }
+                onlineLibrary?.let { serverLibrary = it }
+                if (onlineLibrary == null && serverLibrary.songs.isEmpty()) {
+                    sources.library?.let { serverLibrary = it }
+                }
                 sources.playlists?.let { serverPlaylists = it }
                 val musicLibraries =
-                    if (sources.library != null) loadMusicLibraryList() else emptyList()
+                    if (onlineLibrary != null) loadMusicLibraryList() else emptyList()
                 val selectedMusicLibrary =
-                    if (sources.library != null) {
+                    if (onlineLibrary != null) {
                         resolveSelectedMusicLibrary(
                             musicLibraries,
                             appPreferences.getValue(appPreferences.uiMusicLibraryId),
@@ -1189,19 +1194,19 @@ constructor(
                         refreshing = false,
                         offline = false,
                         musicLibraries =
-                            if (sources.library != null) {
+                            if (onlineLibrary != null) {
                                 musicLibraryOptions(musicLibraries)
                             } else {
                                 it.musicLibraries
                             },
                         selectedMusicLibraryId =
-                            if (sources.library != null) {
+                            if (onlineLibrary != null) {
                                 selectedMusicLibrary?.id
                             } else {
                                 it.selectedMusicLibraryId
                             },
                         selectedMusicLibraryName =
-                            if (sources.library != null) {
+                            if (onlineLibrary != null) {
                                 selectedMusicLibrary?.name
                             } else {
                                 it.selectedMusicLibraryName
@@ -1241,6 +1246,20 @@ constructor(
             } catch (error: Exception) {
                 // 服务器不可达时本地媒体库仍然可用（错误面板关闭后能看到本地曲目）。
                 localLibrary = loadLocalLibrary()
+                // W9-T5（F4）：整次刷新失败（非单源失败）时同样降级读已下载曲库，冷启动离线也能看到已下载音乐。
+                if (serverLibrary.songs.isEmpty()) {
+                    runCatching { loadOfflineLibrary() }
+                        .onFailure { Timber.w(it, "读取离线曲库失败") }
+                        .getOrNull()
+                        ?.takeIf { offlineLibrary -> offlineLibrary.songs.isNotEmpty() }
+                        ?.let { offlineLibrary ->
+                            serverLibrary = offlineLibrary
+                            Timber.d(
+                                "曲库刷新失败，降级到已下载离线曲库 songs=%d",
+                                offlineLibrary.songs.size,
+                            )
+                        }
+                }
                 publishLibraries()
                 publishPlaylists()
                 _uiState.update {
@@ -1383,6 +1402,8 @@ constructor(
      *
      * 曲目元数据来自下载侧车（专辑 / 艺人 / 音轨号）；播放走 [MusicTrackResolver] → 离线仓库 `getMediaSources` 优先 LOCAL
      * 来源，即本地文件。
+     *
+     * W9-T5（F4）：除 App 内离线模式外，在线模式服务器曲库加载失败（飞行模式 / 断网）也以本索引兜底，冷启动可继续播放已下载音乐。
      */
     private suspend fun loadOfflineLibrary(): MusicLibrary {
         val songs =

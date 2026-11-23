@@ -12,10 +12,20 @@ import kotlinx.coroutines.withContext
 internal data class MetadataSnapshotTtlPolicy(
     val softTtlMs: Long,
     val maxAgeMs: Long,
+    /**
+     * W9-T5（⑥）：磁盘快照的「可服务窗口」，必须 ≥ [maxAgeMs]。
+     *
+     * 断网（飞行模式）时页面只能读缓存：浏览类快照在冷启动后仍可展示，直到超过本窗口才视为过期、回到真实请求（并可能报错）。 这里只放宽读上限，不改变 FRESH / STALE 判定（仍由
+     * [softTtlMs] 决定），也不改变写 / 清理语义。
+     */
+    val readMaxAgeMs: Long = maxAgeMs,
 ) {
     companion object {
         private const val DAY_MS = 24L * 60L * 60L * 1000L
         private const val BROWSE_MAX_AGE_MS = 7L * DAY_MS
+
+        /** W9-T5（⑥）：浏览类内容离线可展示上限（30 天），覆盖长假期断网等场景。 */
+        private const val BROWSE_OFFLINE_MAX_AGE_MS = 30L * DAY_MS
         private const val SEARCH_MAX_AGE_MS = DAY_MS
 
         fun forKey(key: String): MetadataSnapshotTtlPolicy =
@@ -24,16 +34,19 @@ internal data class MetadataSnapshotTtlPolicy(
                     MetadataSnapshotTtlPolicy(
                         softTtlMs = MetadataCacheRules.SEARCH_TTL_MS,
                         maxAgeMs = SEARCH_MAX_AGE_MS,
+                        readMaxAgeMs = SEARCH_MAX_AGE_MS,
                     )
                 key.startsWith(MetadataCacheKeys.ITEMS_PREFIX) ->
                     MetadataSnapshotTtlPolicy(
                         softTtlMs = MetadataCacheRules.PAGING_TTL_MS,
                         maxAgeMs = BROWSE_MAX_AGE_MS,
+                        readMaxAgeMs = BROWSE_OFFLINE_MAX_AGE_MS,
                     )
                 else ->
                     MetadataSnapshotTtlPolicy(
                         softTtlMs = MetadataCacheRules.DEFAULT_TTL_MS,
                         maxAgeMs = BROWSE_MAX_AGE_MS,
+                        readMaxAgeMs = BROWSE_OFFLINE_MAX_AGE_MS,
                     )
             }
     }
@@ -120,7 +133,7 @@ internal class MetadataSnapshotSwr(
         }
 
         val diskResult =
-            withContext(ioDispatcher) { store.read(fence, key, maxAgeMs = policy.maxAgeMs) }
+            withContext(ioDispatcher) { store.read(fence, key, maxAgeMs = policy.readMaxAgeMs) }
         if (diskResult is MetadataSnapshotReadResult.Hit) {
             val value = decodeSnapshot(diskResult.value)
             if (value != null) {
