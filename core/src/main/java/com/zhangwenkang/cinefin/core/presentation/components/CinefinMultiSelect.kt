@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.core.presentation.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -131,6 +133,9 @@ fun CinefinSelectIndicator(
  * W58 多选底部工具条（下载页 `SelectionBar` 同款口径）：左「已选 N 项」+ 右动作键。
  *
  * 动作可用性由调用方按纯函数判定后传入 [actions]；本组件不含业务语义。
+ *
+ * W9-T6b：动作行按自身内容宽测量（`weight(1f, fill = false)`），放得下时仍由 `SpaceBetween` 右对齐（411dp 等宽屏视觉不变）；放不下时（如
+ * 360dp 竖屏的 6 动作歌单条）在行内横向滚动，动作键保持 44dp 触控面、不压缩。
  */
 @Composable
 fun CinefinBatchBar(
@@ -139,6 +144,7 @@ fun CinefinBatchBar(
     actions: @Composable () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
+    val actionScrollState = rememberScrollState()
     Row(
         modifier =
             modifier
@@ -157,6 +163,16 @@ fun CinefinBatchBar(
             style = CinefinType.BodyMedium,
             color = colors.onSurface,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1)) { actions() }
+        // 内缩放在滚动视口之外：横滚到末尾时动作键仍与计数文本留出间隙。
+        Row(
+            modifier =
+                Modifier.weight(1f, fill = false)
+                    .padding(start = CinefinSpacing.Space2)
+                    .horizontalScroll(actionScrollState),
+            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            actions()
+        }
     }
 }

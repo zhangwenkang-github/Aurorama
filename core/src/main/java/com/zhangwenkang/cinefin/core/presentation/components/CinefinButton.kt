@@ -85,6 +85,9 @@ private val CinefinButtonSize.horizontalPadding: Dp
 /** 按钮圆角（K1：`CinefinShapes.Button` 的 16dp）；焦点环走 drawBehind，需要 Dp 值。 */
 private val CinefinButtonCorner = 16.dp
 
+/** 图标按钮触控面（§8.1 Icon：44dp 方圆形）；批量条动作行按它算最小内容宽，不得压缩。 */
+internal val CinefinIconButtonSize = 44.dp
+
 private val CinefinButtonSize.textStyle: TextStyle
     get() =
         when (this) {
@@ -262,8 +265,11 @@ fun CinefinButton(
     ) {
         Row(
             modifier =
-                Modifier.height(if (isIconOnly) 44.dp else size.height)
-                    .then(if (isIconOnly) Modifier.defaultMinSize(minWidth = 44.dp) else Modifier)
+                Modifier.height(if (isIconOnly) CinefinIconButtonSize else size.height)
+                    .then(
+                        if (isIconOnly) Modifier.defaultMinSize(minWidth = CinefinIconButtonSize)
+                        else Modifier
+                    )
                     .cinefinFocusRing(
                         color = focusRing,
                         cornerRadius = CinefinButtonCorner,
