@@ -5,7 +5,6 @@ import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.MetadataNamespace
 import com.zhangwenkang.cinefin.repository.MetadataSnapshotReadResult
 import com.zhangwenkang.cinefin.repository.MetadataSnapshotStore
-import com.zhangwenkang.cinefin.repository.UserDataEvents
 import com.zhangwenkang.cinefin.repository.UserDataWriteFailure
 import com.zhangwenkang.cinefin.repository.UserDataWriteOutcome
 import com.zhangwenkang.cinefin.repository.toUserDataWriteFailure
@@ -353,20 +352,18 @@ constructor(
 
     override suspend fun setFavorite(itemId: UUID, favorite: Boolean): UserDataWriteOutcome =
         withContext(Dispatchers.IO) {
-            musicServerWrite(
-                    remote = {
-                        if (favorite) {
-                            jellyfinApi.userLibraryApi.markFavoriteItem(itemId)
-                        } else {
-                            jellyfinApi.userLibraryApi.unmarkFavoriteItem(itemId)
-                        }
-                    },
-                    onConfirmed = {
-                        // W60b：音乐收藏也属于条目级收藏的单一数据源（其它页面的收藏角标靠它刷新）。
-                        UserDataEvents.notifyFavoriteChanged()
-                    },
+            if (jellyfinApi.userId == null) {
+                return@withContext UserDataWriteOutcome.Failed(
+                    UserDataWriteFailure.Unknown(status = null, message = "尚未登录服务器")
                 )
-                .toUserDataWriteOutcome()
+            }
+            // W9-T4：与影视详情页共用同一写模型（服务器先行；网络 / 5xx 落本地行 + `toBeSynced` 排队，由 SyncWorker
+            // 补传），不再单独维护一套「音乐收藏不排队」的失败语义。
+            if (favorite) {
+                jellyfinRepository.markAsFavorite(itemId)
+            } else {
+                jellyfinRepository.unmarkAsFavorite(itemId)
+            }
         }
 
     override suspend fun removeFromPlaylist(
@@ -462,10 +459,10 @@ constructor(
         }
 
     /**
-     * W8-T1：音乐侧服务器写统一错误边界。
+     * W8-T1：音乐侧服务器写统一错误边界（歌单条目 / 歌单新建：这两类没有可排队的本地镜像，失败如实上报，由 `UserDataWriteFailure.retryable` 让 UI
+     * 区分权限拒绝与可重试失败）。
      *
-     * 音乐收藏 / 歌单条目没有本地镜像可排队（`toBeSynced` 只覆盖持有本地库的条目），所以失败如实上报为 [UserDataWriteOutcome.Failed]，由
-     * `UserDataWriteFailure.retryable` 让 UI 区分权限拒绝与可重试失败。
+     * W9-T4 起音乐收藏不再走这里——它复用影视详情路径的写模型，走 `JellyfinRepository.markAsFavorite` 的排队补偿。
      */
     private suspend fun <T> musicServerWrite(
         remote: suspend () -> T,

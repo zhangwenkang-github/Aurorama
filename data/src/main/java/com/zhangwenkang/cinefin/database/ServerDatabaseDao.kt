@@ -676,6 +676,21 @@ interface ServerDatabaseDao {
     @Query("SELECT * FROM seasons WHERE seriesId = :seriesId ORDER BY indexNumber ASC")
     suspend fun getSeasonsByShowId(seriesId: UUID): List<FindroidSeasonDto>
 
+    /**
+     * W9-T4：某服务器的全部季（补同步扫描集用）。
+     *
+     * `seasons` 表没有 serverId 列，归属经所属剧的 `serverId` 判定（同一服务器的剧其季同属该服务器）。
+     */
+    @Query(
+        """
+        SELECT seasons.* FROM seasons
+        INNER JOIN shows ON shows.id = seasons.seriesId
+        WHERE shows.serverId = :serverId
+        ORDER BY seasons.seriesName ASC, seasons.indexNumber ASC
+        """
+    )
+    suspend fun getSeasonsByServerId(serverId: String): List<FindroidSeasonDto>
+
     @Query("DELETE FROM seasons WHERE id = :id") suspend fun deleteSeason(id: UUID)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
@@ -850,6 +865,29 @@ interface ServerDatabaseDao {
 
     @Query("SELECT * FROM userdata WHERE userId = :userId AND itemId = :itemId AND toBeSynced = 1")
     suspend fun getUserDataToBeSynced(userId: UUID, itemId: UUID): FindroidUserDataDto?
+
+    /**
+     * W9-T4：该用户全部待补同步行。
+     *
+     * 音乐收藏没有 movies/episodes/shows/seasons 投影行，只有这里能把它带进补同步扫描集。
+     */
+    @Query("SELECT * FROM userdata WHERE userId = :userId AND toBeSynced = 1")
+    suspend fun getUserDataToBeSynced(userId: UUID): List<FindroidUserDataDto>
+
+    /**
+     * W9-T4：该条目是否有本地投影行（movies / episodes / shows / seasons）。
+     *
+     * 有投影的条目本地行是完整用户数据镜像，补同步推全量；音乐等没有投影的条目只知道收藏意图，只能推收藏（避免把服务端 played / 进度覆盖成默认值）。
+     */
+    @Query(
+        """
+        SELECT EXISTS(SELECT 1 FROM movies WHERE id = :itemId)
+            OR EXISTS(SELECT 1 FROM episodes WHERE id = :itemId)
+            OR EXISTS(SELECT 1 FROM shows WHERE id = :itemId)
+            OR EXISTS(SELECT 1 FROM seasons WHERE id = :itemId)
+        """
+    )
+    suspend fun hasUserDataMirror(itemId: UUID): Boolean
 
     @Query(
         "UPDATE userdata SET toBeSynced = :toBeSynced WHERE itemId = :itemId AND userId = :userId"

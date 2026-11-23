@@ -2113,7 +2113,7 @@ class JellyfinRepositoryImpl(
             writeUserData(
                 itemId = itemId,
                 remote = { jellyfinApi.userLibraryApi.markFavoriteItem(itemId) },
-                persistLocal = { userId -> database.setFavorite(userId, itemId, true) },
+                persistLocal = { userId -> persistFavoriteLocally(userId, itemId, true) },
             )
         // W60b：单一数据源广播（本地状态已落库，详情 / 列表 / 收藏页统一靠它刷新）。
         if (outcome.localStateChanged) UserDataEvents.notifyFavoriteChanged()
@@ -2126,11 +2126,22 @@ class JellyfinRepositoryImpl(
             writeUserData(
                 itemId = itemId,
                 remote = { jellyfinApi.userLibraryApi.unmarkFavoriteItem(itemId) },
-                persistLocal = { userId -> database.setFavorite(userId, itemId, false) },
+                persistLocal = { userId -> persistFavoriteLocally(userId, itemId, false) },
             )
         // W60b：单一数据源广播（取消收藏同样通知所有展示方刷新）。
         if (outcome.localStateChanged) UserDataEvents.notifyFavoriteChanged()
         return outcome
+    }
+
+    /**
+     * W9-T4：收藏落库前确保本地行存在。
+     *
+     * 影视条目读详情时会 `getUserDataOrCreateNew` 建行，音乐条目没有任何投影行——纯 UPDATE 会静默命中 0 行，排队 `toBeSynced`
+     * 也落不了地（WRITE-05 音乐侧缺口）。收藏语义不关心 played / 进度，所以新行用默认值建、随后只写收藏位。
+     */
+    private suspend fun persistFavoriteLocally(userId: UUID, itemId: UUID, favorite: Boolean) {
+        database.getUserDataOrCreateNew(itemId, userId)
+        database.setFavorite(userId, itemId, favorite)
     }
 
     override suspend fun markAsPlayed(itemId: UUID): UserDataWriteOutcome {

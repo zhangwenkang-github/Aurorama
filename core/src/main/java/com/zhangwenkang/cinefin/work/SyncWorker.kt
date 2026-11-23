@@ -6,14 +6,11 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.zhangwenkang.cinefin.api.JellyfinApi
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
-import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.User
-import com.zhangwenkang.cinefin.models.toFindroidEpisode
-import com.zhangwenkang.cinefin.models.toFindroidMovie
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import org.jellyfin.sdk.model.api.UpdateUserItemDataDto
+import java.util.UUID
 
 @HiltWorker
 class SyncWorker
@@ -48,45 +45,44 @@ constructor(
                     api.update(baseUrl = serverAddress.address, accessToken = user.accessToken)
                     userId = user.id
                 }
-                val movies =
-                    database.getMoviesByServerId(server.id).map {
-                        it.toFindroidMovie(database, user.id)
-                    }
-                val episodes =
-                    database.getEpisodesByServerId(server.id).map {
-                        it.toFindroidEpisode(database, user.id)
-                    }
-
-                syncUserData(jellyfinApi, user, movies)
-                syncUserData(jellyfinApi, user, episodes)
+                syncUserData(jellyfinApi, user, queuedItemIds(server.id, user))
             }
         }
 
         return Result.success()
     }
 
+    /**
+     * W9-T4：扫描集覆盖 movies / episodes / shows / seasons 四类投影行 + 该用户全部 `toBeSynced` 行。
+     *
+     * 季 / 剧有投影表但旧实现只扫电影 / 单集（WRITE-08 缺口）；音乐收藏没有投影表，只能靠队列行带进扫描集。
+     */
+    private suspend fun queuedItemIds(serverId: String, user: User): List<UUID> =
+        userDataSyncItemIds(
+            database.getMoviesByServerId(serverId).map { it.id },
+            database.getEpisodesByServerId(serverId).map { it.id },
+            database.getShowsByServerId(serverId).map { it.id },
+            database.getSeasonsByServerId(serverId).map { it.id },
+            database.getUserDataToBeSynced(user.id).map { it.itemId },
+        )
+
     private suspend fun syncUserData(
         jellyfinApi: JellyfinApi,
         user: User,
-        items: List<FindroidItem>,
+        itemIds: List<UUID>,
     ) {
-        for (item in items) {
-            val userData = database.getUserDataToBeSynced(user.id, item.id) ?: continue
-
-            try {
+        pushQueuedUserData(
+            itemIds = itemIds,
+            loadQueued = { itemId -> database.getUserDataToBeSynced(user.id, itemId) },
+            mirrored = { itemId -> database.hasUserDataMirror(itemId) },
+            push = { userData, data ->
                 jellyfinApi.itemsApi.updateItemUserData(
-                    itemId = item.id,
+                    itemId = userData.itemId,
                     userId = user.id,
-                    data =
-                        UpdateUserItemDataDto(
-                            playbackPositionTicks = userData.playbackPositionTicks,
-                            isFavorite = userData.favorite,
-                            played = userData.played,
-                        ),
+                    data = data,
                 )
-
-                database.setUserDataToBeSynced(user.id, item.id, false)
-            } catch (_: Exception) {}
-        }
+            },
+            clear = { itemId -> database.setUserDataToBeSynced(user.id, itemId, false) },
+        )
     }
 }

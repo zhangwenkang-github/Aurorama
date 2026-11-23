@@ -255,6 +255,10 @@ constructor(
     private val autoDjBatchLimitChannel = Channel<Unit>(Channel.CONFLATED)
     val autoDjBatchLimit = autoDjBatchLimitChannel.receiveAsFlow()
 
+    /** W9-T4：收藏写排队（网络 / 5xx 已落本地待同步）→ 音乐页非阻塞 snackbar（与影视详情页同口径）。 */
+    private val favoriteWriteNoticeChannel = Channel<String>(Channel.BUFFERED)
+    val favoriteWriteNotices = favoriteWriteNoticeChannel.receiveAsFlow()
+
     /** W58：长按多选状态（按曲目 itemId 选中；列表刷新后按 id 求交集）。 */
     private val _batchSelectionState = MutableStateFlow(MusicBatchSelectionState())
     val batchSelection: StateFlow<MultiSelectState> =
@@ -1778,17 +1782,22 @@ constructor(
         val ids = selected.map { it.itemId }.toSet()
         viewModelScope.launch {
             var failure: UserDataWriteFailure? = null
+            var queued = false
             val written = runCatching {
                 ids.forEach { id ->
                     val outcome = repository.setFavorite(id, favorite)
-                    if (outcome is UserDataWriteOutcome.Failed) {
-                        failure = failure ?: outcome.failure
+                    when (outcome) {
+                        is UserDataWriteOutcome.Failed -> failure = failure ?: outcome.failure
+                        UserDataWriteOutcome.QueuedForSync -> queued = true
+                        UserDataWriteOutcome.Confirmed -> Unit
                     }
                 }
                 failure == null
             }
                 .getOrDefault(false)
             if (written) {
+                // W9-T4：与单曲路径同口径——有排队（网络 / 5xx）就提示「联网后自动同步」，只提示一次。
+                if (queued) favoriteWriteNoticeChannel.send(FAVORITE_QUEUED_NOTICE)
                 _uiState.update { state -> state.withFavorites(ids, favorite) }
             } else {
                 _uiState.update {
@@ -3050,7 +3059,9 @@ constructor(
                     )
                 }
             } else {
-                Timber.i("收藏成功：itemId=${song.itemId} favorite=$favorite")
+                // W9-T4：网络 / 5xx 时本地已落收藏位并排队，提示「联网后自动同步」（与影视详情页同口径）。
+                favoriteWriteNotice(outcome)?.let { favoriteWriteNoticeChannel.send(it) }
+                Timber.i("收藏成功：itemId=${song.itemId} favorite=$favorite queued=$outcome")
                 _uiState.update { state -> state.withFavorite(song.itemId, favorite) }
             }
         }

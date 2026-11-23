@@ -347,6 +347,13 @@ fun MusicModeScreen(
         }
     }
 
+    // W9-T4：收藏写排队（网络 / 5xx 已落本地待同步）→ 与影视详情页同口径的非阻塞提示。
+    LaunchedEffect(viewModel) {
+        viewModel.favoriteWriteNotices.collect { message ->
+            snackbarHostState.showSnackbar(message)
+        }
+    }
+
     // W5-T12（MUSIC-14 Auto DJ）：连续自动续播 3 批后的刹车提示（非阻塞；用户任一传输操作后继续）。
     LaunchedEffect(viewModel) {
         viewModel.autoDjBatchLimit.collect {
