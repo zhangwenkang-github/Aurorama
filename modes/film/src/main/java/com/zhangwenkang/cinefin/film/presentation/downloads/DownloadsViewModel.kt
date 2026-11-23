@@ -575,6 +575,8 @@ constructor(
      * W59：按需解析条目对象并回调（下载页点击完成条目 / 书籍行）。
      *
      * 书籍走阅读器离线链路、没有 `sources` 行，[itemForEntry] 找不到；这里优先用已完成缓存， 未命中时拉取一次条目并缓存（仅用户点击时触发，不参与轮询）。
+     *
+     * W9-T5（F4）：已完成音乐不走本方法（见 [playMusicEntry]），避免离线起播前先去解析服务器条目。
      */
     fun resolveEntryItem(key: String, onReady: (FindroidItem) -> Unit) {
         val entry = _state.value.findEntry(key) ?: return
@@ -596,6 +598,27 @@ constructor(
             resolvedItemCache[entry.itemId] = item
             onReady(item)
         }
+    }
+
+    /**
+     * W9-T5（F4）：下载页「已完成」分组里的音乐条目单击 = 直接本地播放。
+     *
+     * 复用多选播放入口同一条 [DownloadPlaybackRequest.Music] 通道（页面收集后进 `MusicItemRoute`，由音乐线解析本地文件）；
+     * 不解析条目详情、不发 `Items` 请求，离线断网也能立刻起播。返回 false = 不是「已完成音乐」叶子，调用方维持原有详情行为。
+     */
+    fun playMusicEntry(key: String): Boolean {
+        val entry = _state.value.findEntry(key)
+        val request = musicPlaybackRequest(entry) ?: return false
+        actionScope().launch {
+            try {
+                _playbackRequests.emit(request)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                Timber.w(error, "已完成音乐起播请求失败：%s", entry?.itemId)
+            }
+        }
+        return true
     }
 
     fun onAction(action: DownloadAction) {
@@ -2517,3 +2540,16 @@ constructor(
         const val REMOTE_PREFETCH_CONCURRENCY = 4
     }
 }
+
+/**
+ * W9-T5（F4）：叶子条目单击的播放判定（纯函数，单测钉死）。
+ *
+ * 只有「已完成音乐」直接起播本地文件；视频 / 书籍 / 进行中条目返回 null，调用方维持既有详情路径。
+ */
+internal fun musicPlaybackRequest(entry: DownloadHierarchyEntry?): DownloadPlaybackRequest.Music? =
+    entry
+        ?.takeIf { candidate ->
+            candidate.mediaKind == DownloadMediaKind.MUSIC &&
+                candidate.status == DownloadTaskStatus.COMPLETED
+        }
+        ?.let { candidate -> DownloadPlaybackRequest.Music(listOf(candidate.itemId)) }

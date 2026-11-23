@@ -16,6 +16,7 @@ import java.io.File
 import java.util.UUID
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -294,6 +295,58 @@ class DownloadRowAccessibilityContractTest {
         )
     }
 
+    /** W9-T5（F4）：已完成音乐单击 = 本地播放；其余类型 / 状态保持「打开详情」。 */
+    @Test
+    fun `已完成音乐叶子内容区单击是播放而非打开详情`() {
+        assertEquals(
+            DownloadRowContentAction.PLAY,
+            downloadLeafContentAction(
+                selectionMode = false,
+                mediaKind = DownloadMediaKind.MUSIC,
+                completed = true,
+            ),
+        )
+        assertNotEquals(
+            DownloadRowContentAction.OPEN_DETAILS,
+            downloadLeafContentAction(
+                selectionMode = false,
+                mediaKind = DownloadMediaKind.MUSIC,
+                completed = true,
+            ),
+        )
+        assertNull(
+            downloadLeafContentAction(
+                selectionMode = false,
+                mediaKind = DownloadMediaKind.MUSIC,
+                completed = false,
+            )
+        )
+        assertEquals(
+            DownloadRowContentAction.OPEN_DETAILS,
+            downloadLeafContentAction(
+                selectionMode = false,
+                mediaKind = DownloadMediaKind.BOOK,
+                completed = true,
+            ),
+        )
+        assertEquals(
+            DownloadRowContentAction.OPEN_DETAILS,
+            downloadLeafContentAction(
+                selectionMode = false,
+                mediaKind = DownloadMediaKind.VIDEO,
+                completed = true,
+            ),
+        )
+        assertEquals(
+            DownloadRowContentAction.TOGGLE_SELECTION,
+            downloadLeafContentAction(
+                selectionMode = true,
+                mediaKind = DownloadMediaKind.MUSIC,
+                completed = true,
+            ),
+        )
+    }
+
     @Test
     fun `顶层行多选时标签跟随切换选择动作`() {
         assertEquals(
@@ -312,6 +365,7 @@ class DownloadRowAccessibilityContractTest {
             CoreR.string.download_detail_open,
             DownloadRowContentAction.OPEN_DETAILS.labelRes,
         )
+        assertEquals(CoreR.string.play, DownloadRowContentAction.PLAY.labelRes)
         assertEquals(
             CoreR.string.download_action_select,
             DownloadRowContentAction.TOGGLE_SELECTION.labelRes,

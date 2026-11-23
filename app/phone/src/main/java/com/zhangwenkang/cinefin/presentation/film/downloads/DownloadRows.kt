@@ -139,6 +139,8 @@ internal data class DownloadRowActionSpec(
 /** 下载行内容区的点击能力；null 表示该行没有可执行的单击动作。 */
 internal enum class DownloadRowContentAction(val labelRes: Int) {
     OPEN_DETAILS(CoreR.string.download_detail_open),
+    /** W9-T5（F4）：已完成音乐条目单击 = 直接本地播放（不经服务器详情 / `Items` 请求）。 */
+    PLAY(CoreR.string.play),
     TOGGLE_SELECTION(CoreR.string.download_action_select),
 }
 
@@ -308,6 +310,11 @@ internal fun bookDownloadActionForRowAction(
         DownloadRowTaskAction.DELETE -> null
     }
 
+/**
+ * 叶子条目内容区单击能力。
+ *
+ * W9-T5（F4）：**已完成音乐**直接播放本地文件（离线可播、不发 `Items`）；书籍 / 视频 / 其它状态保持「打开详情」不变。
+ */
 internal fun downloadLeafContentAction(
     selectionMode: Boolean,
     mediaKind: DownloadMediaKind,
@@ -315,6 +322,7 @@ internal fun downloadLeafContentAction(
 ): DownloadRowContentAction? =
     when {
         selectionMode -> DownloadRowContentAction.TOGGLE_SELECTION
+        mediaKind == DownloadMediaKind.MUSIC && completed -> DownloadRowContentAction.PLAY
         mediaKind == DownloadMediaKind.BOOK || completed -> DownloadRowContentAction.OPEN_DETAILS
         else -> null
     }
@@ -1305,6 +1313,7 @@ internal fun DownloadLeafCard(
     onToggleSelection: () -> Unit,
     onLongPress: () -> Unit = onToggleSelection,
     onOpen: () -> Unit,
+    onPlay: () -> Unit,
     onAction: (DownloadAction) -> Unit,
     onRequestDelete: (key: String, title: String) -> Unit,
     pendingAction: DownloadPendingAction? = null,
@@ -1346,6 +1355,7 @@ internal fun DownloadLeafCard(
                             onClick = {
                                 when (contentAction) {
                                     DownloadRowContentAction.OPEN_DETAILS -> onOpen()
+                                    DownloadRowContentAction.PLAY -> onPlay()
                                     DownloadRowContentAction.TOGGLE_SELECTION -> onToggleSelection()
                                     null -> Unit
                                 }

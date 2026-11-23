@@ -156,10 +156,15 @@ fun DownloadsScreen(
         onAction = { action ->
             when (action) {
                 is DownloadAction.Open -> onItemClick(action.item)
-                is DownloadAction.OpenEntry -> viewModel.resolveEntryItem(action.key, onItemClick)
+                // W9-T5（F4）：已完成音乐单击 = 本地播放（不发 Items）；其余条目维持既有详情解析。
+                is DownloadAction.OpenEntry ->
+                    if (!viewModel.playMusicEntry(action.key)) {
+                        viewModel.resolveEntryItem(action.key, onItemClick)
+                    }
                 else -> viewModel.onAction(action)
             }
         },
+        onPlayMusicEntry = { key -> viewModel.playMusicEntry(key) },
         onOpenNotificationSettings = {
             viewModel.onNotificationPermissionNudgeOpened()
             runCatching {
@@ -195,6 +200,7 @@ private fun DownloadsScreenLayout(
     initialTab: DownloadTab,
     requestId: Long,
     onAction: (DownloadAction) -> Unit,
+    onPlayMusicEntry: (String) -> Unit,
     onOpenNotificationSettings: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
@@ -493,6 +499,7 @@ private fun DownloadsScreenLayout(
                 selection = state.selection,
                 pendingActions = state.pendingActions,
                 onAction = onAction,
+                onPlayMusicEntry = onPlayMusicEntry,
                 onRequestDeleteEntry = { key, title ->
                     pendingDelete = PendingDelete.Entry(key, title)
                 },
@@ -573,6 +580,7 @@ private fun DownloadDetailPane(
     selection: List<String>,
     pendingActions: Map<String, DownloadPendingAction>,
     onAction: (DownloadAction) -> Unit,
+    onPlayMusicEntry: (String) -> Unit,
     onRequestDeleteEntry: (key: String, title: String) -> Unit,
     onRequestDeleteContainer: (key: String, title: String) -> Unit,
 ) {
@@ -664,6 +672,7 @@ private fun DownloadDetailPane(
                         onToggleSelection = { onAction(DownloadAction.ToggleEntry(entry.key)) },
                         onLongPress = { onAction(DownloadAction.ToggleEntry(entry.key)) },
                         onOpen = { onAction(DownloadAction.OpenEntry(entry.key)) },
+                        onPlay = { onPlayMusicEntry(entry.key) },
                         onAction = onAction,
                         onRequestDelete = onRequestDeleteEntry,
                         pendingAction = pendingActions[entry.key],
@@ -1132,6 +1141,7 @@ private fun DownloadsScreenLayoutPreview() {
             initialTab = DownloadTab.ACTIVE,
             requestId = 0L,
             onAction = {},
+            onPlayMusicEntry = {},
             onOpenNotificationSettings = {},
         )
     }

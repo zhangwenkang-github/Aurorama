@@ -45,10 +45,15 @@ import kotlin.io.path.createTempDirectory
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainCoroutineDispatcher
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -106,6 +111,64 @@ class DownloadsViewModelDeletionTest {
             assertEquals(key, trace.handle.stableKey)
         } finally {
             DownloadDeleteTraceRuntime.uninstall(trace)
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `completed music leaf tap requests local playback without item resolution`() {
+        val completed = completedMusic()
+        val fixture =
+            Fixture(
+                tasks = emptyList(),
+                outcomes = emptyMap(),
+                downloads = listOf(completed),
+            )
+        try {
+            fixture.start()
+            fixture.waitUntil("completed music was not published") {
+                fixture.viewModel.state.value.completed.any { it.item.id == completed.id }
+            }
+            val key = completedLeafKeys(fixture.viewModel.state.value).single()
+
+            runBlocking {
+                val request =
+                    async(start = CoroutineStart.UNDISPATCHED) {
+                        fixture.viewModel.playbackRequests.first()
+                    }
+
+                assertTrue("已完成音乐单击未进入播放通道", fixture.viewModel.playMusicEntry(key))
+
+                assertEquals(
+                    DownloadPlaybackRequest.Music(listOf(completed.id)),
+                    withTimeout(2_000L) { request.await() },
+                )
+            }
+            // 本地播放通道不得解析条目详情（离线断网时 getItem 必失败）。
+            assertEquals(0, fixture.getItemCalls)
+            assertEquals(emptyList<String>(), fixture.viewModel.state.value.selection)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `non music or unfinished entries keep the detail resolution path`() {
+        val task = task("music-running", "source-running").copy(mediaKind = DownloadMediaKind.MUSIC)
+        val fixture = Fixture(tasks = listOf(task), outcomes = emptyMap())
+        try {
+            fixture.start()
+            fixture.waitUntil("active task was not published") {
+                fixture.viewModel.state.value.activeContainers.isNotEmpty()
+            }
+            val key = taskKey(task)
+
+            assertFalse(
+                "进行中的音乐条目不应直接起播",
+                fixture.viewModel.playMusicEntry(key),
+            )
+            assertEquals(0, fixture.getItemCalls)
+        } finally {
             fixture.close()
         }
     }
@@ -1010,6 +1073,9 @@ class DownloadsViewModelDeletionTest {
         val queueChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
         val deleteRequests = mutableListOf<List<DownloadDeleteRequest>>()
         val unhandled = mutableListOf<Throwable>()
+
+        /** W9-T5（F4）：`getItem` 详情解析调用计数（本地播放通道必须为 0）。 */
+        var getItemCalls = 0
         var deleteGate: CompletableDeferred<Unit>? = null
         val deleteGates = mutableMapOf<String, CompletableDeferred<Unit>>()
         private val context = TestContext(createTempDirectory().toFile())
@@ -1061,7 +1127,7 @@ class DownloadsViewModelDeletionTest {
             DownloadsViewModel(
                     context = context,
                     downloader = downloader,
-                    repository = repositoryProxy(downloads, episodeHierarchy),
+                    repository = repositoryProxy(downloads, episodeHierarchy) { getItemCalls += 1 },
                     readerRepository = readerRepositoryProxy(),
                     offlineMediaRepository = offlineRepositoryProxy(),
                     bookCoverProvider = bookCoverProvider(),
@@ -1205,10 +1271,15 @@ class DownloadsViewModelDeletionTest {
         private fun repositoryProxy(
             downloads: List<FindroidItem>,
             episodeHierarchy: List<DownloadedEpisodeHierarchy>,
+            onGetItem: () -> Unit = {},
         ): JellyfinRepository =
             proxy(JellyfinRepository::class.java) { method, _ ->
                 when (method.name) {
                     "getDownloads" -> downloads
+                    "getItem" -> {
+                        onGetItem()
+                        null
+                    }
                     "getEpisodeHierarchyWithSources" -> episodeHierarchy
                     "getMusicTrackMetadata" ->
                         downloads.filterIsInstance<FindroidMovie>().associate { item ->
