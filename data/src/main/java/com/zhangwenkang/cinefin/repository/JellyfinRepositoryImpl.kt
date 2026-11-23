@@ -23,6 +23,7 @@ import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.FindroidSource
+import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.models.FindroidTag
 import com.zhangwenkang.cinefin.models.SortBy
 import com.zhangwenkang.cinefin.models.SortOrder
@@ -1820,7 +1821,8 @@ class JellyfinRepositoryImpl(
             localLibrary.syntheticSources(itemId)?.let {
                 return@withContext it
             }
-            completedLocalSource(itemId)?.let {
+            // W9-T5（F4）：已下载条目（按 itemId 直查下载记录，不依赖当前会话身份）优先直开本地文件。
+            getDownloadedLocalSource(itemId)?.let {
                 return@withContext listOf(it)
             }
             /*
@@ -1905,6 +1907,41 @@ class JellyfinRepositoryImpl(
                 it.isAvailableForSourceSelection()
             }
         }
+
+    /**
+     * W9-T5（F4）：离线 / 已下载条目的本地播放源。
+     *
+     * 口径 = 「下载行里这个 itemId 的 LOCAL 源 + 文件真的在」：不看当前会话的 serverId / userId（下载行自身带着身份），
+     * 也不要求状态列的文本与当前枚举完全一致（历史 / 旧引擎写下的状态只用于诊断）；`.download` 残片与缺失文件不算。 只查本机数据库，不发任何网络请求。
+     */
+    override suspend fun getDownloadedLocalSource(itemId: UUID): FindroidSource? =
+        withContext(Dispatchers.IO) {
+            val candidates =
+                database.getSources(itemId).map { dto -> dto.toFindroidSource(database) }
+            val playable = candidates.firstOrNull { source -> source.isPlayableDownloadedFile() }
+            if (playable == null && candidates.isNotEmpty()) {
+                Timber.d(
+                    "已下载本地源未命中：item=%s candidates=%s",
+                    itemId,
+                    candidates.joinToString { source ->
+                        "${source.id}(${source.type},${source.downloadTaskStatus},${source.path})"
+                    },
+                )
+            }
+            playable
+        }
+
+    /** 本地文件存在且不是 `.download` 残片（`content://` 视为可读文档）。 */
+    private fun FindroidSource.isPlayableDownloadedFile(): Boolean {
+        if (type != FindroidSourceType.LOCAL) return false
+        val rawPath = path.trim()
+        if (rawPath.isEmpty() || rawPath.endsWith(".download", ignoreCase = true)) {
+            return false
+        }
+        if (rawPath.startsWith("content://", ignoreCase = true)) return true
+        return runCatching { File(rawPath).let { file -> file.isFile && file.length() > 0L } }
+            .getOrDefault(false)
+    }
 
     override suspend fun getStreamUrl(itemId: UUID, mediaSourceId: String): String =
         withContext(Dispatchers.IO) {

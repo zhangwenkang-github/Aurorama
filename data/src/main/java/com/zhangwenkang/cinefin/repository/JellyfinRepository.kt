@@ -148,6 +148,14 @@ interface JellyfinRepository {
         startPositionTicks: Long = 0L,
     ): List<FindroidSource>
 
+    /**
+     * W9-T5（F4）：本机**已下载**条目的本地播放源（离线直开文件，绝不打服务器）。
+     *
+     * 语义：按 itemId 直查下载记录，**不依赖当前会话身份**——下载行自带 serverId / userId / 文件路径，播放只需要本机文件； 只有「LOCAL 源 + 非
+     * `.download` 残片 + 文件存在」才返回非空。默认实现返回 null（不提供本地下载的仓库）。
+     */
+    suspend fun getDownloadedLocalSource(itemId: UUID): FindroidSource? = null
+
     suspend fun getStreamUrl(itemId: UUID, mediaSourceId: String): String
 
     /**

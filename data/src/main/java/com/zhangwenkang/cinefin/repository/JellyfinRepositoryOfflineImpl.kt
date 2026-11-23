@@ -19,6 +19,7 @@ import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.FindroidShowDto
 import com.zhangwenkang.cinefin.models.FindroidSource
+import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.models.FindroidTag
 import com.zhangwenkang.cinefin.models.SortBy
 import com.zhangwenkang.cinefin.models.SortOrder
@@ -412,6 +413,25 @@ class JellyfinRepositoryOfflineImpl(
                 return@withContext it
             }
             database.getSources(itemId).map { it.toFindroidSource(database) }
+        }
+
+    /** W9-T5（F4）：与在线实现同口径——按 itemId 直查下载行，本地文件在即返回（离线模式不打服务器）。 */
+    override suspend fun getDownloadedLocalSource(itemId: UUID): FindroidSource? =
+        withContext(Dispatchers.IO) {
+            val candidates =
+                database.getSources(itemId).map { dto -> dto.toFindroidSource(database) }
+            candidates.firstOrNull { source ->
+                source.type == FindroidSourceType.LOCAL &&
+                    source.path.trim().let { path ->
+                        path.isNotEmpty() &&
+                            !path.endsWith(".download", ignoreCase = true) &&
+                            (path.startsWith("content://", ignoreCase = true) ||
+                                runCatching {
+                                        File(path).let { file -> file.isFile && file.length() > 0L }
+                                    }
+                                    .getOrDefault(false))
+                    }
+            }
         }
 
     override suspend fun getStreamUrl(itemId: UUID, mediaSourceId: String): String {

@@ -52,6 +52,15 @@ constructor(
         localUri?.let { uri ->
             return localPlayerItem(uri).withLocalReadability()
         }
+        /*
+         * W9-T5（F4）：已下载曲目先把本机文件交给播放器——按 itemId 直查下载记录（下载行自带身份），
+         * 不依赖当前会话 identity，也不发 PlaybackInfo / 任何网络请求；断网时绝不会退化成 HTTP 流。
+         */
+        repository.getDownloadedLocalSource(itemId)?.let { downloaded ->
+            Timber.d("已下载曲目直开本地文件：item=%s path=%s", itemId, downloaded.path)
+            return localPlayerItem(downloaded.path, mediaSourceId = downloaded.id)
+                .withLocalReadability()
+        }
         val sources = repository.getMediaSources(itemId, includePath = true)
         val source =
             sources.firstOrNull { it.type == FindroidSourceType.LOCAL }

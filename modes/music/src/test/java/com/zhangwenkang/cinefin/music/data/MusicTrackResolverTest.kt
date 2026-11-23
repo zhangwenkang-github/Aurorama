@@ -18,6 +18,8 @@ import org.junit.Test
 class MusicTrackResolverTest {
 
     private val itemId = UUID.fromString("354cc62f-e51d-ae66-693d-6e12d747e56b")
+    private val localPath =
+        "/storage/emulated/0/Android/data/io.github.zhangwenkang.aurorama/files/downloads/song.g1"
 
     private fun downloadedSong() =
         MusicSong(
@@ -30,59 +32,75 @@ class MusicTrackResolverTest {
             imageUri = null,
         )
 
-    @Test
-    fun `downloaded song routes to the local file without server item or stream requests`() =
-        runBlocking {
-            val localPath =
-                "/storage/emulated/0/Android/data/io.github.zhangwenkang.aurorama/files/downloads/song.g1"
-            val repository = mockk<JellyfinRepository>()
-            coEvery {
-                repository.getMediaSources(itemId, includePath = true, startPositionTicks = 0L)
-            } returns
-                listOf(
-                    FindroidSource(
-                        id = "local-source",
-                        name = "本地文件",
-                        type = FindroidSourceType.LOCAL,
-                        path = localPath,
-                        size = 28_367_204L,
-                        mediaStreams = emptyList(),
-                        downloadTaskStatus = "COMPLETED",
-                    )
-                )
-            val resolver =
-                MusicTrackResolver(
-                    repository = repository,
-                    appPreferences = mockk<AppPreferences>(relaxed = true),
-                    context = mockk<Context>(relaxed = true),
-                )
+    private fun localSource() =
+        FindroidSource(
+            id = "local-source",
+            name = "本地文件",
+            type = FindroidSourceType.LOCAL,
+            path = localPath,
+            size = 28_367_204L,
+            mediaStreams = emptyList(),
+            downloadTaskStatus = "COMPLETED",
+        )
 
-            val item = resolver.toPlayerItem(downloadedSong())
+    private fun resolver(repository: JellyfinRepository) =
+        MusicTrackResolver(
+            repository = repository,
+            appPreferences = mockk<AppPreferences>(relaxed = true),
+            context = mockk<Context>(relaxed = true),
+        )
+
+    @Test
+    fun `downloaded song resolves the local file without any server source request`() =
+        runBlocking {
+            val repository = mockk<JellyfinRepository>()
+            coEvery { repository.getDownloadedLocalSource(itemId) } returns localSource()
+            coEvery { repository.getMediaSources(any(), any(), any()) } throws
+                IllegalStateException("下载曲目不得再查 PlaybackInfo")
+            coEvery { repository.getMusicStreamUrl(any(), any()) } throws
+                IllegalStateException("下载曲目不得构造流地址")
+
+            val item = resolver(repository).toPlayerItem(downloadedSong())
 
             assertEquals(localPath, item.mediaSourceUri)
             assertEquals(TrackSourceType.LOCAL, item.trackSource?.sourceType)
-            coVerify(exactly = 1) {
-                repository.getMediaSources(itemId, includePath = true, startPositionTicks = 0L)
-            }
+            assertEquals("local-source", item.mediaSourceId)
+            coVerify(exactly = 1) { repository.getDownloadedLocalSource(itemId) }
+            coVerify(exactly = 0) { repository.getMediaSources(any(), any(), any()) }
+            coVerify(exactly = 0) { repository.getMusicStreamUrl(any(), any()) }
             coVerify(exactly = 0) { repository.getItem(any()) }
             coVerify(exactly = 0) { repository.getStreamUrl(any(), any()) }
-            coVerify(exactly = 0) { repository.getMusicStreamUrl(any(), any()) }
         }
+
+    /** 非下载来源（合成 LOCAL 源）仍走既有 PlaybackInfo 分支，不回归。 */
+    @Test
+    fun `local synthetic source keeps the existing source selection path`() = runBlocking {
+        val repository = mockk<JellyfinRepository>()
+        coEvery { repository.getDownloadedLocalSource(itemId) } returns null
+        coEvery {
+            repository.getMediaSources(itemId, includePath = true, startPositionTicks = 0L)
+        } returns listOf(localSource())
+
+        val item = resolver(repository).toPlayerItem(downloadedSong())
+
+        assertEquals(localPath, item.mediaSourceUri)
+        assertEquals(TrackSourceType.LOCAL, item.trackSource?.sourceType)
+        coVerify(exactly = 1) {
+            repository.getMediaSources(itemId, includePath = true, startPositionTicks = 0L)
+        }
+        coVerify(exactly = 0) { repository.getMusicStreamUrl(any(), any()) }
+    }
 
     @Test
     fun `local media library song never asks the repository for sources`() = runBlocking {
         val repository = mockk<JellyfinRepository>()
-        val resolver =
-            MusicTrackResolver(
-                repository = repository,
-                appPreferences = mockk<AppPreferences>(relaxed = true),
-                context = mockk<Context>(relaxed = true),
+
+        resolver(repository)
+            .toPlayerItem(
+                downloadedSong().copy(localUri = "content://media/external/audio/media/42")
             )
 
-        resolver.toPlayerItem(
-            downloadedSong().copy(localUri = "content://media/external/audio/media/42")
-        )
-
+        coVerify(exactly = 0) { repository.getDownloadedLocalSource(any()) }
         coVerify(exactly = 0) { repository.getMediaSources(any(), any(), any()) }
         coVerify(exactly = 0) { repository.getItem(any()) }
     }
