@@ -36,9 +36,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
@@ -204,7 +206,10 @@ fun FilmSearchBar(
         },
         expanded = expanded,
         onExpandedChange = { onExpand(it) },
-        modifier = modifier.padding(start = searchBarPaddingStart, end = searchBarPaddingEnd),
+        modifier =
+            modifier
+                .freeSearchBarHeight()
+                .padding(start = searchBarPaddingStart, end = searchBarPaddingEnd),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             LazyRow(
@@ -402,6 +407,21 @@ fun FilmSearchBar(
         }
     }
 }
+
+/**
+ * M3 展开态 `SearchBar` 要求父布局不限制尺寸（踩坑 55）：`minHeight == maxHeight` 的固定约束会让 `defaultStartHeight`
+ * 被钳到整屏，输入框撑满、结果区 maxHeight 变 0。
+ *
+ * 搜索页作为导航目的地根节点时，NavHost 的 `AnimatedContent` 会以 `fillMaxSize` 的固定约束测量本组件， 因此这里在测量前把最小高度放宽为 0，高度仍由
+ * `SearchBar` 按 maxHeight 自行计算。
+ */
+private fun Modifier.freeSearchBarHeight(): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(searchBarMeasureConstraints(constraints))
+    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+}
+
+internal fun searchBarMeasureConstraints(constraints: Constraints): Constraints =
+    constraints.copy(minHeight = 0)
 
 private val SearchCategories =
     listOf(

@@ -81,7 +81,8 @@ fun SearchScreen(
             }
             viewModel.onAction(action)
         },
-        // M3 展开态 SearchBar 需要父布局不固定高度；固定 min=max 会把结果区压成 0 高。
+        // 本页是导航目的地根节点，NavHost 的 AnimatedContent 以 fillMaxSize 固定 min=max 约束测量这里；
+        // FilmSearchBar 内部会把最小高度放宽为 0（M3 展开态 SearchBar 在固定高度约束下结果区会被压成 0 高）。
         modifier = Modifier.fillMaxWidth(),
     )
 }
