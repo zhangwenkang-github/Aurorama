@@ -957,7 +957,7 @@ class DownloaderImplRecoveryTest {
         fun property(name: String): Any? = value.javaClass.getMethod(name).invoke(value)
 
         val constructor =
-            FindroidMovie::class.java.declaredConstructors.single { it.parameterCount == 26 }
+            FindroidMovie::class.java.declaredConstructors.single { it.parameterCount == 27 }
         return constructor.newInstance(
             property("getId"),
             property("getName"),
@@ -985,6 +985,7 @@ class DownloaderImplRecoveryTest {
             property("getChapters"),
             property("getTrickplayInfo"),
             property("getKind"),
+            property("getCanDelete"),
         ) as FindroidMovie
     }
 
