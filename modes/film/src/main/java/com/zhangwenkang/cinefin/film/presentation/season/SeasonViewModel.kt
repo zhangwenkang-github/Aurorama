@@ -7,6 +7,7 @@ import com.zhangwenkang.cinefin.film.presentation.detail.DetailWriteEvent
 import com.zhangwenkang.cinefin.film.presentation.detail.LatestContentRequest
 import com.zhangwenkang.cinefin.film.presentation.detail.toDetailWriteEvent
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.UserDataEvents
 import com.zhangwenkang.cinefin.repository.localStateChanged
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
@@ -14,6 +15,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -30,6 +32,16 @@ class SeasonViewModel @Inject constructor(private val repository: JellyfinReposi
     private val contentRequests = LatestContentRequest()
 
     lateinit var seasonId: UUID
+
+    init {
+        // W9-T6 ⑩：删除服务器条目后仓库广播内容变更。季页可能被集详情页盖住，回到本页时只依赖
+        // RESUMED 重取会受时序影响；这里在广播当下就重载，集数（头部「季 · N」）与列表同步刷新。
+        viewModelScope.launch {
+            UserDataEvents.contentVersion.drop(1).collect {
+                if (::seasonId.isInitialized) loadSeason(seasonId)
+            }
+        }
+    }
 
     fun loadSeason(seasonId: UUID) {
         this.seasonId = seasonId
