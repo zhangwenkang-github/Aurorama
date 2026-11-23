@@ -203,12 +203,32 @@ class JellyfinRepositoryImpl(
         this.originApiFactory = originApiFactory
     }
 
-    /** W34：下载页轮询会重复取同一批封面 / 专辑元数据，用短 TTL 缓存避免每轮都打服务器。 */
-    private val primaryImageUrls = java.util.concurrent.ConcurrentHashMap<UUID, String>()
+    /**
+     * W34：下载页轮询会重复取同一批封面 / 专辑元数据，用短 TTL 缓存避免每轮都打服务器。
+     *
+     * W9-T6（WRITE-11）：缓存必须带身份——同一 60s 窗口内切服 / 切号后，旧主机的封面 URL 与曲库元数据不得串给新身份。
+     */
+    private data class RepositoryCacheIdentity(val baseUrl: String, val userId: UUID)
+
+    private data class PrimaryImageCacheKey(
+        val identity: RepositoryCacheIdentity,
+        val itemId: UUID,
+    )
+
+    private val primaryImageUrls =
+        java.util.concurrent.ConcurrentHashMap<PrimaryImageCacheKey, String>()
     private val imageUrlCacheAt = java.util.concurrent.atomic.AtomicLong(0L)
     private val musicTrackCache =
-        java.util.concurrent.atomic.AtomicReference<Map<UUID, MusicTrackMetadata>>(emptyMap())
+        java.util.concurrent.atomic.AtomicReference<
+            Pair<RepositoryCacheIdentity, Map<UUID, MusicTrackMetadata>>?
+        >(
+            null
+        )
     private val musicTrackCacheAt = java.util.concurrent.atomic.AtomicLong(0L)
+
+    private fun repositoryCacheIdentity(userId: UUID): RepositoryCacheIdentity =
+        RepositoryCacheIdentity(baseUrl = getBaseUrl().trimEnd('/'), userId = userId)
+
     private val originApis = java.util.concurrent.ConcurrentHashMap<JellyfinOrigin, JellyfinApi>()
     private var originApiFactory: ((JellyfinOrigin) -> JellyfinApi)? = null
     private val catalogScopeResolver =
@@ -2431,15 +2451,17 @@ class JellyfinRepositoryImpl(
 
     override suspend fun getPrimaryImageUrl(itemId: UUID): String? =
         withContext(Dispatchers.IO) {
+            val userId = jellyfinApi.userId ?: return@withContext null
+            val identity = repositoryCacheIdentity(userId)
             val now = System.currentTimeMillis()
             if (now - imageUrlCacheAt.get() > CACHE_TTL_MS) {
                 primaryImageUrls.clear()
                 imageUrlCacheAt.set(now)
             }
-            primaryImageUrls[itemId]?.let {
+            val cacheKey = PrimaryImageCacheKey(identity = identity, itemId = itemId)
+            primaryImageUrls[cacheKey]?.let {
                 return@withContext it
             }
-            val userId = jellyfinApi.userId ?: return@withContext null
             val url = runCatching {
                 jellyfinApi.userLibraryApi.getItem(itemId, userId).content
             }
@@ -2447,7 +2469,7 @@ class JellyfinRepositoryImpl(
                 ?.imageTags
                 ?.get(ImageType.PRIMARY)
                 ?.let { tag -> ImageCacheRules.primaryImageUrl(getBaseUrl(), itemId, tag) }
-            url?.let { primaryImageUrls[itemId] = it }
+            url?.let { primaryImageUrls[cacheKey] = it }
             url
         }
 
@@ -2463,12 +2485,15 @@ class JellyfinRepositoryImpl(
 
     override suspend fun getMusicTrackMetadata(): Map<UUID, MusicTrackMetadata> =
         withContext(Dispatchers.IO) {
-            val now = System.currentTimeMillis()
-            if (now - musicTrackCacheAt.get() <= CACHE_TTL_MS) {
-                return@withContext musicTrackCache.get()
-            }
             val userId = jellyfinApi.userId ?: return@withContext emptyMap()
-            val baseUrl = getBaseUrl().trimEnd('/')
+            val identity = repositoryCacheIdentity(userId)
+            val now = System.currentTimeMillis()
+            musicTrackCache.get()?.let { (cachedIdentity, tracks) ->
+                if (cachedIdentity == identity && now - musicTrackCacheAt.get() <= CACHE_TTL_MS) {
+                    return@withContext tracks
+                }
+            }
+            val baseUrl = identity.baseUrl
             runCatching {
                 jellyfinApi.itemsApi
                     .getItems(
@@ -2497,8 +2522,8 @@ class JellyfinRepositoryImpl(
                     )
                 }
                 .associateBy { it.itemId }
-                .also {
-                    musicTrackCache.set(it)
+                .also { tracks ->
+                    musicTrackCache.set(identity to tracks)
                     musicTrackCacheAt.set(now)
                 }
         }
