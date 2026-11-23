@@ -98,6 +98,13 @@ class DownloaderImplRecoveryTest {
         method.invoke(this)
     }
 
+    /** W9-T1：把内存代次直接推高，复现「内存代次领先于 DB 行」的 claim 拒绝状态。 */
+    private suspend fun DownloaderImpl.adoptGenerationForTest(sourceId: String, generation: Long) {
+        val field = DownloaderImpl::class.java.getDeclaredField("lifecycleControl")
+        field.isAccessible = true
+        (field.get(this) as DownloadSourceControl).adoptGeneration(sourceId, generation)
+    }
+
     @Test
     fun `resume_without_new_bytes_refreshes_foreground_snapshot`() = runBlocking {
         val fixture = Fixture()
@@ -1356,6 +1363,66 @@ class DownloaderImplRecoveryTest {
                     }
                 )
             }
+        } finally {
+            fixture.close()
+        }
+    }
+
+    /** W9-T1（W7-F7）：同进程「删除 → 再入队」后引擎必须真实领取并完成新代次任务，而不是永久拒绝 claim。 */
+    @Test
+    fun `同进程删除后重入队 runQueue 必须领取并完成新代次`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val movie = fixture.movie()
+            val (firstHandle, firstError) = fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+            assertTrue("首次入队应成功：$firstError", firstHandle >= 0L)
+            assertNull(firstError)
+            assertTrue("首次入队的 source 应可删除", fixture.downloader.deleteTaskById(SOURCE_ID))
+            assertNull("删除后 source 行必须移除", fixture.dao.sourceById(SOURCE_ID))
+
+            val (secondHandle, secondError) = fixture.downloader.downloadItem(movie, SOURCE_ID, 0)
+            assertTrue("删除后重入队应成功：$secondError", secondHandle >= 0L)
+            assertNull(secondError)
+            val reinserted = requireNotNull(fixture.dao.sourceById(SOURCE_ID))
+            assertEquals(DownloadTaskStatus.PENDING.name, reinserted.taskStatus)
+
+            val outcome = fixture.downloader.runQueue()
+
+            assertEquals(
+                "代次错位会让 claim 永久拒绝（W7-F7）：$reinserted",
+                1,
+                outcome.ranTasks,
+            )
+            assertFalse("首轮即可领取，不得再排待处理重试", outcome.hasPendingTasks)
+            assertTrue("新代次必须真正执行下载", fixture.transfer.startedPaths().isNotEmpty())
+            assertEquals(
+                DownloadTaskStatus.COMPLETED.name,
+                fixture.dao.sourceById(SOURCE_ID)?.taskStatus,
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    /** W9-T1（W7-F7）：claim 被拒绝时必须打原因并有界退避，不得 0 延迟重排 worker 自旋。 */
+    @Test
+    fun `claim 被代次拒绝时 runQueue 必须有界退避`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val source = fixture.seedPendingSource(ITEM_ID, SOURCE_ID)
+            fixture.downloader.adoptGenerationForTest(SOURCE_ID, source.taskGeneration + 1L)
+
+            val outcome = fixture.downloader.runQueue()
+
+            assertEquals("claim 被拒绝时不得执行任务", 0, outcome.ranTasks)
+            assertTrue(outcome.hasPendingTasks)
+            assertTrue(outcome.shouldRetry)
+            val delayMs = fixture.workGateway.uniqueRequests.last().third.workSpec.initialDelay
+            assertTrue("claim 拒绝后必须 ≥1000ms 有界退避，实际 $delayMs", delayMs >= 1_000L)
+            assertTrue(
+                "必须记录 claim 拒绝原因：${fixture.logs.takeLast(5)}",
+                fixture.logs.any { it.contains("退避重试") },
+            )
         } finally {
             fixture.close()
         }

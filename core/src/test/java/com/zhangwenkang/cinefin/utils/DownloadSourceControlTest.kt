@@ -197,6 +197,50 @@ class DownloadSourceControlTest {
     }
 
     @Test
+    fun `同进程删除后入队必须 adopt 新代次才能 claim`() = runBlocking {
+        val control = DownloadSourceControl()
+        assertTrue(control.claim("source", generation = 4L) { true })
+        control.withCommand("source", expectedGeneration = 4L) {
+            DownloadSourceCommandResult(Unit, nextGeneration = 5L)
+        }
+        // 删除收尾保留最后见过的代次（DownloaderImpl 删除链 :3792）。
+        control.forget("source", retainedGeneration = 5L)
+
+        val enqueuedGeneration = control.nextEnqueueGeneration("source", persistedGeneration = 0L)
+        assertEquals(6L, enqueuedGeneration)
+
+        val rejectedDatabaseClaim = AtomicBoolean()
+        assertFalse(
+            "未 adopt 时 claim 必须被内存旧代次拒绝（W7-F7 根因）",
+            control.claim("source", enqueuedGeneration) {
+                rejectedDatabaseClaim.set(true)
+                true
+            },
+        )
+        assertFalse("被拒绝的 claim 不得触达 DB", rejectedDatabaseClaim.get())
+
+        control.adoptGeneration("source", enqueuedGeneration)
+        assertTrue("adopt 后同代次必须可 claim", control.claim("source", enqueuedGeneration) { true })
+    }
+
+    @Test
+    fun `adoptGeneration 只增不减`() = runBlocking {
+        val control = DownloadSourceControl()
+        control.adoptGeneration("source", generation = 7L)
+        control.adoptGeneration("source", generation = 3L)
+
+        val rejectedDatabaseClaim = AtomicBoolean()
+        assertFalse(
+            control.claim("source", generation = 3L) {
+                rejectedDatabaseClaim.set(true)
+                true
+            }
+        )
+        assertFalse("代次倒退的 claim 不得触达 DB", rejectedDatabaseClaim.get())
+        assertTrue(control.claim("source", generation = 7L) { true })
+    }
+
+    @Test
     fun `Job 在 source 锁被占用时取消，finally 仍能释放 active claim`() = runBlocking {
         val control = DownloadSourceControl()
         val claimed = CompletableDeferred<Unit>()

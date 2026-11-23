@@ -1041,6 +1041,9 @@ private constructor(
                         true
                     }
                 if (!committed) return@withSourceOperation Pair(-1L, null)
+                // W9-T1（W7-F7）：行已落库，必须把该代次回写内存；否则同进程「删除 → 再入队」后 claim 会拿
+                // forget 保留的旧代次与 DB 新代次比对而永久拒绝。
+                lifecycleControl.adoptGeneration(sourceId, taskGeneration)
                 notifyQueueChanged()
                 ensureEngineRunning(forceStart = true)
                 Pair(handle, null)
@@ -1955,11 +1958,14 @@ private constructor(
         }
         var ran = 0
         while (true) {
+            var claimedThisRound = 0
+            val ranBefore = ran
             ran +=
                 queuePump.run(
                     maxConcurrentTasks = { maxConcurrentTasks },
                     claim = { limit ->
                         val claimedSources = claimRunnableTasks(limit)
+                        claimedThisRound += claimedSources.size
                         if (claimedSources.isNotEmpty() && !foregroundPublished) {
                             activateForegroundBeforeClaimedExecution?.let { activate ->
                                 activate(claimedSources)
@@ -1985,8 +1991,15 @@ private constructor(
             if (pendingSources.isNotEmpty()) {
                 // 任务级指数退避：按最近一个 nextRetryAt 安排下一次唤醒（带 CONNECTED 约束）。
                 val now = System.currentTimeMillis()
-                val nextWakeAt = pendingSources.minOf { it.nextRetryAt }
-                enqueueEngineWork(delayMs = (nextWakeAt - now).coerceAtLeast(0L))
+                enqueueEngineWork(
+                    delayMs =
+                        pendingRequeueDelayMs(
+                            pendingSources = pendingSources,
+                            ranThisRound = ran - ranBefore,
+                            claimedThisRound = claimedThisRound,
+                            now = now,
+                        )
+                )
                 return DownloadQueueOutcome(
                     ranTasks = ran,
                     hasPendingTasks = true,
@@ -2016,6 +2029,34 @@ private constructor(
                     shouldRetry = false,
                 )
         }
+    }
+
+    /**
+     * 待处理行存在时的重排延迟。
+     *
+     * 两类行必须区分：「未到 nextRetryAt」的行只需等到点；「已到点却 claim 被拒绝」的行若按 0 延迟重排 worker，就会形成 `执行 0，待处理 true`
+     * 的高频自旋（W7-F7 约 8.7 次/秒、CPU 满载）。后者统一退避 [CLAIM_REJECTION_MIN_DELAY_MS]， 并逐行打出拒绝原因，避免静默空转。
+     */
+    private suspend fun pendingRequeueDelayMs(
+        pendingSources: List<FindroidSourceDto>,
+        ranThisRound: Int,
+        claimedThisRound: Int,
+        now: Long,
+    ): Long {
+        val retryDelayMs = (pendingSources.minOf { it.nextRetryAt } - now).coerceAtLeast(0L)
+        if (ranThisRound > 0 || claimedThisRound > 0) return retryDelayMs
+        val claimable = pendingSources.filter { source -> source.nextRetryAt <= now }
+        if (claimable.isEmpty()) return retryDelayMs
+        claimable.forEach { source ->
+            Timber.w(
+                "下载引擎本轮未领取到任务，%d ms 后退避重试：%s（%s）",
+                CLAIM_REJECTION_MIN_DELAY_MS,
+                source.id,
+                lifecycleControl.claimRejectionReason(source.id, source.taskGeneration)
+                    ?: "DB 条件更新拒绝",
+            )
+        }
+        return maxOf(retryDelayMs, CLAIM_REJECTION_MIN_DELAY_MS)
     }
 
     private suspend fun activateForegroundBeforeClaimedExecution(
@@ -6238,6 +6279,9 @@ private constructor(
             NOTIFICATION_RETRY_ATTEMPTS * (NOTIFICATION_TRAILING_RETRY_LIMIT + 1)
         const val NOTIFICATION_RETRY_BASE_BACKOFF_MS = 100L
         const val NOTIFICATION_RETRY_MAX_BACKOFF_MS = 1_000L
+
+        /** W9-T1（W7-F7）：本轮 0 领取时的最小重排退避，杜绝 0 延迟重排 worker 的高频自旋。 */
+        const val CLAIM_REJECTION_MIN_DELAY_MS = 1_000L
 
         /** W63：节目 / 季快照缓存有效期。 */
         const val SNAPSHOT_TTL_MS = 10 * 60 * 1_000L

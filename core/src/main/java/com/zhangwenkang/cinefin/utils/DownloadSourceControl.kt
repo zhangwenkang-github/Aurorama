@@ -150,6 +150,36 @@ internal class DownloadSourceControl {
             )
         }
 
+    /**
+     * 入队行落库成功后，把该代次采用为本进程的当前代次（只增不减）。
+     *
+     * 同进程「删除 → 再入队」时 [forget] 会保留删除代次，而 [nextEnqueueGeneration] 只计算结果、不回写内存；若不 adopt， 之后的 [claim] /
+     * [withCommand] 会一直拿内存旧代次与 DB 新代次比对而永久拒绝。
+     */
+    suspend fun adoptGeneration(sourceId: String, generation: Long) {
+        lifecycleLock(sourceId).withLock {
+            val knownGeneration = generations[sourceId]
+            if (knownGeneration == null || knownGeneration < generation) {
+                generations[sourceId] = generation
+            }
+        }
+    }
+
+    /** claim 被内存拒绝的原因，仅用于拒绝后的诊断日志；`null` 表示内存侧不拒绝（拒绝来自 DB 条件更新）。 */
+    suspend fun claimRejectionReason(sourceId: String, generation: Long): String? =
+        lifecycleLock(sourceId).withLock {
+            val activeClaim = activeClaims[sourceId]
+            val knownGeneration = generations[sourceId]
+            when {
+                activeClaim != null && activeClaim != generation ->
+                    "source 已有代次 $activeClaim 的活动 claim"
+                activeClaim != null -> "source 同代次 claim 仍在进行"
+                knownGeneration != null && knownGeneration != generation ->
+                    "内存代次 $knownGeneration 与行代次 $generation 不一致"
+                else -> null
+            }
+        }
+
     suspend fun releaseClaim(sourceId: String, generation: Long) {
         withContext(NonCancellable) {
             lifecycleLock(sourceId).withLock { activeClaims.remove(sourceId, generation) }
