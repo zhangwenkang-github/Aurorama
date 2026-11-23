@@ -54,4 +54,6 @@
     <string name="users_activation_server_unavailable">無法連接伺服器，請檢查網路後重試</string>
     <string name="users_activation_user_unavailable">伺服器上找不到此使用者，仍保持離線模式</string>
     <string name="users_activation_unknown">未能啟用此使用者，仍保持離線模式</string>
+    <string name="users_activation_interrupted">切換被另一次操作打斷，請重試</string>
+    <string name="users_activation_identity_recovering">帳號狀態恢復中，請稍後重試</string>
 </resources>

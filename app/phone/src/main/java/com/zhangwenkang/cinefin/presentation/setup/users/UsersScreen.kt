@@ -257,6 +257,9 @@ private fun activationFailureStringRes(failure: SavedUserActivationFailure): Int
         SavedUserActivationFailure.USER_UNAVAILABLE ->
             SetupR.string.users_activation_user_unavailable
         SavedUserActivationFailure.UNKNOWN -> SetupR.string.users_activation_unknown
+        SavedUserActivationFailure.INTERRUPTED -> SetupR.string.users_activation_interrupted
+        SavedUserActivationFailure.IDENTITY_RECOVERING ->
+            SetupR.string.users_activation_identity_recovering
     }
 
 @PreviewScreenSizes

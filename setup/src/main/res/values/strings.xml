@@ -54,4 +54,6 @@
    <string name="users_activation_server_unavailable">Unable to connect to the server. Check your network and try again.</string>
    <string name="users_activation_user_unavailable">This user is unavailable on the server. Offline mode remains enabled.</string>
    <string name="users_activation_unknown">Could not activate this user. Offline mode remains enabled.</string>
+   <string name="users_activation_interrupted">The switch was interrupted by another account change. Try again.</string>
+   <string name="users_activation_identity_recovering">Account state is still being restored. Try again in a moment.</string>
 </resources>

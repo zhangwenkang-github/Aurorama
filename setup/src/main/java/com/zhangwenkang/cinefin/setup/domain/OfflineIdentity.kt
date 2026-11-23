@@ -71,6 +71,8 @@ enum class SavedUserActivationFailure {
     SERVER_UNAVAILABLE,
     USER_UNAVAILABLE,
     UNKNOWN,
+    INTERRUPTED,
+    IDENTITY_RECOVERING,
 }
 
 sealed interface SavedUserActivationResult {

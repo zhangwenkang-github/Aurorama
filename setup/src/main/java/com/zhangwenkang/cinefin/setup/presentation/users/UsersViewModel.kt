@@ -2,8 +2,11 @@ package com.zhangwenkang.cinefin.setup.presentation.users
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zhangwenkang.cinefin.identity.IdentityTransitionResult
 import com.zhangwenkang.cinefin.setup.domain.IdentityAttemptStaleException
+import com.zhangwenkang.cinefin.setup.domain.IdentityTransitionFailedException
 import com.zhangwenkang.cinefin.setup.domain.OfflineIdentityCoordinator
+import com.zhangwenkang.cinefin.setup.domain.SavedUserActivationFailure
 import com.zhangwenkang.cinefin.setup.domain.SavedUserActivationResult
 import com.zhangwenkang.cinefin.setup.domain.SetupRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -77,7 +80,25 @@ class UsersViewModel @Inject constructor(private val repository: SetupRepository
                 try {
                     offlineIdentityCoordinator.activateSavedUser(userId)
                 } catch (_: IdentityAttemptStaleException) {
-                    _state.emit(_state.value.copy(activatingUserId = null))
+                    _state.emit(
+                        _state.value.copy(
+                            activatingUserId = null,
+                            activationFailure = SavedUserActivationFailure.INTERRUPTED,
+                        )
+                    )
+                    return@launch
+                } catch (error: IdentityTransitionFailedException) {
+                    _state.emit(
+                        _state.value.copy(
+                            activatingUserId = null,
+                            activationFailure =
+                                when (error.result) {
+                                    IdentityTransitionResult.RECOVERING ->
+                                        SavedUserActivationFailure.IDENTITY_RECOVERING
+                                    else -> SavedUserActivationFailure.UNKNOWN
+                                },
+                        )
+                    )
                     return@launch
                 }
             when (result) {
