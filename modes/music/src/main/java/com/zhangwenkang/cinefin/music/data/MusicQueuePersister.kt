@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.music.data
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import com.zhangwenkang.cinefin.player.core.domain.models.isValidShuffleOrder
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackController
+import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -20,6 +21,8 @@ import kotlinx.coroutines.sync.withLock
  *
  * App 进程级单例：用户离开音乐页后（音乐仍在后台播放）位置照样持续落盘， 队列结构变化立即保存、播放位置按 [SAVE_INTERVAL_MS] 节流保存，杀进程 /
  * 重启后从最近一次快照恢复。 存档只写不清：音乐被视频抢占（`stop()`）时保留快照，下次进入音乐模式仍可恢复。
+ *
+ * W9-T5（F4b）：快照里的 http(s) 流地址只当「上个会话的地址提示」，读取时按本机已下载记录换成本地文件； 未下载的曲目留给起播路径按当前会话重解析。
  */
 @Singleton
 class MusicQueuePersister
@@ -28,6 +31,7 @@ constructor(
     private val store: MusicQueueStore,
     private val playbackController: MusicPlaybackController,
     private val appPreferences: AppPreferences,
+    private val repository: JellyfinRepository,
 ) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -50,7 +54,13 @@ constructor(
     }
 
     /** 读取上次快照；用户在偏好里关闭恢复开关时返回 null。 */
-    suspend fun load(): MusicQueueSnapshot? = if (enabled()) store.load() else null
+    suspend fun load(): MusicQueueSnapshot? {
+        if (!enabled()) return null
+        val snapshot = store.load() ?: return null
+        return snapshot.withLocalDownloadedSources { itemId ->
+            runCatching { repository.getDownloadedLocalSource(itemId) }.getOrNull()
+        }
+    }
 
     /** 恢复态下的队列编辑（拖拽 / 移除）立即落盘。 */
     fun persistNow(queue: MusicQueue) {

@@ -38,6 +38,7 @@ import com.zhangwenkang.cinefin.music.data.ServerPlaylistCreateOutcome
 import com.zhangwenkang.cinefin.music.data.TrackRef
 import com.zhangwenkang.cinefin.music.data.groupAlbums
 import com.zhangwenkang.cinefin.music.data.groupArtists
+import com.zhangwenkang.cinefin.music.data.isLocalPlaybackUri
 import com.zhangwenkang.cinefin.music.data.isShuffle
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricEditLine
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsBilingualPreference
@@ -64,6 +65,7 @@ import com.zhangwenkang.cinefin.music.data.musicQueueInsertAt
 import com.zhangwenkang.cinefin.music.data.musicQueueRemoveAt
 import com.zhangwenkang.cinefin.music.data.next
 import com.zhangwenkang.cinefin.music.data.projectLocalPlaylistTrack
+import com.zhangwenkang.cinefin.music.data.reparsedForPlayback
 import com.zhangwenkang.cinefin.music.data.toLocalMusicSong
 import com.zhangwenkang.cinefin.music.data.toLocalPlaylistTrack
 import com.zhangwenkang.cinefin.music.data.toRepeatMode
@@ -358,6 +360,7 @@ constructor(
     private var lastLoggedWord: Pair<Int, Int>? = null
     private var refreshJob: Job? = null
     private var playJob: Job? = null
+    private var restorePlayJob: Job? = null
     private var nextPlayRequestId = 0L
     /** W82 #25：搜索路由要求起播的曲目（曲库尚未加载时暂存，加载完成后再播）。 */
     private var pendingRouteSongId: UUID? = null
@@ -2539,7 +2542,10 @@ constructor(
         playJob = viewModelScope.launch {
             val first =
                 try {
-                    snapshotItems[song.itemId] ?: trackResolver.toPlayerItem(song)
+                    // W9-T5（F4b）：歌单快照的流地址可能是上个会话的，只复用本地可播条目；其余按当前解析链重解析。
+                    snapshotItems[song.itemId]?.takeIf { item ->
+                        isLocalPlaybackUri(item.mediaSourceUri)
+                    } ?: trackResolver.toPlayerItem(song)
                 } catch (cancellation: CancellationException) {
                     throw cancellation
                 } catch (error: Exception) {
@@ -2635,7 +2641,8 @@ constructor(
         song: MusicSong,
         snapshotItems: Map<UUID, PlayerItem> = emptyMap(),
     ): PlayerItem? =
-        snapshotItems[song.itemId]
+        // W9-T5（F4b）：歌单快照只复用本地可播地址，服务器流地址按当前会话重解析。
+        snapshotItems[song.itemId]?.takeIf { item -> isLocalPlaybackUri(item.mediaSourceUri) }
             ?: try {
                 trackResolver.toPlayerItem(song)
             } catch (cancellation: CancellationException) {
@@ -2663,13 +2670,34 @@ constructor(
         }
     }
 
-    /** 恢复态下点播放 / 切歌：把恢复快照交给播放器（按保存位置续播），随后进入正常播放语义。 */
+    /**
+     * 恢复态下点播放 / 切歌：把恢复快照交给播放器（按保存位置续播），随后进入正常播放语义。
+     *
+     * W9-T5（F4b）：快照里的 http(s) 流地址是上个会话的产物（旧主机 / 旧账号 / 已断网），起播前按当前解析链重解析当前曲目；
+     * 下载曲在解析链内本地短路，离线也能直接命中本地文件。解析失败沿用快照条目，不阻断这次起播。
+     */
     private fun resumeRestored(queue: MusicQueue, index: Int) {
         // W5-T12：恢复态点播放 / 切歌 = 传输操作，Auto DJ 刹车计数清零。
         autoDjController.onUserTransportAction()
         if (index !in queue.items.indices) return
-        _restoredQueue.value = null
-        playbackController.setQueue(queue, startIndex = index)
+        restorePlayJob?.cancel()
+        restorePlayJob = viewModelScope.launch {
+            val focus = queue.upNextPlaying ?: queue.items[index]
+            val reparsed = focus.reparsedForPlayback { song -> trackResolver.toPlayerItem(song) }
+            val ready =
+                if (queue.upNextPlaying != null) {
+                    queue.copy(upNextPlaying = reparsed)
+                } else {
+                    queue.copy(
+                        items =
+                            queue.items.mapIndexed { itemIndex, item ->
+                                if (itemIndex == index) reparsed else item
+                            }
+                    )
+                }
+            _restoredQueue.value = null
+            playbackController.setQueue(ready, startIndex = index)
+        }
     }
 
     /**

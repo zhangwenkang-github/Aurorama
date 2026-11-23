@@ -5,6 +5,7 @@ import com.zhangwenkang.cinefin.database.music.StoredQueue
 import com.zhangwenkang.cinefin.database.music.StoredQueueItem
 import com.zhangwenkang.cinefin.database.music.StoredQueueKind
 import com.zhangwenkang.cinefin.database.music.StoredQueueState
+import com.zhangwenkang.cinefin.models.FindroidSource
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.QueueSource
@@ -15,8 +16,10 @@ import com.zhangwenkang.cinefin.player.core.domain.models.isValidShuffleOrder
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 
 /** 恢复出的队列与播放位置（位置已写回当前曲目的 `playbackPosition`，续播走既有 MU-9 语义）。 */
 data class MusicQueueSnapshot(
@@ -122,6 +125,90 @@ internal fun StoredQueue.toSnapshot(): MusicQueueSnapshot? {
     )
 }
 
+/**
+ * 恢复条目的媒体地址是否可以直接交给播放器（本地文件 / 文档 URI）。
+ *
+ * http(s) 流地址是上一个会话的产物：主机、`UserId` / `DeviceId` 与协商参数都可能已过期（换服务器 / 换账号 / 断网），
+ * 恢复时必须按当前解析链重解析，不能直接信任（W9-T5 F4b）。
+ */
+internal fun isLocalPlaybackUri(uri: String): Boolean =
+    uri.startsWith("content://", ignoreCase = true) ||
+        uri.startsWith("file://", ignoreCase = true) ||
+        uri.startsWith("/")
+
+/**
+ * 恢复快照按当前会话的已下载记录重解析条目（W9-T5 F4b）。
+ *
+ * 命中本机已下载文件时换成本地地址（离线可起播）；未命中保留原条目——网络解析交给起播路径，恢复本身不发请求。
+ */
+internal suspend fun MusicQueueSnapshot.withLocalDownloadedSources(
+    localSource: suspend (UUID) -> FindroidSource?
+): MusicQueueSnapshot {
+    var rebound = 0
+    suspend fun PlayerItem.rebased(): PlayerItem {
+        if (isLocalPlaybackUri(mediaSourceUri)) return this
+        val source =
+            localSource(itemId)?.takeIf { source -> source.path.isNotBlank() } ?: return this
+        rebound++
+        return copy(
+            mediaSourceUri = source.path,
+            mediaSourceId = source.id.ifBlank { mediaSourceId },
+            trackSource = localDownloadedTrackSource(source),
+            unavailable = false,
+        )
+    }
+
+    val items = queue.items.map { item -> item.rebased() }
+    val upNext = queue.upNext.map { item -> item.rebased() }
+    val upNextPlaying = queue.upNextPlaying?.rebased()
+    if (rebound == 0) return this
+    Timber.d("队列快照恢复：%d 条命中本机已下载文件", rebound)
+    return copy(queue = queue.copy(items = items, upNext = upNext, upNextPlaying = upNextPlaying))
+}
+
+/** 恢复条目 → 起播重解析用的 [MusicSong]（只需要 id / 名称 / 封面与快照续播位置）。 */
+internal fun PlayerItem.toRestoreMusicSong(): MusicSong =
+    MusicSong(
+        itemId = itemId,
+        name = name,
+        albumName = "",
+        artist = artist,
+        indexNumber = indexNumber,
+        runtimeTicks = 0L,
+        imageUri = thumbnailUri,
+        resumePositionMs = playbackPosition.coerceAtLeast(0L),
+    )
+
+/**
+ * 起播前按当前解析链重解析快照条目（W9-T5 F4b）。
+ *
+ * 本地地址直接复用；其余交给 [resolve]（[MusicTrackResolver] 内部先走 `getDownloadedLocalSource` 本地短路，
+ * 再按当前会话协商流地址）。解析失败沿用快照条目——离线且未下载的曲目维持既有「打不开后跳过」行为， 不因重解析让起播整体失败。
+ */
+internal suspend fun PlayerItem.reparsedForPlayback(
+    resolve: suspend (MusicSong) -> PlayerItem
+): PlayerItem {
+    if (isLocalPlaybackUri(mediaSourceUri)) return this
+    val resolved =
+        try {
+            resolve(toRestoreMusicSong())
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: Exception) {
+            Timber.w(error, "恢复条目重解析失败，沿用快照地址：%s", name)
+            return this
+        }
+    return resolved.copy(playbackPosition = playbackPosition.coerceAtLeast(0L))
+}
+
+private fun localDownloadedTrackSource(source: FindroidSource): TrackSource =
+    TrackSource(
+        id = source.id,
+        sourceType = TrackSourceType.LOCAL,
+        streamUrl = source.path,
+        isTranscoded = false,
+    )
+
 internal fun decodeShuffleOrder(raw: String?): List<Int>? {
     if (raw.isNullOrBlank()) return null
     return raw.split(',').map { part -> part.trim().toIntOrNull() ?: return null }
@@ -161,13 +248,13 @@ private fun StoredQueueItem.toPlayerItemOrNull(): PlayerItem? {
 }
 
 /**
- * 冷启动恢复队列没有 [TrackSource] 快照，按地址回推最少语义（MUSIC-01/03）： 本地 `content://` =
- * LOCAL；`/Audio/{id}/universal` 且带转码参数 = 仍在转码。
+ * 冷启动恢复队列没有 [TrackSource] 快照，按地址回推最少语义（MUSIC-01/03）： 本地文件 / 文档 URI = LOCAL；`/Audio/{id}/universal`
+ * 且带转码参数 = 仍在转码。
  *
  * 只回推「来源类型 + 是否转码」，codec / 码率等保持 null（未知 ≠ 直连证据），避免恢复后 UI 误标。
  */
 internal fun restoredTrackSource(uri: String): TrackSource {
-    val local = uri.startsWith("content://", ignoreCase = true)
+    val local = isLocalPlaybackUri(uri)
     val universal = !local && uri.contains(UNIVERSAL_AUDIO_PATH, ignoreCase = true)
     val transcoded =
         universal &&
