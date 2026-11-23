@@ -353,6 +353,7 @@ internal class BookDownloadManager(
     private val deleteFile: (File) -> Boolean = { file ->
         !file.exists() || runCatching { file.delete() }.getOrDefault(false)
     },
+    private val notificationSink: BookDownloadNotificationSink = BookDownloadNotificationSink.None,
     private val clock: () -> Long = System::currentTimeMillis,
     private val alreadyDownloadedDeadlineMs: Long = 1_000L,
 ) {
@@ -910,7 +911,7 @@ internal class BookDownloadManager(
                             updatedAtEpochMillis = clock(),
                         )
                     saveLocked(failed)
-                    return@withLock CommitOutcome.ProvenanceFailed
+                    return@withLock CommitOutcome.ProvenanceFailed(failed)
                 }
                 val completed =
                     current.copy(
@@ -927,9 +928,14 @@ internal class BookDownloadManager(
                 CommitOutcome.Completed(completed)
             }
             when (committed) {
-                is CommitOutcome.Completed -> result.complete(target)
-                CommitOutcome.ProvenanceFailed ->
+                is CommitOutcome.Completed -> {
+                    notificationSink.onCompleted(committed.task)
+                    result.complete(target)
+                }
+                is CommitOutcome.ProvenanceFailed -> {
+                    notificationSink.onFailed(committed.task)
                     result.completeExceptionally(IOException("书籍来源记录写入失败，任务保持可重试"))
+                }
                 CommitOutcome.Superseded -> Unit
             }
         } catch (cancellation: CancellationException) {
@@ -948,11 +954,12 @@ internal class BookDownloadManager(
             if (isCurrent(task)) {
                 clearProvenance(task.itemId)
                 transitionIfCurrent(
-                    task,
-                    BookDownloadStatus.FAILED,
-                    "ERROR",
-                    error.message ?: "下载失败，请检查网络",
-                )
+                        task,
+                        BookDownloadStatus.FAILED,
+                        "ERROR",
+                        error.message ?: "下载失败，请检查网络",
+                    )
+                    ?.let(notificationSink::onFailed)
                 result.completeExceptionally(error)
             }
         } finally {
@@ -1440,7 +1447,8 @@ internal class BookDownloadManager(
     private sealed interface CommitOutcome {
         data class Completed(val task: BookDownloadTask) : CommitOutcome
 
-        data object ProvenanceFailed : CommitOutcome
+        /** 文件已落盘但来源记录写入失败；携带失败任务供通知层使用。 */
+        data class ProvenanceFailed(val task: BookDownloadTask) : CommitOutcome
 
         data object Superseded : CommitOutcome
     }

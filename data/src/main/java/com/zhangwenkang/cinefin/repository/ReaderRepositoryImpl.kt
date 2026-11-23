@@ -48,6 +48,7 @@ class ReaderRepositoryImpl(
     context: Context,
     private val jellyfinApi: JellyfinApi,
     private val appPreferences: AppPreferences,
+    bookDownloadNotificationSink: BookDownloadNotificationSink = BookDownloadNotificationSink.None,
 ) : ReaderRepository {
     private val appContext = context.applicationContext
     private val progressStore =
@@ -99,6 +100,7 @@ class ReaderRepositoryImpl(
                 val title = titleFileFor(itemId)
                 runCatching { !title.exists() || title.delete() }.getOrDefault(false)
             },
+            notificationSink = bookDownloadNotificationSink,
         )
 
     override val bookDownloads: StateFlow<List<BookDownloadTask>> = bookDownloadManager.tasks

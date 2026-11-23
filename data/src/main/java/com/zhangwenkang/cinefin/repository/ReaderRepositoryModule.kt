@@ -24,5 +24,12 @@ object ReaderRepositoryModule {
         @ApplicationContext context: Context,
         jellyfinApi: JellyfinApi,
         appPreferences: AppPreferences,
-    ): ReaderRepository = ReaderRepositoryImpl(context, jellyfinApi, appPreferences)
+        bookDownloadNotificationSink: BookDownloadNotificationSink,
+    ): ReaderRepository =
+        ReaderRepositoryImpl(
+            context,
+            jellyfinApi,
+            appPreferences,
+            bookDownloadNotificationSink,
+        )
 }
