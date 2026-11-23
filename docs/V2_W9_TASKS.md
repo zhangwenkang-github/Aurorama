@@ -8,6 +8,7 @@
 - 分支：`codex/v2-integration`；W9 基线 = W8 收官 HEAD（以 git log 为准）。
 - **裁定口径**：NOW = W9 本波次交付（P0 > P1 > P2，P0 = 数据丢失/资源耗尽级，P1 = 核心链路正确性，P2 = 小修与体验补齐）；LATER = 2.0 内不排期（W10/2.x 或挂 W5 链候选）；DROP = 不做或已另有出口。
 - **逐条裁定**：见下方「裁定汇总」两表（W7 来源 / W8 来源）；任务卡骨架见「任务卡」节——骨架只定目标/来源/边界/验收方向，**各卡开工时由 Kimi 定稿设计口径与完整验收要点**（设计分权不变）。
+- **T1/T2 已收口（2026-11-23 会话11，K60 真机验收全绿）**：T1=`441b5dc9`（`DownloadSourceControl.adoptGeneration` 入队 adopt 新代次 + claim 拒绝有界退避 ≥1s 带原因日志 + 引擎级测试真跑）；T2=`4b8edfe7`（toggle 拆 `downloadSong`/`cancelSongDownload`/`deleteSong`，下载入口永不删除、COMPLETED/队列中只提示；菜单按 `isDownloaded` 渲染「删除下载」；`projectLocalPlaylistTrack` 与最近播放（MusicDatabase v5→v6 加可空 serverId/userId 列 + `MIGRATION_5_6`）两条投影补 identity）；W8-T5 预存红测试收口=`2ee5f71d`。K60 链路实证：同进程删除→再入队 taskGeneration=3 直接 COMPLETED（修复前 claim 永久拒绝）、logcat 仅一条「下载完成：夜曲（26952162 字节）」、取消后 20s 日志零行（无自旋）、菜单「删除下载/取消下载/下载」三态渲染全对、删除三清（文件/sources/sidecar）。F1b 根因三候选定论 = ③identity 缺侧（两条投影路径丢 serverId/userId），①②被 K60 sidecar+Room 实证排除。
 - **设备与取证约束（新）**：Pad=43af8627 直连测试服 admin，**飞行模式测试禁用**（ZTE CPE 蜂窝脆弱，掉注册 47+ 分钟）——离线场景真机取证改用 K60=8e875894（生产服只读，浏览/离线播放等只读场景可用；一切写验证仍只用 Pad + 测试服）。写补偿末环（断网写→恢复补传）若需 Pad 断网，改用「关 Wi-Fi/拔 CPE 网线」等温和手段先试，触发异常即停止上报。
 - **通用约束（每卡继承，不在卡内复述）**：构建 `./gradlew.bat :app:phone:assembleDebug --console=plain` + 根 `ktfmtCheck` + 相关模块单测绿；每任务一子代理一 commit；子代理禁 adb；红线见 `AGENTS.md`；证据清单 = 构建/测试输出关键行 + diff 摘要，核心链路另需真机文本取证（Kimi 执行）。
 
@@ -111,6 +112,10 @@
 - **目标**：全域回归矩阵（播放/下载/服务器写/搜索/离线核心链路，K60+Pad 分工按设备纪律）+ 全模块单测/ktfmt/Release 构建 + 版本号与发布材料（参照 1.4.1 流程）；push/tag/GitHub Release 需用户授权。
 - Kimi 主导，1–2 卡；所有 NOW 卡收口后开工。
 
-## 裁定登记（W9 留白）
+## 裁定登记（W9）
 
-（W9 各卡验收产生的 ⚠️/观察项登记于此，供 2.0 发布前终裁。）
+- **T1 复核发现（F2 表述修正，会话11）**：代码中**不存在**「删除链取消引擎 worker」调用点（`cancelUnique` 仅用于图片任务）；PENDING 滞留可由「claim 被拒 + 0 延迟重排 + APPEND_OR_REPLACE 链」完整解释，T1 修复已覆盖。若真机再复现 PENDING 滞留，需新一轮取证另立。
+- **T2 遗留观察（会话11登记）**：①v5 之前旧最近播放行在再次播放前仍无 identity，菜单可能仍显「下载」，但点击走 sources 保底只提示不删（无害，T5 同域再评）；②拆分新增 `cancelSongDownload` 入口（原 toggle 取消能力的必要出口）；③长按 sheet 对本地媒体库曲目不再显示死入口「下载 · 离线」（去噪）；④取消下载后 sources 落 FAILED/CANCELLED（retry=0 不重试）+ `.download` 残片与 sidecar 记录暂留（既有语义，菜单正确回到「下载」、引擎静默）——残片清理策略维持现状，2.0 内不另立。
+- **W9-T3 旁证（会话11）**：K60 音乐内搜索同症状复现——`GET /Items?searchTerm=Nirvana&includeItemTypes=Audio` 正常发出、服务端有数据、结果区空白（18:35 取证），与 T7 复现一致，T3 开工可直接用此路径。
+- **W8-T5 回归收口（会话11）**：`adaptIsolatedFindroidMovie` 未随 FindroidMovie `canDelete`（27 参）同步致 2 条 core 测试红，`2ee5f71d` 已修，`:core:testDebugUnitTest` 481/481 绿。
+- **设备事实修正（会话11）**：K60 的 App 当前实际连**测试服** admin 会话（logcat URL 实证，非"生产只读"）；zhangwenkang/w8limited 存储 token 已 401 失效（切账号被拒根因，UI 无反馈），admin token 有效。
