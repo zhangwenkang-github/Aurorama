@@ -5,6 +5,7 @@ import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidSource
 import com.zhangwenkang.cinefin.utils.CanonicalDownloadAction
 import com.zhangwenkang.cinefin.utils.DownloadCanonicalIdentity
+import com.zhangwenkang.cinefin.utils.DownloadIndexReconciliationReport
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
 import com.zhangwenkang.cinefin.utils.DownloadTask
@@ -101,6 +102,9 @@ data class DownloadManagerState(
     val deletionRecoveryEntries: List<DownloadDeletionRecoveryEntry> = emptyList(),
     /** 最近一次已收敛批次的结果摘要；仅用于“已收敛 X/N”的用户可见投影。 */
     val deletionSummary: DownloadDeletionSummary? = null,
+    /** W9：下载索引对账（dry-run 先行；清理只删 orphanMedia）。 */
+    val indexReconciliation: DownloadIndexReconciliationState =
+        DownloadIndexReconciliationState.Idle,
 ) {
     val activeCount: Int
         get() = activeContainers.flatMap { it.descendantEntries() }.distinctBy { it.key }.size
@@ -354,6 +358,24 @@ data class CompletedDownload(
         get() = source != null
 }
 
+/**
+ * W9：下载索引对账对话框状态。
+ *
+ * [Ready] 是唯一允许清理的状态；[Scanning] / [Failed] 下没有可用报告，UI 不提供删除入口。
+ */
+sealed interface DownloadIndexReconciliationState {
+    data object Idle : DownloadIndexReconciliationState
+
+    data object Scanning : DownloadIndexReconciliationState
+
+    data class Ready(
+        val report: DownloadIndexReconciliationReport,
+        val deleting: Boolean = false,
+    ) : DownloadIndexReconciliationState
+
+    data object Failed : DownloadIndexReconciliationState
+}
+
 sealed interface DownloadAction {
     data class ToggleSelection(val key: String) : DownloadAction
 
@@ -446,6 +468,12 @@ sealed interface DownloadAction {
     data class DeleteCompleted(val download: CompletedDownload) : DownloadAction
 
     data class Open(val item: FindroidItem) : DownloadAction
+
+    /** W9：下载索引对账 dry-run（对话框随之打开）。 */
+    data object ReconcileIndex : DownloadAction
+
+    /** W9：删除对账报告里的孤儿媒体文件（只删 orphanMedia）。 */
+    data class DeleteOrphanIndexFiles(val relativePaths: List<String>) : DownloadAction
 }
 
 sealed interface DownloadPlaybackRequest {

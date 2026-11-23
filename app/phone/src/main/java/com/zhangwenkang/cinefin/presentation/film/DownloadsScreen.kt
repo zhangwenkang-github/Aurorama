@@ -89,6 +89,7 @@ import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadConfirmDialo
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadDrilldownHeader
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadGridBlock
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadGridGrouping
+import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadIndexReconcileDialog
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadLeafCard
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadListMetrics
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadListSkeleton
@@ -210,6 +211,8 @@ private fun DownloadsScreenLayout(
     val compact = LocalConfiguration.current.screenWidthDp < 600
     var tab by rememberSaveable { mutableStateOf(DownloadTab.ACTIVE) }
     var pendingDelete by remember { mutableStateOf<PendingDelete?>(null) }
+    /** W9：下载索引对账对话框；当前页面没有设置入口，按任务卡落在下载页。 */
+    var showIndexReconcile by remember { mutableStateOf(false) }
     /** W59：钻取详情页的容器 key；null = 顶层列表。 */
     var drilldownKey by rememberSaveable { mutableStateOf<String?>(null) }
     val drilldown = drilldownKey?.let { key -> state.containerFor(key) }
@@ -221,6 +224,7 @@ private fun DownloadsScreenLayout(
         tab = initialTab
         drilldownKey = null
         pendingDelete = null
+        showIndexReconcile = false
         onAction(DownloadAction.ClearSelection)
     }
 
@@ -345,11 +349,25 @@ private fun DownloadsScreenLayout(
                 )
             }
             Spacer(Modifier.height(CinefinSpacing.Space3))
-            StorageSummary(
-                storage = state.storage,
-                bookStorageBytes = state.bookStorageBytes,
-                modifier = Modifier.padding(horizontal = horizontalPadding),
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = horizontalPadding),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                StorageSummary(
+                    storage = state.storage,
+                    bookStorageBytes = state.bookStorageBytes,
+                    modifier = Modifier.weight(1f),
+                )
+                CinefinButton(
+                    text = stringResource(CoreR.string.download_index_reconcile),
+                    onClick = {
+                        onAction(DownloadAction.ReconcileIndex)
+                        showIndexReconcile = true
+                    },
+                    variant = CinefinButtonVariant.Text,
+                    size = CinefinButtonSize.Small,
+                )
+            }
             Spacer(Modifier.height(CinefinSpacing.Space3))
 
             Row(
@@ -559,6 +577,17 @@ private fun DownloadsScreenLayout(
                 onDismiss = { pendingDelete = null },
             )
         null -> Unit
+    }
+
+    if (showIndexReconcile) {
+        DownloadIndexReconcileDialog(
+            state = state.indexReconciliation,
+            onDelete = { relativePaths ->
+                onAction(DownloadAction.DeleteOrphanIndexFiles(relativePaths))
+            },
+            onRetry = { onAction(DownloadAction.ReconcileIndex) },
+            onDismiss = { showIndexReconcile = false },
+        )
     }
 }
 

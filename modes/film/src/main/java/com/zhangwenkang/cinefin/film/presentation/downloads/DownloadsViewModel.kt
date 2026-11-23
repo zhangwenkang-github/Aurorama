@@ -731,6 +731,55 @@ constructor(
             is DownloadAction.DeleteCompleted -> runCompletedDeletion(action.download)
             is DownloadAction.Open -> Unit
             is DownloadAction.OpenEntry -> Unit
+            DownloadAction.ReconcileIndex -> reconcileDownloadIndex()
+            is DownloadAction.DeleteOrphanIndexFiles -> deleteOrphanIndexFiles(action.relativePaths)
+        }
+    }
+
+    /** W9：下载索引对账 dry-run；失败时对话框显示重试入口，绝不把空快照当结果。 */
+    private fun reconcileDownloadIndex() {
+        val current = _state.value.indexReconciliation
+        if (
+            current is DownloadIndexReconciliationState.Scanning ||
+                current is DownloadIndexReconciliationState.Ready && current.deleting
+        ) {
+            return
+        }
+        _state.update { it.copy(indexReconciliation = DownloadIndexReconciliationState.Scanning) }
+        actionScope().launch {
+            val next = scanDownloadIndex()
+            _state.update { it.copy(indexReconciliation = next) }
+        }
+    }
+
+    private suspend fun scanDownloadIndex(): DownloadIndexReconciliationState =
+        try {
+            DownloadIndexReconciliationState.Ready(downloader.reconcileDownloadIndex())
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: Exception) {
+            Timber.w(error, "下载索引对账失败")
+            DownloadIndexReconciliationState.Failed
+        }
+
+    /** W9：只删 orphanMedia；删除后立即重新对账，仍失败的条目会留在新报告里，已删除的消失。 */
+    private fun deleteOrphanIndexFiles(relativePaths: List<String>) {
+        val ready = _state.value.indexReconciliation as? DownloadIndexReconciliationState.Ready
+        if (ready == null || ready.deleting || relativePaths.isEmpty()) return
+        _state.update { it.copy(indexReconciliation = ready.copy(deleting = true)) }
+        actionScope().launch {
+            val outcome =
+                try {
+                    downloader.deleteOrphanDownloadIndexFiles(relativePaths)
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (error: Exception) {
+                    Timber.w(error, "删除孤儿媒体文件失败")
+                    null
+                }
+            val next = scanDownloadIndex()
+            if (outcome != null && outcome.deletedCount > 0) requestExternalRefresh()
+            _state.update { it.copy(indexReconciliation = next) }
         }
     }
 

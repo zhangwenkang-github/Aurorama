@@ -140,6 +140,24 @@ interface Downloader {
     /** W32：下载占用与可用空间（下载管理页头部）。 */
     suspend fun getStorageUsage(): DownloadStorageUsage
 
+    /**
+     * W9：下载索引对账（dry-run）。
+     *
+     * 对比下载根目录实际文件与 `sources` 行快照，返回 linked / orphanMedia / residual 分类报告；不做任何删除。
+     * 行快照读取失败时抛错——空快照不能当作「全部文件都是孤儿」。
+     */
+    suspend fun reconcileDownloadIndex(): DownloadIndexReconciliationReport
+
+    /**
+     * W9：删除对账报告里的孤儿媒体文件。
+     *
+     * 只删除 [relativePaths] 中、重新对账后仍判定为 orphanMedia 的文件，且限定在下载根目录内； `.download` 残片 / witness /
+     * sidecar 永不删除。
+     */
+    suspend fun deleteOrphanDownloadIndexFiles(
+        relativePaths: List<String>
+    ): DownloadIndexDeletionOutcome
+
     /** W34：媒体类型 / 专辑侧车（下载列表层级化的离线元数据）。 */
     fun mediaSidecar(): DownloadMediaSidecar
 

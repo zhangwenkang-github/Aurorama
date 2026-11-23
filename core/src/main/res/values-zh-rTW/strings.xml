@@ -159,6 +159,16 @@
     <string name="download_selected_count">已選 %1$d 項</string>
     <string name="download_delete_tasks_title">刪除下載</string>
     <string name="download_delete_tasks_message">確定刪除選取的 %1$d 項下載嗎？</string>
+    <string name="download_index_reconcile">下載索引對帳</string>
+    <string name="download_index_reconcile_scanning">正在掃描下載目錄…</string>
+    <string name="download_index_reconcile_failed">對帳失敗，請重試。</string>
+    <string name="download_index_reconcile_linked">已關聯下載記錄：%1$d 個 · %2$s</string>
+    <string name="download_index_reconcile_orphans">孤兒媒體檔案：%1$d 個 · %2$s</string>
+    <string name="download_index_reconcile_residual">殘片 / 側車（永不清理）：%1$d 個 · %2$s</string>
+    <string name="download_index_reconcile_clean">未發現孤兒媒體檔案。</string>
+    <string name="download_index_reconcile_delete">刪除 %1$d 個孤兒媒體檔案</string>
+    <string name="download_index_reconcile_delete_title">刪除孤兒媒體檔案</string>
+    <string name="download_index_reconcile_delete_message">將永久刪除 %1$d 個無下載記錄的媒體檔案（%2$s）。殘片與側車檔案不在此次清理範圍內。</string>
     <string name="download_failure_storage">儲存空間不足</string>
     <string name="download_failure_network">網路錯誤</string>
     <string name="download_failure_server">伺服器錯誤</string>

@@ -5033,6 +5033,78 @@ private constructor(
             )
         }
 
+    override suspend fun reconcileDownloadIndex(): DownloadIndexReconciliationReport =
+        withContext(Dispatchers.IO) {
+            // 读取失败必须抛出：空快照会把整目录当成孤儿。
+            val rows = database.getAllSources()
+            DownloadIndexReconciler.merge(
+                downloadRootDirectories().map { root ->
+                    DownloadIndexReconciler.reconcile(
+                        files = downloadIndexFiles(root),
+                        rows = downloadIndexRows(rows, root),
+                    )
+                }
+            )
+        }
+
+    override suspend fun deleteOrphanDownloadIndexFiles(
+        relativePaths: List<String>
+    ): DownloadIndexDeletionOutcome =
+        withContext(Dispatchers.IO) {
+            val requested = relativePaths.toSet()
+            if (requested.isEmpty()) return@withContext DownloadIndexDeletionOutcome()
+            // 没有行快照就判定不了孤儿：宁可这次不清理，也不盲删。
+            val rows = runCatching {
+                database.getAllSources()
+            }
+                .getOrElse { error ->
+                    Timber.w(error, "读取下载行快照失败，跳过孤儿媒体清理")
+                    return@withContext DownloadIndexDeletionOutcome(failedCount = 1)
+                }
+            var deletedCount = 0
+            var deletedBytes = 0L
+            var failedCount = 0
+            downloadRootDirectories().forEach { root ->
+                val report =
+                    DownloadIndexReconciler.reconcile(
+                        files = downloadIndexFiles(root),
+                        rows = downloadIndexRows(rows, root),
+                    )
+                val outcome = DownloadIndexReconciler.deleteOrphans(root, report, requested)
+                deletedCount += outcome.deletedCount
+                deletedBytes += outcome.deletedBytes
+                failedCount += outcome.failedCount
+            }
+            if (deletedCount > 0) notifyQueueChanged()
+            DownloadIndexDeletionOutcome(
+                deletedCount = deletedCount,
+                deletedBytes = deletedBytes,
+                failedCount = failedCount,
+            )
+        }
+
+    private fun downloadRootDirectories(): List<File> =
+        context
+            .getExternalFilesDirs(null)
+            .filterNotNull()
+            .map { File(it, "downloads") }
+            .distinctBy { it.path }
+            .filter { it.isDirectory }
+
+    private fun downloadIndexFiles(root: File): List<DownloadIndexFileEntry> =
+        root
+            .listFiles()
+            ?.filter { it.isFile }
+            ?.map { file -> DownloadIndexFileEntry(file.name, file.length()) }
+            .orEmpty()
+
+    private fun downloadIndexRows(
+        rows: List<FindroidSourceDto>,
+        root: File,
+    ): List<DownloadIndexRowEntry> = rows.mapNotNull { row ->
+        DownloadIndexReconciler.relativize(root.path, row.path)?.let(::DownloadIndexRowEntry)
+    }
+
     override fun mediaSidecar(): DownloadMediaSidecar = sidecar
 
     override suspend fun downloadedItemIds(): Set<UUID> =
