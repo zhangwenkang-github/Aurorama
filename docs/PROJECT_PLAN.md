@@ -32,7 +32,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 线 | 状态 | 文档 |
 |----|------|------|
 | 1.4.1 | 🟢 **已发布**（2026-11-18）：master=`76f5350b`、tag `v1.4.1`、GitHub Release 双 APK | 发布目录 `releases/1.4.1-signed-r34-2026-11-17/` |
-| 2.0.0 | 🟢 **W9-T3/T4/T5/F4b/T6 已收口**（2026-11-23 会话13）：F4b=`407e4a39`、T4=`e74b4f9c`（真机实证全绿）；T6=`5b1adfa3`/`bbde067d`/`fb3cdcf1`（③④⑩ 门禁绿）；⑨目检命中→立 T6b（设计裁定=动作行横滚）；**焦点 = T7+T6b（跑批中）→ T8（Kimi）→ T9** | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · `V2_W9_TASKS.md` · `V2_W8_TASKS.md` |
+| 2.0.0 | 🟢 **W9-T1–T7 全部收口**（2026-11-23 会话13：F4b=`407e4a39`、T4=`e74b4f9c`、T6=`5b1adfa3`/`bbde067d`/`fb3cdcf1`、T6b=`6d40aba1`、T7=`9e756ce9`，真机实证全绿）；**距发布仅剩：T8（Kimi，前置已预汇编）→ 孤儿对账小卡 → T9 回归发布** | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · `V2_W9_TASKS.md` · `V2_W8_TASKS.md` |
 | 播放器 | 🟢 W2 架构重构完成；W4 开工（2026-11-19）：T0 现状核对 + 任务卡定稿（T1–T7）；retrySeek 跨条目重建已修（`ccdafefa`）；生产 TLS `-0x7280` 复验通过（服务器侧修复生效，K60 mpv 正常播放） | `docs/V2_W4_TASKS.md` · `docs/V2_ARCHITECTURE.md` §3 |
 | 下载/离线 | 🟢 W7 已收官（2026-11-22）：55 条 = ✅51/⚠️4/❌0；修复卡 F1b 音乐重下载删档绕过 / F2 PENDING 滞留 / F4 音乐离线冷路径 / F5 书籍通知 / F6 作者折叠 / F7 引擎空转热循环，全登记 W9 聚合（F1 引擎层与 F3 已修销项） | `docs/V2_W7_TASKS.md` · `docs/DOWNLOAD_PLAN.md` |
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
@@ -42,27 +42,25 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 ## 4. 当前焦点（2026-11-23）
 
 1. **W9-T4 + F4b 已收口（会话13，deepseek 双卡并行，真机实证全绿）**：F4b=`407e4a39`（根因=队列快照恢复路径把上会话 `mediaSourceUri` 当已解析结果直接交播放器；修=恢复本地短路 + 起播前当前链重解析 + 快照复用只信本地地址；K60 断网实证 `media_session PLAYING` position 5.8s→17.8s）；T4=`e74b4f9c`（⑦SyncWorker 扫描集=movies/episodes/shows/seasons ∪ 全部 toBeSynced 行；⑤音乐收藏先建行再排队、复用 W8-T1 `UserDataWriteOutcome` 统一写模型、无投影只推 isFavorite 保护服务端 played；Pad 断网→恢复 10s 内补传、服务器回读双绿）。**T5 至此全收口**。T4 遗留：离线模式 `markAsFavorite` 纯 UPDATE（暂不可达）；`:data:connectedDebugAndroidTest` 预存 AAPT 打包失败（与本次无关）。设备事实不变：K60/Pad 均测试服 admin；K60 断网定式 `svc wifi/data disable`（验后恢复）；Pad 仅温和断网（关 Wi-Fi，飞行模式禁用）。**会话13 起 adb 取证下放子代理（用户拍板，Kimi 额度有限），真机证据仍按质量门审查。**
-2. **W9-T6 已收口（会话13）+ T7/T6b 跑批中**：T6=`5b1adfa3`（③删当前地址被拒改 snackbar 可见反馈）/`bbde067d`（④60s TTL 缓存加 (baseUrl,userId) 身份键）/`fb3cdcf1`（⑩季页订阅 `contentVersion` 删除后当页刷新），setup 2/data 513/modes:film 225/app:phone 607 单测全绿；⑨目检**命中**（360dp 等效超 17–25dp）→立 **T6b**（设计裁定=动作行横向滚动，按钮保 44dp，证据 `qa/w9-t6/`）。T7（书籍通知 F5）+ T6b 已派 deepseek 并行（文件域不重叠）。③④⑩ 真机点验待抽查窗口。
-3. **W9-T0 遗留**：W4–W6 backlog 补汇总 + 账户设置域裁剪 + S1 样本补验并入 W9-T8（S1 需用户在测试服建书籍/有声书/SP/无季样本）；F4b 衍生「孤儿下载文件对账」裁定随 T8 一并做。
+2. **W9-T6/T6b/T7 已收口（会话13）**：T6=`5b1adfa3`（③删地址被拒 snackbar）/`bbde067d`（④TTL 缓存身份键）/`fb3cdcf1`（⑩季页订阅 contentVersion 当页刷新）；T6b=`6d40aba1`（⑨命中后立案：批量条动作行横滚，411dp 逐像素零变化 + 360dp 容器 scrollable 实证；残项=360dp 手势复核、MIUI 拦 instrumented 安装已入环境记忆）；T7=`9e756ce9`（书籍通知 F5：data 新增 `BookDownloadNotificationSink` 终态回调 + core 投影复用既有通知通道，Pad 实证通知出现/直达 ReaderActivity/回退下载页，证据 `qa/w9-t7/`）。**W9 NOW 卡仅剩 T8 → 孤儿对账 → T9**；③④⑩ 真机点验 + T6b 手势复核合并为一个 K60 抽查窗口随 T8 做。
+3. **W9-T0 遗留（=T8 内容，前置已预汇编）**：W4–W6 backlog 逐条盘点 + 裁定建议在 `V2_W9_TASKS.md` T8 卡；孤儿对账已裁定 NOW P2（dry-run 先行）；账户设置域裁剪建议=只收口反馈类缺陷；S1 样本依赖用户动作、建议不阻塞发布。
 4. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
-### W9 会话14 开工提示词（新会话直接粘贴；格式遵循 AGENTS.md「开工提示词统一标准」）
+### W9 会话14 开工提示词（新会话直接粘贴；只含文档外的引导，事实一律看状态块）
 
 ```
 你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
 工作区：F:\Develop\code_data\work_tree\Aurorama\v2-merge-141（分支 codex/v2-integration）。
 开工读序：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V2_W9_TASKS.md 状态块
-→ 记忆库 MEMORY.md（读序外文件按需，不通读）。
-现状：W9-T1–T6 全部收口（T7/T6b 见状态块最新行）；HEAD 以 git log 为准；
-K60=8e875894、Pad=43af8627 均测试服 admin（Pad 飞行模式禁用仅温和断网；
-K60 断网定式 svc wifi/data disable，验后恢复）。
-本会话任务（1–2 卡，Kimi 主导）：W9-T8 收官前置（P1，文档+真机——W4–W6
-backlog 补汇总裁定 + 账户设置域现状盘点与 2.0 范围裁剪；S1 样本窗口若用户
-已建样本则补验书籍侧条目）；F4b 衍生「孤儿下载文件对账」裁定（随 T8 做，
-只读盘点后 NOW/LATER/DROP）。若 T7/T6b 未收口先收尾验收。
+→ 记忆库 MEMORY.md（读序外文件按需，不通读；设备/取证纪律以状态块为准）。
+本会话任务（按序）：①W9-T8 执行（Kimi 主导，
+裁定已预汇编在 V2_W9_TASKS.md T8 卡「T8 前置准备」节，逐条确认/调整即落档）；
+②孤儿下载文件对账小卡（已裁定 NOW P2，派 deepseek，dry-run 报告先行）；
+③顺手做 K60 抽查窗口（③④⑩ 真机点验 + T6b 360dp 手势复核）。
+做完进 T9 准备（回归矩阵草案）。
 设计分权：设计以 docs/V2_DESIGN.md 为准，deepseek 零设计权。
 门禁与纪律：见 AGENTS.md 质量门/红线；adb 取证下放子代理（会话13 起用户拍板）。
-交接：收口按 AGENTS.md 五件事，提示词按统一标准填槽更新。
+交接：收口按 AGENTS.md 五件事；提示词只写文档没有的引导，不重复状态块内容。
 ```
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）

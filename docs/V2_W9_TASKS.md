@@ -15,6 +15,7 @@
 - **T4 已收口（2026-11-23 会话13，`e74b4f9c`，deepseek，Pad 温和断网实证绿）**：⑦SyncWorker 扫描集扩为 movies/episodes/shows/seasons ∪ 该用户全部 toBeSynced 行（季/剧页面只建 userdata 行无表投影，旧 Worker 必漏；seasons 经所属剧 serverId 归属；推送/清标记抽成 `UserDataSyncQueue` 可测函数）；⑤音乐收藏写失败原不排队（纯 UPDATE 连本地 userdata 行都没有）——修=收藏落库前先 `getUserDataOrCreateNew` 建行 + `MusicRepository.setFavorite` 委托 `JellyfinRepository.markAsFavorite`（复用 W8-T1 `UserDataWriteOutcome` 统一写模型，实物=`data/.../repository/UserDataWriteOutcome.kt` + `IdentityWriteCoordinator` 无关、调度=`WorkManagerUserDataSyncScheduler`，零新错误体系）+ 无投影条目只推 `isFavorite`（避免整包覆盖清服务端 played/进度）+ 排队时经既有 snackbar 提示「已保存，联网后自动同步」（与影视同口径；角标刷新经统一写路径自带 `notifyFavoriteChanged` 无回归）。测试：core 7 + data 5 + music 8 新增全绿。Pad 断网实证：季（表 0 行）与音乐收藏各落 `toBeSynced=1`，恢复 Wi-Fi 10s 内清零，服务器回读两者 favorite=True 且音乐 played=True 未被覆盖（验毕已还原）。**遗留**：`JellyfinRepositoryOfflineImpl.markAsFavorite` 仍纯 UPDATE（离线模式无音乐入口暂不可达）；`:data:connectedDebugAndroidTest` 预存 AAPT 打包失败（`attr/colorControlNormal`，与本次无关）。
 - **T6 已收口（2026-11-23 会话13，`5b1adfa3`/`bbde067d`/`fb3cdcf1`，deepseek，门禁全绿；③④⑩ 真机点验待 Kimi 抽查窗口）**：③删除当前地址被拒改为经 setup 模块既有 Channel→Flow 事件模式发 `CannotDeleteCurrentAddress` + `CinefinSnackbarHost` 可见反馈（setup 模块首次引入测试源集，2 条单测）；④`primaryImageUrls`/`musicTrackCache` 加 `RepositoryCacheIdentity(baseUrl,userId)` 身份键（封面键=(identity,itemId)、曲库改单槽 (identity,tracks)，TTL 语义不变，A/B 身份契约 2 条）；⑩季页头部「季 · N」取 `state.episodes.size`、删除后只靠 RESUMED 时序重取——修=`SeasonViewModel` init 订阅 `UserDataEvents.contentVersion.drop(1)` 广播当下 `loadSeason`（14→13 集即时刷新单测）。**⑨目检命中→立案 NOW P2（见裁定登记）**：K60 实测 411dp 下 6 按钮动作行外沿 291.8dp；360dp 等效内宽 328dp < 需求 345–353dp，超出 17–25dp，`CinefinBatchBar` Row+SpaceBetween 无 weight/横滚，末按钮有挤出风险——**设计裁定（Kimi）= 动作行横向滚动**（按钮保 44dp 触控面，大屏无变化）。单测：setup 2 / data 513 / modes:film 225 / app:phone 607 全绿。
 - **T6b 已收口（2026-11-23 会话13，`6d40aba`，deepseek，K60 双宽度取证绿）**：根因=动作行需 6×44+5×4=284dp，360dp 竖屏扣「已选 N 项」后仅 ~267dp，固定 Row 只能挤压末按钮。修复=`CinefinMultiSelect` 动作行 `weight(1f, fill=false)` + `horizontalScroll`（放得下仍 SpaceBetween 右对齐，411dp 视觉零变化；放不下行内横滚，按钮保 44dp；44dp 魔法数提 `CinefinIconButtonSize` 常量）+ 布局预算契约单测（411.4dp 不滚 / 360dp 溢出 25.3dp 必滚 / 1–5 动作不滚）。K60 实证：411dp 6 按钮 bounds 与修复前逐像素一致；360dp 探针页实证容器 `scrollable=true`、视口 258.7dp < 内容 284dp、末按钮被裁未被压。**残项**：①横滚手势未录到（会话中途 K60 adb 触摸注入失效，键事件正常——换设备或授权后补一次滑动 dump）；②MIUI 拦 `connectedAndroidTest` 安装（`INSTALL_FAILED_USER_RESTRICTED`，K60/Pad 均复现，harness 已回滚零残留）。证据 `qa/w9-t6/w9-t6b-batch-bar-scroll-check.md`。
+- **T7 已收口（2026-11-23 会话13，`9e756ce9`，deepseek，Pad 真机取证绿）**：根因=书籍整本下载走 data 独立 `BookDownloadManager`，从不回调通知出口（data 不反向依赖 core，`DownloadNotifications`/`DownloadNotificationDestination` 在 core 且 internal），路由侧本来就好、缺的是书籍链发通知能力。修复=data 新增公开 `BookDownloadNotificationSink`（完成/失败两回调，只在真正终态触发：成功/transfer 异常/ProvenanceFailed；暂停/取消/恢复补记不发）+ core `BookDownloadNotifications` 把 `BookDownloadTask` 投影成 `DownloadTask(BOOK)` 直接复用既有通知通道与文案 + Hilt 绑定注入。测试 data 4 + core 4（完成回调一次/传输失败/取消不发/冷启动恢复不发 + BOOK 投影/缺名占位/失败映射/deep-link requestCode 分离）。Pad 实证：真实下载 CBZ 落盘后 `dumpsys notification` 见「下载完成 futuristic_tales」（channel=downloads）、PendingIntent requestCode 反算吻合、点击直达 `ReaderActivity`（title=futuristic_tales）、全零 itemId 回退下载页已完成分组。证据 `qa/w9-t7/`。**W9 至此 T1–T7 全部收口，NOW 卡仅剩 T8（Kimi）→ 孤儿对账 → T9**。
 - **设备与取证约束（新）**：Pad=43af8627 直连测试服 admin，**飞行模式测试禁用**（ZTE CPE 蜂窝脆弱，掉注册 47+ 分钟）——离线场景真机取证改用 K60=8e875894（生产服只读，浏览/离线播放等只读场景可用；一切写验证仍只用 Pad + 测试服）。写补偿末环（断网写→恢复补传）若需 Pad 断网，改用「关 Wi-Fi/拔 CPE 网线」等温和手段先试，触发异常即停止上报。**K60 断网定式（会话12 定型）**：`svc wifi disable` + `svc data disable`，`dumpsys connectivity` 确认 none 后取证，验毕 `enable` 恢复。
 - **通用约束（每卡继承，不在卡内复述）**：构建 `./gradlew.bat :app:phone:assembleDebug --console=plain` + 根 `ktfmtCheck` + 相关模块单测绿；每任务一子代理一 commit；**会话13 起 adb 取证下放子代理（用户拍板，Kimi 额度有限；设备纪律不变：Pad 飞行模式禁用仅温和断网、K60 断网定式验后恢复、异常即停）**，真机证据由 Kimi 按质量门审查；红线见 `AGENTS.md`；证据清单 = 构建/测试输出关键行 + diff 摘要 + 真机文本取证。安装用 `:app:phone:installLibreDebug`（`installDebug` 有 flavor 歧义）。
 
@@ -28,7 +29,7 @@
 | F2 | 删除链取消 worker → WM 退避致 PENDING 滞留 | **NOW P0** | W9-T1，与 F7 同域并案 |
 | F7 | 引擎空转热循环（同进程删除→再入队代次错位，claim 永久拒绝 + ~8.7 次/秒自旋 CPU 满载；根因强推断已定位） | **NOW P0** | W9-T1；资源耗尽 + 「App 内删除不能终止」 |
 | F4 | 音乐离线冷路径断（冷启动索引 songs=0、已完成点击仍发网络请求） | **NOW P1** | W9-T5：冷启动可见/降级已修（`ac91523f`+`49e8f5fd`，K60 实证）；**可播 → 残项 F4b**（队列恢复重解析，P1，见裁定登记） |
-| F5 | 书籍链无完成/失败通知 | **NOW P2** | W9-T7 |
+| F5 | 书籍链无完成/失败通知 | **NOW P2** | **W9-T7 ✅ 已收口**（`9e756ce9`，会话13 Pad 实证直达阅读器） |
 | F6 | 下载中心书籍按作者折叠 | LATER | 增强项，依赖 S1 样本验证，W10 候选 |
 | L1 | 下载页已完成分组行整行可点 | LATER | 体验打磨，backlog-low 维持 |
 | L2 | 已下载音乐歌词离线保存核对 | LATER | 挂 W5 音乐链 |
@@ -107,8 +108,7 @@
 - **目标**：BookDownloadManager 完成/失败通知接入 + 点击直达阅读器（复用 W7-T5 `DownloadNotificationDestination` 扩展模式），不可达回退下载页已完成分组。
 - **验收方向**：通知出现+直达（无服务端书籍样本时用既有本地书重下/契约作证；S1 样本到位后 T8 补真机全链路）。
 - 派 deepseek，1 卡。
-
-### T8 收官前置：W4–W6 backlog 补汇总 + 账户设置域裁剪 + S1 补验（P1，文档+真机）
+- **✅ 已收口（2026-11-23 会话13，`9e756ce9`，Pad 真机取证：通知出现+直达阅读器+回退下载页全绿）**：根因/修复/证据见状态块。：W4–W6 backlog 补汇总 + 账户设置域裁剪 + S1 补验（P1，文档+真机）
 
 - **目标**：①汇总 W4/W5/W6 波次文档 backlog/观察项并补裁定 NOW/LATER/DROP（§15「T0 汇总 W4–W8」的剩余部分）；②账户设置域（W9 名义任务）现状盘点与 2.0 范围裁剪；③S1 样本窗口若已开放：补验 W7 ⚠️ 书籍侧 12/21–24/34/37/44/45 与 L3/F6 再评估。
 - Kimi 主导，1 卡（文档为主；需用户在测试服建样本时另行申请）。
