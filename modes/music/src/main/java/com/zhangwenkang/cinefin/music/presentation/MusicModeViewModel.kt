@@ -1924,29 +1924,38 @@ constructor(
         return String.format(java.util.Locale.US, "%d:%02d", minutes, seconds)
     }
 
-    /** W34：下载 / 删除单曲（音乐侧入口；下载引擎仍走 DownloadManager + sources 表）。 */
-    fun toggleSongDownload(song: MusicSong) {
+    /**
+     * W9-T2：单曲下载入口（**永远不删除**）。
+     *
+     * 已完成下载 / 已在队列时只发提示：不删文件、不重复入队。删除只能走 [deleteSong]。
+     */
+    fun downloadSong(song: MusicSong) {
         viewModelScope.launch {
             val item =
                 runCatching { jellyfinRepository.getItem(song.itemId) }.getOrNull() ?: return@launch
-            val localSources = item.sources.filter { it.type == FindroidSourceType.LOCAL }
-            val completed = localSources.firstOrNull { !it.path.endsWith(".download") }
-            if (completed != null) {
-                downloader.deleteItem(item, completed)
-                refreshDownloadState()
-                return@launch
-            }
-            val activeTask =
-                downloader.refreshDownloadTasks().firstOrNull {
-                    DownloadTaskRules.isActiveQueueStatus(it.status) &&
-                        (song.downloadIdentity()?.let { identity ->
-                            it.downloadIdentity().matchesProvenance(identity)
-                        } ?: (it.itemId == song.itemId))
+            val completed =
+                item.sources
+                    .filter { it.type == FindroidSourceType.LOCAL }
+                    .firstOrNull { !it.path.endsWith(".download") }
+            val activeTask = activeSongDownloadTask(song)
+            when (
+                songDownloadRequestOutcome(
+                    hasCompletedSource = completed != null,
+                    downloaded = _downloadState.value.isDownloaded(song),
+                    queued = activeTask != null,
+                )
+            ) {
+                SongDownloadRequestOutcome.ALREADY_DOWNLOADED -> {
+                    batchDownloadFeedbackChannel.send(
+                        MusicBatchDownloadFeedback(alreadyDownloaded = 1)
+                    )
+                    return@launch
                 }
-            if (activeTask != null) {
-                downloader.cancelTask(activeTask)
-                refreshDownloadState()
-                return@launch
+                SongDownloadRequestOutcome.ALREADY_QUEUED -> {
+                    batchDownloadFeedbackChannel.send(MusicBatchDownloadFeedback(alreadyQueued = 1))
+                    return@launch
+                }
+                SongDownloadRequestOutcome.ENQUEUE -> Unit
             }
             val sourceId =
                 runCatching { jellyfinRepository.getMediaSources(song.itemId, true) }
@@ -1965,6 +1974,40 @@ constructor(
             downloadQueuedChannel.send(1)
         }
     }
+
+    /** W9-T2：取消队列中的单曲下载；不动已下载文件、也不删除索引。 */
+    fun cancelSongDownload(song: MusicSong) {
+        viewModelScope.launch {
+            val activeTask = activeSongDownloadTask(song) ?: return@launch
+            downloader.cancelTask(activeTask)
+            refreshDownloadState()
+        }
+    }
+
+    /** W9-T2：显式删除单曲下载（全 App 唯一的单曲删除入口）。 */
+    fun deleteSong(song: MusicSong) {
+        viewModelScope.launch {
+            val item =
+                runCatching { jellyfinRepository.getItem(song.itemId) }.getOrNull() ?: return@launch
+            val completed =
+                item.sources
+                    .filter { it.type == FindroidSourceType.LOCAL }
+                    .firstOrNull { !it.path.endsWith(".download") }
+            if (completed != null) {
+                downloader.deleteItem(item, completed)
+            }
+            refreshDownloadState()
+        }
+    }
+
+    /** 队列中属于该曲目的任务（同 itemId 且同一来源；identity 缺失时退回 itemId）。 */
+    private suspend fun activeSongDownloadTask(song: MusicSong): DownloadTask? =
+        downloader.refreshDownloadTasks().firstOrNull {
+            DownloadTaskRules.isActiveQueueStatus(it.status) &&
+                (song.downloadIdentity()?.let { identity ->
+                    it.downloadIdentity().matchesProvenance(identity)
+                } ?: (it.itemId == song.itemId))
+        }
 
     fun openAlbum(album: MusicAlbum) {
         _uiState.update {

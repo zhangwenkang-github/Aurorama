@@ -57,4 +57,7 @@ data class StoredRecentSong(
     val imageUri: String?,
     val runtimeTicks: Long,
     val playedAt: Long,
+    /** W9-T2：播放时的服务器身份快照；本地媒体库曲目为 null。 */
+    val serverId: String? = null,
+    val userId: String? = null,
 )

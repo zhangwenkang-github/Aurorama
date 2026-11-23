@@ -20,7 +20,7 @@ import androidx.sqlite.execSQL
             LocalPlaylistEntity::class,
             LocalPlaylistEntryEntity::class,
         ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class MusicDatabase : RoomDatabase() {
@@ -111,6 +111,19 @@ abstract class MusicDatabase : RoomDatabase() {
                         .forEach { sql -> connection.execSQL(sql) }
                 }
             }
+
+        /**
+         * v5 → v6（W9-T2，F1b）：最近播放追加服务器身份两列。
+         *
+         * 两列都可空：旧行（以及本地媒体库曲目）保持 null，等下次播放时写入新身份； 只追加列，不重建表、不动队列与歌单。
+         */
+        val MIGRATION_5_6 =
+            object : Migration(startVersion = 5, endVersion = 6) {
+                override suspend fun migrate(connection: SQLiteConnection) {
+                    musicRecentMigration5To6Statements { table -> connection.tableColumns(table) }
+                        .forEach { sql -> connection.execSQL(sql) }
+                }
+            }
     }
 }
 
@@ -139,6 +152,19 @@ internal fun musicQueueMigration4To5Statements(
 ): List<String> = buildList {
     if ("unavailable" !in existingColumns("music_queue_items")) {
         add("ALTER TABLE `music_queue_items` ADD COLUMN `unavailable` INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+/** v5 → v6 的追加列语句（W9-T2）：只有可空列，旧行保持 null；列已存在就跳过，迁移可安全重放。 */
+internal fun musicRecentMigration5To6Statements(
+    existingColumns: (String) -> Set<String>
+): List<String> = buildList {
+    val current = existingColumns("music_recent")
+    if ("serverId" !in current) {
+        add("ALTER TABLE `music_recent` ADD COLUMN `serverId` TEXT")
+    }
+    if ("userId" !in current) {
+        add("ALTER TABLE `music_recent` ADD COLUMN `userId` TEXT")
     }
 }
 

@@ -1,6 +1,10 @@
 package com.zhangwenkang.cinefin.music.presentation
 
+import com.zhangwenkang.cinefin.music.data.LocalPlaylistTrack
 import com.zhangwenkang.cinefin.music.data.MusicSong
+import com.zhangwenkang.cinefin.music.data.PlaylistTrackSnapshot
+import com.zhangwenkang.cinefin.music.data.TrackRef
+import com.zhangwenkang.cinefin.music.data.projectLocalPlaylistTrack
 import com.zhangwenkang.cinefin.utils.DownloadFailureReason
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadMediaRecord
@@ -418,6 +422,250 @@ class MusicBatchRulesTest {
 
         assertEquals(serverSong.downloadIdentity(), request.canonicalIdentity)
     }
+
+    // ---- W9-T2（F1b）：单曲下载 / 取消 / 删除三个入口的菜单判定 ----
+
+    @Test
+    fun `未下载且不在队列时只有一个下载入口`() {
+        assertEquals(
+            SongDownloadMenuAction.DOWNLOAD,
+            songDownloadMenuAction(
+                downloaded = false,
+                activeStatus = null,
+                fromLocalLibrary = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `队列中的曲目只给取消下载`() {
+        listOf(
+                DownloadTaskStatus.PENDING,
+                DownloadTaskStatus.RUNNING,
+                DownloadTaskStatus.PAUSED,
+            )
+            .forEach { status ->
+                assertEquals(
+                    "status=$status",
+                    SongDownloadMenuAction.CANCEL,
+                    songDownloadMenuAction(
+                        downloaded = false,
+                        activeStatus = status,
+                        fromLocalLibrary = false,
+                    ),
+                )
+            }
+    }
+
+    @Test
+    fun `已下载曲目只给删除下载且不被队列状态覆盖`() {
+        assertEquals(
+            SongDownloadMenuAction.DELETE,
+            songDownloadMenuAction(
+                downloaded = true,
+                activeStatus = null,
+                fromLocalLibrary = false,
+            ),
+        )
+        assertEquals(
+            SongDownloadMenuAction.DELETE,
+            songDownloadMenuAction(
+                downloaded = true,
+                activeStatus = DownloadTaskStatus.PAUSED,
+                fromLocalLibrary = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `删除中与本地媒体库曲目不提供下载入口`() {
+        assertEquals(
+            SongDownloadMenuAction.NONE,
+            songDownloadMenuAction(
+                downloaded = true,
+                activeStatus = DownloadTaskStatus.DELETING,
+                fromLocalLibrary = false,
+            ),
+        )
+        assertEquals(
+            SongDownloadMenuAction.NONE,
+            songDownloadMenuAction(
+                downloaded = false,
+                activeStatus = null,
+                fromLocalLibrary = true,
+            ),
+        )
+    }
+
+    @Test
+    fun `菜单文案把删除和下载彻底分开`() {
+        assertEquals("下载", songDownloadMenuLabel(SongDownloadMenuAction.DOWNLOAD))
+        assertEquals("取消下载", songDownloadMenuLabel(SongDownloadMenuAction.CANCEL))
+        assertEquals("删除下载", songDownloadMenuLabel(SongDownloadMenuAction.DELETE))
+        assertNull(songDownloadMenuLabel(SongDownloadMenuAction.NONE))
+    }
+
+    @Test
+    fun `行副标题状态与动作一一对应`() {
+        assertEquals(
+            "已下载",
+            songDownloadStatusLabel(SongDownloadMenuAction.DELETE, null),
+        )
+        assertEquals(
+            "正在删除下载",
+            songDownloadStatusLabel(SongDownloadMenuAction.NONE, DownloadTaskStatus.DELETING),
+        )
+        assertEquals(
+            "下载已暂停",
+            songDownloadStatusLabel(SongDownloadMenuAction.CANCEL, DownloadTaskStatus.PAUSED),
+        )
+        assertEquals(
+            "下载中",
+            songDownloadStatusLabel(SongDownloadMenuAction.CANCEL, DownloadTaskStatus.RUNNING),
+        )
+        assertNull(songDownloadStatusLabel(SongDownloadMenuAction.DOWNLOAD, null))
+        assertNull(songDownloadStatusLabel(SongDownloadMenuAction.NONE, null))
+    }
+
+    @Test
+    fun `长按 sheet 已下载时显示显式删除入口`() {
+        assertEquals("下载 · 离线", songContextDownloadLabel(SongDownloadMenuAction.DOWNLOAD))
+        assertEquals("下载 · 离线", songContextDownloadLabel(SongDownloadMenuAction.CANCEL))
+        assertEquals("删除下载", songContextDownloadLabel(SongDownloadMenuAction.DELETE))
+        assertNull(songContextDownloadLabel(SongDownloadMenuAction.NONE))
+
+        assertEquals(
+            "已下载",
+            songContextDownloadTrailing(SongDownloadMenuAction.DELETE, null),
+        )
+        assertEquals(
+            "下载中",
+            songContextDownloadTrailing(SongDownloadMenuAction.CANCEL, DownloadTaskStatus.RUNNING),
+        )
+        assertEquals(
+            "下载已暂停",
+            songContextDownloadTrailing(SongDownloadMenuAction.CANCEL, DownloadTaskStatus.PAUSED),
+        )
+        assertNull(songContextDownloadTrailing(SongDownloadMenuAction.DOWNLOAD, null))
+    }
+
+    @Test
+    fun `下载入口命中已完成下载时只提示不删除`() {
+        assertEquals(
+            SongDownloadRequestOutcome.ALREADY_DOWNLOADED,
+            songDownloadRequestOutcome(
+                hasCompletedSource = true,
+                downloaded = false,
+                queued = false,
+            ),
+        )
+        // 下载态与 sources 双重证据任一命中都按已下载处理，绝不再入队
+        assertEquals(
+            SongDownloadRequestOutcome.ALREADY_DOWNLOADED,
+            songDownloadRequestOutcome(
+                hasCompletedSource = false,
+                downloaded = true,
+                queued = true,
+            ),
+        )
+    }
+
+    @Test
+    fun `下载入口命中队列中时只提示不重复入队`() {
+        assertEquals(
+            SongDownloadRequestOutcome.ALREADY_QUEUED,
+            songDownloadRequestOutcome(
+                hasCompletedSource = false,
+                downloaded = false,
+                queued = true,
+            ),
+        )
+        assertEquals(
+            SongDownloadRequestOutcome.ENQUEUE,
+            songDownloadRequestOutcome(
+                hasCompletedSource = false,
+                downloaded = false,
+                queued = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `本地歌单投影带服务器身份后下载态与曲库条目同键`() {
+        val itemId = UUID.fromString("00000000-0000-0000-0000-000000000801")
+        val userId = UUID.fromString("00000000-0000-0000-0000-000000000802")
+        val projected =
+            projectLocalPlaylistTrack(
+                entryId = "entry-1",
+                track =
+                    LocalPlaylistTrack(
+                        ref =
+                            TrackRef.Server(
+                                serverId = "server-a",
+                                userId = userId,
+                                itemId = itemId,
+                            ),
+                        snapshot =
+                            PlaylistTrackSnapshot(
+                                displayName = "服务器曲目",
+                                albumName = "专辑",
+                                artist = null,
+                                imageUri = null,
+                                mediaSourceUri = null,
+                                runtimeTicks = 100,
+                            ),
+                    ),
+                isAvailable = true,
+            )
+
+        val identity = projected.downloadIdentity()
+        assertEquals(DownloadMediaKind.MUSIC, identity?.mediaKind)
+        assertEquals(itemId.toString(), identity?.itemId)
+        assertEquals("server-a", identity?.serverId)
+        assertEquals(userId.toString(), identity?.userId)
+        // 与 ViewModel 的下载态判定同一条规则：投影带身份后 isDownloaded 必须为真
+        val state =
+            MusicModeViewModel.SongDownloadState(
+                downloadedItemIds = setOf(itemId),
+                downloadedRecords = listOf(completedOn("server-a", userId)),
+            )
+        assertTrue(state.isDownloaded(projected))
+        assertTrue(state.isDownloaded(itemId))
+    }
+
+    @Test
+    fun `本地曲目投影不带服务器身份`() {
+        val itemId = UUID.fromString("00000000-0000-0000-0000-000000000803")
+        val projected =
+            projectLocalPlaylistTrack(
+                entryId = "entry-2",
+                track =
+                    LocalPlaylistTrack(
+                        ref = TrackRef.Local(libraryId = 7, itemId = itemId),
+                        snapshot =
+                            PlaylistTrackSnapshot(
+                                displayName = "本地曲目",
+                                albumName = "专辑",
+                                artist = null,
+                                imageUri = null,
+                                mediaSourceUri = "content://music/803",
+                                runtimeTicks = 100,
+                            ),
+                    ),
+                isAvailable = true,
+            )
+
+        assertNull(projected.downloadIdentity())
+    }
+
+    private fun completedOn(serverId: String, userId: UUID): DownloadMediaRecord =
+        DownloadMediaRecord(
+            itemId = "00000000-0000-0000-0000-000000000801",
+            kind = DownloadMediaKind.MUSIC,
+            serverId = serverId,
+            userId = userId.toString(),
+            sourceId = "source-1",
+        )
 
     /** 每次 `nextInt` 都取 0 的确定性随机源，用于锁死洗牌顺序。 */
     private object ZeroRandom : Random() {

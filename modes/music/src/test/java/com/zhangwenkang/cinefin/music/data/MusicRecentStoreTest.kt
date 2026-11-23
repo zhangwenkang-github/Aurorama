@@ -47,4 +47,46 @@ class MusicRecentStoreTest {
 
         assertNull(entry.toMusicSongOrNull())
     }
+
+    @Test
+    fun `记录映射回服务器身份可再次用于下载态判定`() {
+        val id = UUID.nameUUIDFromBytes("recent-server-song".toByteArray())
+        val song =
+            StoredRecentSong(
+                    itemId = id.toString(),
+                    name = "服务器曲目",
+                    albumName = "专辑",
+                    artist = "歌手",
+                    imageUri = null,
+                    runtimeTicks = 20_000_000L,
+                    playedAt = 456L,
+                    serverId = "server-a",
+                    userId = "user-a",
+                )
+                .toMusicSongOrNull()!!
+
+        assertEquals("server-a", song.serverId)
+        assertEquals("user-a", song.userId)
+    }
+
+    @Test
+    fun `本地曲目记录不带服务器身份`() {
+        val id = UUID.nameUUIDFromBytes("recent-local-song".toByteArray())
+        val song =
+            StoredRecentSong(
+                    itemId = id.toString(),
+                    name = "本地曲目",
+                    albumName = "专辑",
+                    artist = null,
+                    imageUri = null,
+                    runtimeTicks = 0L,
+                    playedAt = 789L,
+                    serverId = "",
+                    userId = null,
+                )
+                .toMusicSongOrNull()!!
+
+        assertNull(song.serverId)
+        assertNull(song.userId)
+    }
 }

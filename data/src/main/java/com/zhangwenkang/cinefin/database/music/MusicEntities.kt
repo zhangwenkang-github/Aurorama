@@ -56,6 +56,9 @@ data class MusicRecentEntity(
     val imageUri: String?,
     val runtimeTicks: Long,
     val playedAt: Long,
+    /** W9-T2：服务器身份快照（v5 旧行迁移后为 null，本地媒体库曲目同样为 null）。 */
+    val serverId: String? = null,
+    val userId: String? = null,
 )
 
 /** 本地歌单元数据；条目顺序与曲目身份由 [LocalPlaylistEntryEntity] 持有。 */

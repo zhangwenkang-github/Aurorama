@@ -280,12 +280,23 @@ fun MusicModeScreen(
     // W7-T2：歌单 / 曲库 / 专辑多选批量下载同样先过前置检查提示层。
     var batchPrecheck by remember { mutableStateOf<MusicBatchPrecheck?>(null) }
 
-    /** 单曲下载入口：已下载 / 队列中仍走原来的取消 / 删除语义，其余先过前置检查提示层。 */
+    /**
+     * 单曲下载入口（W9-T2）：按菜单动作分派到三个独立入口。
+     *
+     * 已下载只走显式「删除下载」；队列中只走「取消下载」；下载动作先过前置检查提示层， 命中已完成 / 队列中时由 ViewModel 只发提示（不删文件、不重复入队）。
+     */
     val requestSongDownload: (MusicSong) -> Unit = { song ->
-        if (songDownloadState.isDownloaded(song) || songDownloadState.isActive(song)) {
-            viewModel.toggleSongDownload(song)
-        } else {
-            songPrecheck = song
+        when (
+            songDownloadMenuAction(
+                downloaded = songDownloadState.isDownloaded(song),
+                activeStatus = songDownloadState.activeStatus(song),
+                fromLocalLibrary = song.localUri != null,
+            )
+        ) {
+            SongDownloadMenuAction.DELETE -> viewModel.deleteSong(song)
+            SongDownloadMenuAction.CANCEL -> viewModel.cancelSongDownload(song)
+            SongDownloadMenuAction.DOWNLOAD -> songPrecheck = song
+            SongDownloadMenuAction.NONE -> Unit
         }
     }
     val requestAlbumDownload: () -> Unit = {
@@ -901,10 +912,16 @@ fun MusicModeScreen(
 
         val contextSheetSong = contextSong
         if (contextSheetSong != null) {
+            val contextDownloadStatus = songDownloadState.activeStatus(contextSheetSong)
             SongContextSheet(
                 song = contextSheetSong,
-                downloaded = songDownloadState.isDownloaded(contextSheetSong),
-                downloadActive = songDownloadState.isActive(contextSheetSong),
+                downloadAction =
+                    songDownloadMenuAction(
+                        downloaded = songDownloadState.isDownloaded(contextSheetSong),
+                        activeStatus = contextDownloadStatus,
+                        fromLocalLibrary = contextSheetSong.localUri != null,
+                    ),
+                downloadStatus = contextDownloadStatus,
                 onDismiss = { contextSong = null },
                 onPlayNext = {
                     contextSong = null
@@ -942,11 +959,11 @@ fun MusicModeScreen(
                 networkPrompt = DownloadPrecheckEnvironment.networkPrompt(context),
                 onConfirm = {
                     songPrecheck = null
-                    viewModel.toggleSongDownload(precheckSong)
+                    viewModel.downloadSong(precheckSong)
                 },
                 onWifiOnly = {
                     songPrecheck = null
-                    viewModel.toggleSongDownload(precheckSong)
+                    viewModel.downloadSong(precheckSong)
                 },
                 onDismiss = { songPrecheck = null },
             )
@@ -2302,6 +2319,13 @@ private fun SongList(
         // 歌单允许同一首曲目出现多次，key 里带序号避免重复 key 崩溃
         itemsIndexed(items = songs, key = { index, song -> "$index-${song.itemId}" }) { index, song
             ->
+            val downloadStatus = downloadState.activeStatus(song)
+            val downloadAction =
+                songDownloadMenuAction(
+                    downloaded = downloadState.isDownloaded(song),
+                    activeStatus = downloadStatus,
+                    fromLocalLibrary = song.localUri != null,
+                )
             SongRow(
                 index = index + 1,
                 song = song,
@@ -2313,22 +2337,8 @@ private fun SongList(
                     ),
                 subtitle = if (showAlbum) song.albumName else null,
                 isCurrent = song.itemId == currentItemId,
-                downloadLabel =
-                    when {
-                        downloadState.isDownloaded(song) -> "已下载"
-                        downloadState.activeStatus(song) == DownloadTaskStatus.DELETING -> "正在删除下载"
-                        downloadState.activeStatus(song) == DownloadTaskStatus.PAUSED -> "下载已暂停"
-                        downloadState.isActive(song) -> "下载中"
-                        else -> null
-                    },
-                downloadMenuItem =
-                    when {
-                        song.localUri != null -> null
-                        downloadState.isDownloaded(song) -> "删除下载"
-                        downloadState.activeStatus(song) == DownloadTaskStatus.DELETING -> null
-                        downloadState.isActive(song) -> "取消下载"
-                        else -> "下载"
-                    },
+                downloadLabel = songDownloadStatusLabel(downloadAction, downloadStatus),
+                downloadMenuItem = songDownloadMenuLabel(downloadAction),
                 sourceBadge =
                     when {
                         song.isPlaylistPlaceholder -> "不可用"
@@ -3076,8 +3086,8 @@ private fun MusicBatchDeleteDialog(
 @Composable
 private fun SongContextSheet(
     song: MusicSong,
-    downloaded: Boolean,
-    downloadActive: Boolean,
+    downloadAction: SongDownloadMenuAction,
+    downloadStatus: DownloadTaskStatus?,
     onDismiss: () -> Unit,
     onPlayNext: () -> Unit,
     onEnqueueAtEnd: () -> Unit,
@@ -3150,12 +3160,15 @@ private fun SongContextSheet(
                     onClick = onAudioInfo,
                 )
             }
-            SongContextAction(
-                icon = CoreR.drawable.ic_download,
-                label = "下载 · 离线",
-                trailing = if (downloaded) "已下载" else if (downloadActive) "下载中" else null,
-                onClick = onDownload,
-            )
+            val contextDownloadLabel = songContextDownloadLabel(downloadAction)
+            if (contextDownloadLabel != null) {
+                SongContextAction(
+                    icon = CoreR.drawable.ic_download,
+                    label = contextDownloadLabel,
+                    trailing = songContextDownloadTrailing(downloadAction, downloadStatus),
+                    onClick = onDownload,
+                )
+            }
         }
     }
 }

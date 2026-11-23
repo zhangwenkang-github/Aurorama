@@ -106,6 +106,101 @@ internal fun MusicSong.downloadIdentity(): DownloadCanonicalIdentity? {
     )
 }
 
+/**
+ * W9-T2：单曲下载入口的动作。
+ *
+ * 下载、取消、删除是三个**独立入口**：下载入口永远不带删除语义，删除只能来自 [DELETE]。
+ */
+internal enum class SongDownloadMenuAction {
+    DOWNLOAD,
+    CANCEL,
+    DELETE,
+    /** 不提供入口：本地媒体库曲目（文件由用户自己管理）与删除中的条目。 */
+    NONE,
+}
+
+/** W9-T2：曲目行 / 长按菜单的下载项动作（[downloaded] 与 [activeStatus] 来自 `SongDownloadState`）。 */
+internal fun songDownloadMenuAction(
+    downloaded: Boolean,
+    activeStatus: DownloadTaskStatus?,
+    fromLocalLibrary: Boolean,
+): SongDownloadMenuAction =
+    when {
+        fromLocalLibrary -> SongDownloadMenuAction.NONE
+        activeStatus == DownloadTaskStatus.DELETING -> SongDownloadMenuAction.NONE
+        downloaded -> SongDownloadMenuAction.DELETE
+        activeStatus != null -> SongDownloadMenuAction.CANCEL
+        else -> SongDownloadMenuAction.DOWNLOAD
+    }
+
+/** W9-T2：曲目行菜单项文案（null = 不渲染该项）。 */
+internal fun songDownloadMenuLabel(action: SongDownloadMenuAction): String? =
+    when (action) {
+        SongDownloadMenuAction.DOWNLOAD -> "下载"
+        SongDownloadMenuAction.CANCEL -> "取消下载"
+        SongDownloadMenuAction.DELETE -> "删除下载"
+        SongDownloadMenuAction.NONE -> null
+    }
+
+/** W9-T2：曲目行副标题里的下载状态（null = 不显示）。 */
+internal fun songDownloadStatusLabel(
+    action: SongDownloadMenuAction,
+    activeStatus: DownloadTaskStatus?,
+): String? =
+    when {
+        action == SongDownloadMenuAction.DELETE -> "已下载"
+        activeStatus == DownloadTaskStatus.DELETING -> "正在删除下载"
+        activeStatus == DownloadTaskStatus.PAUSED -> "下载已暂停"
+        action == SongDownloadMenuAction.CANCEL -> "下载中"
+        else -> null
+    }
+
+/** W9-T2：长按 sheet 的下载项文案（null = 不渲染该项）。 */
+internal fun songContextDownloadLabel(action: SongDownloadMenuAction): String? =
+    when (action) {
+        SongDownloadMenuAction.DOWNLOAD,
+        SongDownloadMenuAction.CANCEL -> "下载 · 离线"
+        SongDownloadMenuAction.DELETE -> "删除下载"
+        SongDownloadMenuAction.NONE -> null
+    }
+
+/** W9-T2：长按 sheet 下载项右侧状态。 */
+internal fun songContextDownloadTrailing(
+    action: SongDownloadMenuAction,
+    activeStatus: DownloadTaskStatus?,
+): String? =
+    when (action) {
+        SongDownloadMenuAction.DELETE -> "已下载"
+        SongDownloadMenuAction.CANCEL ->
+            if (activeStatus == DownloadTaskStatus.PAUSED) "下载已暂停" else "下载中"
+        SongDownloadMenuAction.NONE ->
+            if (activeStatus == DownloadTaskStatus.DELETING) "正在删除下载" else null
+        SongDownloadMenuAction.DOWNLOAD -> null
+    }
+
+/** W9-T2：单曲下载入口的去重结论。 */
+internal enum class SongDownloadRequestOutcome {
+    ENQUEUE,
+    ALREADY_DOWNLOADED,
+    ALREADY_QUEUED,
+}
+
+/**
+ * W9-T2：单曲下载入口保底规则（纯函数）。
+ *
+ * 命中已完成下载（sources 里有非 `.download` 的完成文件，或下载态已判定为已下载）→ 只提示； 队列中 → 只提示。两种情况都**不删除、不重复入队**。
+ */
+internal fun songDownloadRequestOutcome(
+    hasCompletedSource: Boolean,
+    downloaded: Boolean,
+    queued: Boolean,
+): SongDownloadRequestOutcome =
+    when {
+        hasCompletedSource || downloaded -> SongDownloadRequestOutcome.ALREADY_DOWNLOADED
+        queued -> SongDownloadRequestOutcome.ALREADY_QUEUED
+        else -> SongDownloadRequestOutcome.ENQUEUE
+    }
+
 /** 批量动作条里某个动作是否可用（任一选中条目满足即可，与下载页口径一致）。 */
 internal fun musicBatchActionEnabled(
     action: MusicBatchAction,

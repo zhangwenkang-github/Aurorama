@@ -111,6 +111,8 @@ constructor(
                 imageUri = entry.imageUri,
                 runtimeTicks = entry.runtimeTicks,
                 playedAt = entry.playedAt,
+                serverId = entry.serverId,
+                userId = entry.userId,
             )
         )
         musicRecentDao.trim(MusicStorage.DEFAULT_RECENT_LIMIT)
@@ -126,6 +128,8 @@ constructor(
                 imageUri = entity.imageUri,
                 runtimeTicks = entity.runtimeTicks,
                 playedAt = entity.playedAt,
+                serverId = entity.serverId,
+                userId = entity.userId,
             )
         }
 }

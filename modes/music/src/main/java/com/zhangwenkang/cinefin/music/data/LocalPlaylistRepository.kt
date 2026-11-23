@@ -325,6 +325,9 @@ fun projectLocalPlaylistTrack(
 ): MusicSong {
     val ref = track.ref
     val isLocal = ref is TrackRef.Local
+    // W9-T2：服务器条目的持久身份就在 TrackRef.Server 里，必须带回投影，
+    // 否则下载态判定（MusicSong.downloadIdentity()）恒为 null，「下载 · 离线」会被误当成下载入口。
+    val serverRef = ref as? TrackRef.Server
     return MusicSong(
         itemId = ref.itemId,
         name = track.snapshot.displayName,
@@ -339,5 +342,7 @@ fun projectLocalPlaylistTrack(
         playlistEntryId = entryId,
         trackRef = ref,
         isPlaylistPlaceholder = !isAvailable,
+        serverId = serverRef?.serverId,
+        userId = serverRef?.userId?.toString(),
     )
 }

@@ -30,6 +30,8 @@ class MusicRecentStore @Inject constructor(private val storage: MusicStorage) {
                     imageUri = song?.imageUri ?: item.thumbnailUri,
                     runtimeTicks = song?.runtimeTicks ?: 0L,
                     playedAt = System.currentTimeMillis(),
+                    serverId = song?.serverId,
+                    userId = song?.userId,
                 )
             )
         }
@@ -52,5 +54,8 @@ internal fun StoredRecentSong.toMusicSongOrNull(): MusicSong? {
         runtimeTicks = runtimeTicks,
         imageUri = imageUri,
         resumePositionMs = 0L,
+        // W9-T2：回填持久化的服务器身份，最近播放条目的下载态判定与曲库条目同一条规则。
+        serverId = serverId?.takeIf(String::isNotBlank),
+        userId = userId?.takeIf(String::isNotBlank),
     )
 }

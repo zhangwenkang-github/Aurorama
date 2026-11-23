@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.music.data
 import java.util.UUID
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -144,6 +145,56 @@ class LocalPlaylistIdentityTest {
         assertEquals("content://music/102", projected.localUri)
         assertEquals(MusicItemSource.LOCAL, projected.source)
         assertFalse(projected.isPlaylistPlaceholder)
+    }
+
+    @Test
+    fun serverTrack_projectionCarriesDownloadIdentity() {
+        val itemId = UUID.fromString("00000000-0000-0000-0000-000000000103")
+        val ref = TrackRef.Server(serverId = SERVER_ID, userId = USER_ID, itemId = itemId)
+        val track =
+            LocalPlaylistTrack(
+                ref = ref,
+                snapshot =
+                    PlaylistTrackSnapshot(
+                        displayName = "服务器曲目",
+                        albumName = "专辑",
+                        artist = null,
+                        imageUri = null,
+                        mediaSourceUri = null,
+                        runtimeTicks = 200,
+                    ),
+            )
+
+        val projected =
+            projectLocalPlaylistTrack(entryId = "entry-3", track = track, isAvailable = true)
+
+        assertEquals(SERVER_ID, projected.serverId)
+        assertEquals(USER_ID.toString(), projected.userId)
+        assertEquals(track.ref, projected.trackRef)
+    }
+
+    @Test
+    fun localTrack_projectionStaysWithoutServerIdentity() {
+        val itemId = UUID.fromString("00000000-0000-0000-0000-000000000104")
+        val track =
+            LocalPlaylistTrack(
+                ref = TrackRef.Local(libraryId = 7, itemId = itemId),
+                snapshot =
+                    PlaylistTrackSnapshot(
+                        displayName = "本地曲目",
+                        albumName = "本地文件",
+                        artist = null,
+                        imageUri = null,
+                        mediaSourceUri = "content://music/104",
+                        runtimeTicks = 100,
+                    ),
+            )
+
+        val projected =
+            projectLocalPlaylistTrack(entryId = "entry-4", track = track, isAvailable = true)
+
+        assertNull(projected.serverId)
+        assertNull(projected.userId)
     }
 
     private fun serverSong(itemId: UUID) =
