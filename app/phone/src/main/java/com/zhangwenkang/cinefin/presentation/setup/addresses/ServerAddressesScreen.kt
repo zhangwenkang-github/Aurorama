@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -42,6 +43,7 @@ import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyServerAddress
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
@@ -54,6 +56,7 @@ import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.setup.R as SetupR
 import com.zhangwenkang.cinefin.setup.presentation.addresses.ServerAddressesAction
+import com.zhangwenkang.cinefin.setup.presentation.addresses.ServerAddressesEvent
 import com.zhangwenkang.cinefin.setup.presentation.addresses.ServerAddressesState
 import com.zhangwenkang.cinefin.setup.presentation.addresses.ServerAddressesViewModel
 
@@ -64,11 +67,23 @@ fun ServerAddressesScreen(
     viewModel: ServerAddressesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val cannotDeleteCurrentAddress = stringResource(SetupR.string.cannot_delete_current_address)
 
     LaunchedEffect(true) { viewModel.loadAddresses(serverId) }
 
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                ServerAddressesEvent.CannotDeleteCurrentAddress ->
+                    snackbarHostState.showSnackbar(cannotDeleteCurrentAddress)
+            }
+        }
+    }
+
     ServerAddressesLayout(
         state = state,
+        snackbarHostState = snackbarHostState,
         onAction = { action ->
             when (action) {
                 is ServerAddressesAction.OnBackClick -> navigateBack()
@@ -81,7 +96,11 @@ fun ServerAddressesScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ServerAddressesLayout(state: ServerAddressesState, onAction: (ServerAddressesAction) -> Unit) {
+fun ServerAddressesLayout(
+    state: ServerAddressesState,
+    snackbarHostState: SnackbarHostState,
+    onAction: (ServerAddressesAction) -> Unit,
+) {
     val layoutDirection = LocalLayoutDirection.current
     val safePadding = rememberSafePadding()
 
@@ -101,6 +120,7 @@ fun ServerAddressesLayout(state: ServerAddressesState, onAction: (ServerAddresse
 
     Scaffold(
         modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
+        snackbarHost = { CinefinSnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -202,6 +222,7 @@ private fun ServerAddressesLayoutPreview() {
     CinefinTheme {
         ServerAddressesLayout(
             state = ServerAddressesState(addresses = listOf(dummyServerAddress)),
+            snackbarHostState = remember { SnackbarHostState() },
             onAction = {},
         )
     }

@@ -19,6 +19,8 @@ android {
         sourceCompatibility = Versions.JAVA
         targetCompatibility = Versions.JAVA
     }
+
+    testOptions { unitTests.isReturnDefaultValues = true }
 }
 
 dependencies {
@@ -37,4 +39,9 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.jellyfin.core)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.slf4j.api)
+    testImplementation("io.mockk:mockk:1.13.16")
 }

@@ -29,6 +29,7 @@
     <string name="add_server_address">添加伺服器地址</string>
     <string name="remove_server_address">刪除伺服器位址</string>
     <string name="remove_server_address_dialog_text">您確定要刪除伺服器位址嗎%1$s</string>
+    <string name="cannot_delete_current_address">此位址正在使用中，請先切換到其它位址再移除。</string>
     <string name="servers">伺服器</string>
     <string name="servers_btn_add_server">添加伺服器</string>
     <string name="welcome">歡迎來到極光幕</string>

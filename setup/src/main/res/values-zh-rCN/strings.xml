@@ -29,6 +29,7 @@
     <string name="add_server_address">添加服务器地址</string>
     <string name="remove_server_address">移除服务器地址</string>
     <string name="remove_server_address_dialog_text">你确定你要移除此服务器地址 %1$s 吗</string>
+    <string name="cannot_delete_current_address">该地址正在使用中，请先切换到其它地址再移除。</string>
     <string name="servers">服务器</string>
     <string name="servers_btn_add_server">添加服务器</string>
     <string name="welcome">欢迎使用极光幕</string>

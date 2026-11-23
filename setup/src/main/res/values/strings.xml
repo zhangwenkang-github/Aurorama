@@ -39,6 +39,7 @@
    <string name="add_server_address">Add server address</string>
    <string name="remove_server_address">Remove server address</string>
    <string name="remove_server_address_dialog_text">Are you sure you want to remove the server address %1$s</string>
+   <string name="cannot_delete_current_address">This address is currently in use. Switch to another address before removing it.</string>
    <string name="certificate_trust_title">Untrusted certificate</string>
    <string name="certificate_trust_message">The server at %1$s presented a certificate this device does not trust. If this is your own server (for example with a self-signed certificate), compare the SHA-256 fingerprint below and trust it only if it matches.</string>
    <string name="certificate_trust_fingerprint_title">SHA-256 fingerprint</string>
