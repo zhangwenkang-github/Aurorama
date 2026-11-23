@@ -32,7 +32,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 线 | 状态 | 文档 |
 |----|------|------|
 | 1.4.1 | 🟢 **已发布**（2026-11-18）：master=`76f5350b`、tag `v1.4.1`、GitHub Release 双 APK | 发布目录 `releases/1.4.1-signed-r34-2026-11-17/` |
-| 2.0.0 | 🟢 **W9-T3 收口 + T5 部分收口**（2026-11-23 会话12）：T3=`2b82145e`（NavHost 固定高度约束压垮搜索结果区，Pad 双路径实证全绿）；T5=`ac91523f`/`5f1b8027`/`49e8f5fd`（⑥断网快照降级 + F4 降级曲库，K60 断网实证绿；F4 可播 BLOCKED → 残项 F4b 队列恢复重解析 P1）；**焦点 = F4b + W9-T4（P1）** | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · `V2_W9_TASKS.md` · `V2_W8_TASKS.md` |
+| 2.0.0 | 🟢 **W9-T3/T5/F4b/T4 已收口**（2026-11-23 会话13）：F4b=`407e4a39`（队列快照恢复按当前解析链重解析，K60 断网实证 PLAYING 推进）；T4=`e74b4f9c`（SyncWorker 扫季/剧+全部 toBeSynced 行、音乐收藏接入统一写补偿，Pad 温和断网补传实证）；T5 全收口；**焦点 = T6（跑批中）→ T7 → T8/T9** | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · `V2_W9_TASKS.md` · `V2_W8_TASKS.md` |
 | 播放器 | 🟢 W2 架构重构完成；W4 开工（2026-11-19）：T0 现状核对 + 任务卡定稿（T1–T7）；retrySeek 跨条目重建已修（`ccdafefa`）；生产 TLS `-0x7280` 复验通过（服务器侧修复生效，K60 mpv 正常播放） | `docs/V2_W4_TASKS.md` · `docs/V2_ARCHITECTURE.md` §3 |
 | 下载/离线 | 🟢 W7 已收官（2026-11-22）：55 条 = ✅51/⚠️4/❌0；修复卡 F1b 音乐重下载删档绕过 / F2 PENDING 滞留 / F4 音乐离线冷路径 / F5 书籍通知 / F6 作者折叠 / F7 引擎空转热循环，全登记 W9 聚合（F1 引擎层与 F3 已修销项） | `docs/V2_W7_TASKS.md` · `docs/DOWNLOAD_PLAN.md` |
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
@@ -41,27 +41,27 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-23）
 
-1. **W9-T3 已收口 + T5 部分收口（会话12）**：T3=`2b82145e`（搜索结果区 0 高根因修复，Pad 双路径实证：Tonari 25 条、Nirvana 音乐域 2 条渲染，输入框几何 147px 铁证）；T5=`ac91523f`（⑥快照跨进程可读+30 天离线窗口、F4 降级曲库）+`5f1b8027`（下载页音乐单击直开本地）+`49e8f5fd`（两套已完成判据统一为 `getDownloadedLocalSource`）。K60 断网实证：首页/媒体库缓存渲染绿、降级曲库 songs=1 绿；**F4 可播 BLOCKED**——队列快照恢复路径不重新解析（旧 jellyfins 流 URL 断网 UnknownHost），登记残项 **F4b（P1）**。K60 断网定式定型：`svc wifi/data disable`（验后恢复）。设备事实不变：K60/Pad 均测试服 admin。
+1. **W9-T4 + F4b 已收口（会话13，deepseek 双卡并行，真机实证全绿）**：F4b=`407e4a39`（根因=队列快照恢复路径把上会话 `mediaSourceUri` 当已解析结果直接交播放器；修=恢复本地短路 + 起播前当前链重解析 + 快照复用只信本地地址；K60 断网实证 `media_session PLAYING` position 5.8s→17.8s）；T4=`e74b4f9c`（⑦SyncWorker 扫描集=movies/episodes/shows/seasons ∪ 全部 toBeSynced 行；⑤音乐收藏先建行再排队、复用 W8-T1 `UserDataWriteOutcome` 统一写模型、无投影只推 isFavorite 保护服务端 played；Pad 断网→恢复 10s 内补传、服务器回读双绿）。**T5 至此全收口**。T4 遗留：离线模式 `markAsFavorite` 纯 UPDATE（暂不可达）；`:data:connectedDebugAndroidTest` 预存 AAPT 打包失败（与本次无关）。设备事实不变：K60/Pad 均测试服 admin；K60 断网定式 `svc wifi/data disable`（验后恢复）；Pad 仅温和断网（关 Wi-Fi，飞行模式禁用）。**会话13 起 adb 取证下放子代理（用户拍板，Kimi 额度有限），真机证据仍按质量门审查。**
 2. **W9-T0 遗留**：W4–W6 backlog 补汇总 + 账户设置域裁剪 + S1 样本补验并入 W9-T8（S1 需用户在测试服建书籍/有声书/SP/无季样本）。
 3. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
-### W9 会话13 开工提示词（新会话直接粘贴；格式遵循 AGENTS.md「开工提示词统一标准」）
+### W9 会话14 开工提示词（新会话直接粘贴；格式遵循 AGENTS.md「开工提示词统一标准」）
 
 ```
 你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
 工作区：F:\Develop\code_data\work_tree\Aurorama\v2-merge-141（分支 codex/v2-integration）。
 开工读序：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V2_W9_TASKS.md 状态块
 → 记忆库 MEMORY.md（读序外文件按需，不通读）。
-现状：W9-T3 已收口（2b82145e，Pad 实证）；T5 部分收口（ac91523f/5f1b8027/49e8f5fd，
-⑥+F4可见 K60 实证绿，F4可播 BLOCKED→残项 F4b）；HEAD 以 git log 为准；
-K60=8e875894、Pad=43af8627 均测试服 admin（Pad 飞行模式禁用；K60 断网定式
-svc wifi/data disable，验后恢复）。
-本会话任务（2 卡，派 deepseek，文件域开工圈定防重叠）：F4b 队列快照恢复重解析（P1，
-T5 残项——恢复条目按当前解析链重解析 mediaSourceUri，证据 qa/w9-t5；K60 断网取证
-Kimi 做）；W9-T4 写补偿统一（W8⑤+⑦，P1——SyncWorker 扫季/剧排队写 + 音乐收藏接入
-QueuedForSync；Pad 温和断网取证 Kimi 做，异常即停）。
+现状：W9-T1–T5 全部收口（T6 小修批见状态块最新行）；HEAD 以 git log 为准；
+F4b 衍生「孤儿下载文件对账」待裁定；K60=8e875894、Pad=43af8627 均测试服 admin
+（Pad 飞行模式禁用仅温和断网；K60 断网定式 svc wifi/data disable，验后恢复）。
+本会话任务（1–2 卡）：W9-T7 书籍通知接入（F5，P2，派 deepseek——
+BookDownloadManager 完成/失败通知 + 点击直达阅读器，复用 W7-T5
+DownloadNotificationDestination 扩展模式，不可达回退下载页已完成分组）；
+F4b 衍生孤儿对账裁定（Kimi，只读盘点 downloads 目录 vs sources 表口径后
+裁定 NOW/LATER/DROP，立卡则派 deepseek）。
 设计分权：设计以 docs/V2_DESIGN.md 为准，deepseek 零设计权。
-门禁与纪律：见 AGENTS.md 质量门/红线；子代理禁 adb；真机取证 Kimi 做。
+门禁与纪律：见 AGENTS.md 质量门/红线；adb 取证下放子代理（会话13 起用户拍板）。
 交接：收口按 AGENTS.md 五件事，提示词按统一标准填槽更新。
 ```
 
