@@ -216,6 +216,8 @@
 
 ### 裁定登记（供 W9-T0 聚合）
 
+> **已于 2026-11-23 W9-T0 聚合完毕**：下述各项逐条裁定（NOW/LATER/DROP）见 `docs/V2_W9_TASKS.md`「裁定汇总」；本节冻结存档，不再更新。
+
 **修复卡（backlog-fix）**：
 - ~~F3（w7-s4 发现⑥，需求 06）~~ **已修（`d8ee43af`，K60 复验 ✅）**：`SeasonScreen` 集多选已接 `GENERIC_BATCH` 提示层（复用 T1b 模式）。
 - **F1**（观察项①）**引擎层已修（`d5e8b119`）**：入队幂等跳过集补 COMPLETED + 最终文件存在校验（文件存在→跳过；文件丢失→允许重下；3 条契约测试）。**但真机复验发现遗留缺口 → F1b（修复卡，根因已定位）**：音乐曲目菜单「下载 · 离线」实为 **toggle**——`MusicModeViewModel.kt:1914-1917` 命中 LOCAL 完成源即 `deleteItem` 并 return（删除发生点），F1 结构上不可能到达。触发前提是**两套已下载口径不一致**：UI 判定 `isDownloaded(song)`（`:203-206` sidecar + canonical identity）判 false（legacy 记录 sidecar 缺/不可读/identity 缺侧，三候选待一条 logcat 定论），而 toggle 删除判定只看 `item.sources`（`:1911-1915`）→ 用户看到「下载」、点下去实际删掉了已下载文件。**修复方向（推荐）**：菜单按 `isDownloaded` 渲染「删除下载」，`toggleSongDownload` 拆 `downloadSong`/`deleteSong`，下载入口不再含 delete 分支（即使误判最多幂等入队，F1 生效）；保底 = toggle 命中 COMPLETED 不删只提示。验收：已下载曲目点「下载 · 离线」无删除无二次入队，删除只能走显式「删除下载」。
