@@ -44,7 +44,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 1. **2.0.1 开工（分支 `codex/v2.0.1`）**：计划经用户两轮审批通过——21 项需求/bug + 2.0.0 遗留，波次 W0→W5（修复快线→设计基础→音乐重塑→播放器收尾→回归发布），台账 `docs/V201_TASKS.md`（22 卡全登记）。工作流七条已制度化进 `AGENTS.md`。
 2. **W0 已收官（2026-11-24）**：✅ 分支+台账+AGENTS.md；✅ W0-D1 设计审计（22 条偏差）；✅ W0-D2 设计定稿（`docs/V201_DESIGN_FINAL.md`，9 条裁定：域色=身份、极光=行动；琥珀退出交互强调；封面取色只留背景光晕；玻璃无 blur 为正式决定；主题选择器加跟随系统）；✅ W0-D3 master 已对齐 v2.0.0（`312209a6`，远端推送待授权）。
-3. **W1 修复快线进行中**：T03（logo 换 B 版）/T04（缓存默认无限制）已派子代理；余 T01/T02/T05–T08 可继续并发派卡。
+3. **W1 修复快线进行中**：✅ T03 logo 换 B 版（`52d57030`）、✅ T04 缓存默认无限制（`c7e6f2ff`+`84e7b800`，已解除 Coil 250MB 默认硬顶）；余 T01/T02/T05–T08 可继续并发派卡。
 4. **主题特别要求（用户拍板）**：#9 按 W0-D2 定稿还原——T09 依 `V201_DESIGN_FINAL.md` §2 三批执行。
 5. **环境事实**：多设备在线装机用 `assembleLibreDebug` + `adb -s <id> install -r`；全模块单测注意 `:core`/`:app:phone` 是 `testLibreDebugUnitTest`；发布门须显式加跑 `verifyMpvJniReleaseContract`；GitHub 上传双资产偶发 502 拆「先建 Release 再分次传」可解。
 
@@ -56,7 +56,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 2. 开工读序（固定）：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V201_TASKS.md 状态块
    → 记忆库 MEMORY.md（读序外文件按需，不通读）。
 3. 现状（≤4 行）：HEAD 以 git log 为准；W0 已收官（D0–D3），设计定稿=docs/V201_DESIGN_FINAL.md；
-   master=312209a6（远端推送待授权）；T03/T04 子代理结果若已合入则核台账。
+   master=312209a6（远端推送待授权）；T03（52d57030）/T04（c7e6f2ff+84e7b800）已 DONE。
 4. 本会话任务（1–2 卡）：W1 修复快线继续派卡——优先 T01（更新链路）+T02（管理员入口）或
    T05–T08 任选两张并发；额度宽裕可加派 W2-T09 批①（角色收口，纯 token 层）。
 5. 设计分权（固定一行）：设计以 docs/V201_DESIGN_FINAL.md + docs/V2_DESIGN.md §3 为准，deepseek 零设计权。

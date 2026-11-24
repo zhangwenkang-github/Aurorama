@@ -1,8 +1,8 @@
 # 2.0.1 任务卡台账
 
 <!-- V201_STATUS_BEGIN -->
-> **当前状态（2026-11-24）**：W0 已收官（D0/D1/D2/D3 全完成）。分支 `codex/v2.0.1`；master 已对齐 v2.0.0（`312209a6`）；W0-D2 设计定稿落 `docs/V201_DESIGN_FINAL.md`（9 条裁定：域色=身份、极光=行动；琥珀退出交互强调；封面取色只留背景光晕；阅读外框服从 App 主题；玻璃无 blur 为正式决定；主题选择器加「跟随系统」）。
-> **下一卡**：W1 修复快线 T01–T08 可并发派子代理（T03/T04 已派出）；W2 T09 按定稿三批执行（依赖 `V201_DESIGN_FINAL.md` §2）。
+> **当前状态（2026-11-24）**：W0 已收官（D0/D1/D2/D3 全完成）；W1 修复快线开工，T03/T04 已 DONE（`52d57030`、`c7e6f2ff`+`84e7b800`）。分支 `codex/v2.0.1`；master 已对齐 v2.0.0（`312209a6`）；W0-D2 设计定稿落 `docs/V201_DESIGN_FINAL.md`（9 条裁定：域色=身份、极光=行动；琥珀退出交互强调；封面取色只留背景光晕；阅读外框服从 App 主题；玻璃无 blur 为正式决定；主题选择器加「跟随系统」）。
+> **下一卡**：W1 修复快线 T01/T02/T05–T08 可并发派子代理；W2 T09 按定稿三批执行（依赖 `V201_DESIGN_FINAL.md` §2，批①角色收口最独立）。
 > **工作流（2026-11-24 用户拍板）**：① 下载类任务分散到功能波次，不设独立下载波次；② adb 取证与简单修复下放子代理，负责人只审证据；③ 负责人任务量按上下文消耗弹性排，不固定卡数；④ 负责人只做规划/复杂排错/设计定稿/证据终审；⑤ 波次按依赖与风险排，不照搬需求编号；⑥ 所有主题必须落卡，收口逐卡核销；⑦ 新需求按内容归属插入最合适波次（可插队任意未开始波次），每波次预留 ~20% 缓冲。
 > **红线**：生产服 `jellyfins.zhangwenkang.com` 永久只读；服务器写只在测试服验证；push/tag/Release 需用户授权。
 <!-- V201_STATUS_END -->
@@ -27,7 +27,7 @@
 | T01 | #1 | TODO | 更新失效：`UpdateWorkScheduler` KEEP→REPLACE + 排队态回显；`UpdatePackageVerifier` digest 缺失不删包（改警告/或发布流程补 digest）；manifest 加 `<queries>`；`GitHubReleaseDto` 加 `body` + UpdateScreen 渲染更新说明（Markdown） | 真机 2.0.0→2.0.1-rc 真实升级：进度可见、安装成功、说明显示 |
 | T02 | #10 | TODO | 管理员入口不可见：adb 取证 `policy.isAdministrator` 实际值与缓存（`JellyfinRepositoryImpl.kt:2396-2420`、`DrawerViewModel`），按证据修 | admin 真机可见并进入控制台/资料管理 |
 | T03 | #3 | DONE | `core/.../drawable/ic_logo.xml` 已换 B「极幕之眼」（`52d57030`，与启动图标同源 ×0.2 构图，10 处引用全核对）；已知留档：渐变方向随启动图标渲染（与设计稿 objectBoundingBox 旋转差异，连启动图标一起改才算对齐，列 LATER）；Light 主题关于页 120dp 对比度偏低（列 LATER） | K60 装机+uiautomator 取证顶栏/抽屉 logo 节点正常，截图 2 张已删 ✅ |
-| T04 | #4 | TODO | 图片缓存默认 50MB（`AppPreferences.kt:262`）→ 默认无限制（0=不设 maxSizeBytes）；存量值不迁移，设置项注明 | 全新安装默认无限制 |
+| T04 | #4 | DONE | 图片缓存默认 50MB→0 无限制（`c7e6f2ff` + 跟进 `84e7b800` 解除 Coil 250MB 默认硬顶：0=可用空间×2%、10MB 保底、无固定上限；存量值不迁移；反编译确认显式 maxSizeBytes 不受钳制） | 3 条单测绿；phone assemble + tv compile + ktfmt 全绿 ✅ |
 | T05 | #16 | TODO | 节目页静默刷新：`ShowViewModel.loadShow` 不再先清空 seasons/actors（`:48-58`），新数据到位再替换；UI 不闪、位置不变 | 真机播放返回：不黑不闪、位置保持、已看勾更新 |
 | T06 | #17 | TODO | 多选下移：`SeasonScreen.kt:344` hero `item{}` 加稳定 key | 真机长按照片首屏位置不变 |
 | T07 | #21 | TODO | 跨季误下载：先只读取证《学生会的一己之见》成因（卡面 S01/S02 判别）；`JellyfinRepositoryImpl.kt:1774-1786` 加 resolvedSeasonId 一致性过滤 | 第一季下载清单不含第二季集；单测覆盖 |
@@ -77,3 +77,4 @@ A4 徽标 / A5 FAILED 同步 / A6 计数 / 对账口径 /「全部继续」/ Pad
 - 2026-11-24：W0-D1 完成（子代理）——《设计偏差清单》22 条落 `docs/V201_DESIGN_AUDIT.md`，「满屏黄橙」根因三条结构性（Neutral→MediaFilm、M3 primary=域媒体色、K1 极光渐变未落地），修复方向=收回琥珀适用范围而非换色；9 条不确定项待 W0-D2 裁定。
 - 2026-11-24：W0-D3 完成——用户确认后 master `reset --hard v2.0.0`（`312209a6`），独有资产零丢失（已移植 `f541b249`）；远端推送待授权。
 - 2026-11-24：W0-D2 完成（负责人定稿）——9 条不确定项全部裁定落 `docs/V201_DESIGN_FINAL.md`（总原则：域色=身份、极光=行动），含 T09 token 三批清单、T10 图标规范、W3 音乐交互稿；R1 文档已加指向状态块；设置页布局稿登记为 T13 前置；W0 全波次收官。
+- 2026-11-24：W1 开工——T03 logo 换 B 版 DONE（`52d57030`，K60 取证通过，渐变方向/Light 对比度两条留档 LATER）；T04 缓存默认无限制 DONE（`c7e6f2ff`+`84e7b800`，负责人裁定解除 Coil 250MB 默认硬顶，0=可用空间×2% 无固定上限；30+ locale 不补译）。
