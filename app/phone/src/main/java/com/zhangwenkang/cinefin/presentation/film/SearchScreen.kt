@@ -30,7 +30,8 @@ fun SearchScreen(
     onItemClick: (FindroidItem) -> Unit,
     onPlayLocalVideo: (UUID) -> Unit,
     onOpenLocalBook: (UUID, String, String?) -> Unit,
-    onOpenMusic: (UUID) -> Unit,
+    /** W1-T08：音乐结果 → 音乐页；[kind] / [title] 用于专辑 / 艺术家 / 歌单结果进对应详情层。 */
+    onOpenMusic: (itemId: UUID, kind: String?, title: String?) -> Unit,
     viewModel: SearchViewModel = hiltViewModel(),
     downloadStatusViewModel: DownloadStatusViewModel = hiltViewModel(),
 ) {
@@ -46,7 +47,11 @@ fun SearchScreen(
             when (action) {
                 is SearchAction.OnItemClick ->
                     if (SearchResultRules.categoryOf(action.item) == SearchCategory.MUSIC) {
-                        onOpenMusic(action.item.id)
+                        onOpenMusic(
+                            action.item.id,
+                            SearchResultRules.serverKindOf(action.item),
+                            action.item.name,
+                        )
                     } else {
                         onItemClick(action.item)
                     }
@@ -59,7 +64,7 @@ fun SearchScreen(
                                 action.hit.entry.displayName,
                                 action.hit.entry.documentUri,
                             )
-                        LocalMediaKind.MUSIC -> onOpenMusic(action.hit.entry.itemId)
+                        LocalMediaKind.MUSIC -> onOpenMusic(action.hit.entry.itemId, null, null)
                     }
                 is SearchAction.OnDownloadedItemClick -> {
                     val record = action.record
@@ -73,7 +78,7 @@ fun SearchScreen(
                                     record.displayName ?: record.itemId.take(8),
                                     null,
                                 )
-                            DownloadMediaKind.MUSIC -> onOpenMusic(itemId)
+                            DownloadMediaKind.MUSIC -> onOpenMusic(itemId, null, null)
                         }
                     }
                 }

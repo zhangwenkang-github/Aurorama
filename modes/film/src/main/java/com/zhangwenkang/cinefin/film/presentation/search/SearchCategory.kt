@@ -113,6 +113,18 @@ object SearchResultRules {
             else -> SearchCategory.VIDEO
         }
 
+    /**
+     * W1-T08：搜索结果的服务器原始类型（`BaseItemKind` 名称）。
+     *
+     * 音乐结果里只有专辑 / 艺术家 / 歌单需要按类型进对应详情层；歌曲（`Audio`）、本地曲目与已下载音乐按曲目起播， 由调用方把 `null` 当作「按曲目处理」。
+     */
+    fun serverKindOf(item: FindroidItem): String? =
+        when (item) {
+            is FindroidMovie -> item.kind
+            is FindroidFolder -> item.kind
+            else -> null
+        }
+
     fun categoryOf(hit: LocalSearchHit): SearchCategory =
         when (hit.entry.kind) {
             LocalMediaKind.VIDEO -> SearchCategory.VIDEO

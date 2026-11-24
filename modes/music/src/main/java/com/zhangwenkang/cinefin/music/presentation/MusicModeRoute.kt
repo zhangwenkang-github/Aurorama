@@ -3,7 +3,11 @@ package com.zhangwenkang.cinefin.music.presentation
 import com.zhangwenkang.cinefin.core.presentation.components.LibrarySelectorOption
 import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidCollection
+import com.zhangwenkang.cinefin.music.data.MusicAlbum
+import com.zhangwenkang.cinefin.music.data.MusicArtist
 import com.zhangwenkang.cinefin.music.data.MusicSong
+import com.zhangwenkang.cinefin.music.data.groupAlbums
+import com.zhangwenkang.cinefin.music.data.groupArtists
 import java.util.UUID
 import kotlinx.serialization.Serializable
 
@@ -15,8 +19,65 @@ import kotlinx.serialization.Serializable
  */
 @Serializable data object MusicModeRoute
 
-/** W82 #25：搜索结果里的服务器 / 本地曲目 → 音乐页并起播（返回仍回搜索结果）。 */
-@Serializable data class MusicItemRoute(val itemId: String, val queueItemIds: String? = null)
+/**
+ * W82 #25：搜索结果里的服务器 / 本地曲目 → 音乐页并起播（返回仍回搜索结果）。
+ *
+ * W1-T08：[kind] / [title] 带上结果卡片的服务器条目类型（`BaseItemKind` 名称）与显示标题——专辑 / 艺术家 / 歌单
+ * 结果要按类型进对应详情层；歌曲、本地曲目与已下载音乐保持「进音乐页并起播」。
+ */
+@Serializable
+data class MusicItemRoute(
+    val itemId: String,
+    val queueItemIds: String? = null,
+    val kind: String? = null,
+    val title: String? = null,
+)
+
+/** W1-T08：音乐搜索结果在音乐页内要打开的详情层（`null` = 按曲目起播）。 */
+internal sealed interface MusicRouteDetailTarget {
+    data class Album(val name: String) : MusicRouteDetailTarget
+
+    data class Artist(val name: String) : MusicRouteDetailTarget
+
+    data class Playlist(val id: UUID) : MusicRouteDetailTarget
+}
+
+/**
+ * 搜索结果条目类型 → 音乐页详情层（纯函数，单测覆盖）。
+ *
+ * 专辑 / 艺术家在客户端按名称聚合（服务器音乐库没有独立的专辑实体，见 `MusicRepository`），所以只有标题可用； 歌单直接用服务器条目 id。
+ */
+internal fun musicRouteDetailTarget(
+    kind: String?,
+    title: String?,
+    itemId: UUID,
+): MusicRouteDetailTarget? {
+    val name = title?.takeIf { it.isNotBlank() }
+    return when (kind?.uppercase()) {
+        "MUSIC_ALBUM" -> name?.let { MusicRouteDetailTarget.Album(it) }
+        "MUSIC_ARTIST" -> name?.let { MusicRouteDetailTarget.Artist(it) }
+        "PLAYLIST" -> MusicRouteDetailTarget.Playlist(itemId)
+        else -> null
+    }
+}
+
+/** 专辑定位：优先已聚合列表（key = 专辑名），缺失时按曲目现聚合一份。 */
+internal fun findMusicAlbum(
+    albums: List<MusicAlbum>,
+    songs: List<MusicSong>,
+    name: String,
+): MusicAlbum? =
+    albums.firstOrNull { it.name == name }
+        ?: groupAlbums(songs.filter { song -> song.albumName == name }).firstOrNull()
+
+/** 艺术家定位：与 [MusicModeViewModel.openArtistByName] 同口径（已聚合列表 → 按曲目现聚合）。 */
+internal fun findMusicArtist(
+    artists: List<MusicArtist>,
+    songs: List<MusicSong>,
+    name: String,
+): MusicArtist? =
+    artists.firstOrNull { it.name == name }
+        ?: groupArtists(songs.filter { song -> song.artist == name }).firstOrNull()
 
 /** 下载页多选播放参数：保持选择顺序、去重，非法整体参数回落到首个曲目。 */
 internal fun parseMusicQueueIds(raw: String?, fallback: UUID): List<UUID> {

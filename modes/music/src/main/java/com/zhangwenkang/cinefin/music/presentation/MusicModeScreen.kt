@@ -231,7 +231,12 @@ fun MusicModeScreen(
     openNowPlayingSignal: Int = 0,
     /** W82 #25：搜索结果打开曲目并起播（路由参数；null = 普通音乐页）。 */
     initialSongId: String? = null,
+    /** W1-T08：搜索结果条目类型（`BaseItemKind` 名称）与标题——专辑 / 艺术家 / 歌单结果据此进对应详情层。 */
+    initialItemKind: String? = null,
+    initialItemTitle: String? = null,
     initialQueueItemIds: String? = null,
+    /** W1-T08：本页由搜索结果打开时的返回动作——详情层打开时系统返回 = 关详情并直接回搜索结果页（不停在音乐主页）。 null = 普通音乐页（详情返回只关详情）。 */
+    onExitRoute: (() -> Unit)? = null,
     /** W56：把「音乐页内二级层（全屏播放 / 歌词页 / 专辑·艺术家·歌单详情）是否打开」回报给导航层（决定再点图标是只收二级层还是不重复导航）。 */
     onInnerPageOpenChange: ((Boolean) -> Unit)? = null,
     /** W60b：下载反馈 Snackbar「查看」→ 下载页。 */
@@ -488,8 +493,15 @@ fun MusicModeScreen(
     LaunchedEffect(openNowPlayingSignal) {
         if (openNowPlayingSignal > 0) pendingOpenNowPlaying = true
     }
-    LaunchedEffect(initialSongId, initialQueueItemIds) {
-        initialSongId?.let { viewModel.playSongFromRoute(it, initialQueueItemIds) }
+    LaunchedEffect(initialSongId, initialItemKind, initialItemTitle, initialQueueItemIds) {
+        initialSongId?.let { itemId ->
+            viewModel.openItemFromRoute(
+                rawItemId = itemId,
+                kind = initialItemKind,
+                title = initialItemTitle,
+                rawQueueItemIds = initialQueueItemIds,
+            )
+        }
     }
     LaunchedEffect(pendingOpenNowPlaying, queue) {
         if (pendingOpenNowPlaying && queue != null) {
@@ -503,7 +515,11 @@ fun MusicModeScreen(
 
     // 系统返回键与左上角返回一致（W3-R3b 缺陷 1）：详情（专辑 / 艺术家 / 歌单）内先回音乐主界面，
     // 而不是直接退回首页；不在详情时交给 NavHost 正常返回。
-    BackHandler(enabled = state.detail != null) { viewModel.closeDetail() }
+    // W1-T08：搜索结果打开的那一页没有「留在音乐主页」的语义——关详情后直接回搜索结果页。
+    BackHandler(enabled = state.detail != null) {
+        viewModel.closeDetail()
+        onExitRoute?.invoke()
+    }
     // 临时库视图（W53 追加）：没有详情 / 面板打开时，返回键先退出临时库（回默认音乐库）。
     // 详情打开时本 handler 禁用 → 详情返回语义优先；两者不会互相抢（BackHandler 为 LIFO）。
     BackHandler(

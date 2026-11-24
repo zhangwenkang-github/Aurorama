@@ -31,6 +31,15 @@ class SearchResultRulesTest {
     }
 
     @Test
+    fun `音乐条目保留服务器原始类型供按类型进详情`() {
+        // W1-T08：专辑 / 艺术家 / 歌单要靠原始类型进对应详情层，歌曲（Audio）按曲目起播。
+        assertEquals("MUSIC_ALBUM", SearchResultRules.serverKindOf(folder(kind = "MUSIC_ALBUM")))
+        assertEquals("MUSIC_ARTIST", SearchResultRules.serverKindOf(folder(kind = "MUSIC_ARTIST")))
+        assertEquals("PLAYLIST", SearchResultRules.serverKindOf(folder(kind = "PLAYLIST")))
+        assertEquals("AUDIO", SearchResultRules.serverKindOf(movie(kind = "AUDIO")))
+    }
+
+    @Test
     fun `本地视频音乐书籍分别归入三类`() {
         assertEquals(
             SearchCategory.VIDEO,

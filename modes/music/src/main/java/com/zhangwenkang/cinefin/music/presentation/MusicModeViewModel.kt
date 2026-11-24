@@ -479,6 +479,87 @@ constructor(
         }
     }
 
+    /**
+     * W1-T08：搜索结果打开音乐条目。
+     *
+     * - 专辑 / 艺术家 / 歌单结果进各自详情层（与库内点卡片的链路一致）；
+     * - 服务器歌曲结果（`Audio`）起播后再打开所属专辑详情——音乐页没有「单曲详情」层，专辑详情是曲目所属的唯一详情页；
+     * - 本地曲目 / 已下载音乐 / 下载通知等入口（不带类型）保持原有「进音乐页并起播」。
+     *
+     * 曲库 / 歌单尚未加载时先挂起，发布后补开一次。
+     */
+    fun openItemFromRoute(
+        rawItemId: String,
+        kind: String? = null,
+        title: String? = null,
+        rawQueueItemIds: String? = null,
+    ) {
+        val itemId = runCatching { UUID.fromString(rawItemId) }.getOrNull() ?: return
+        if (rawQueueItemIds != null) {
+            playSongFromRoute(rawItemId, rawQueueItemIds)
+            return
+        }
+        val target = musicRouteDetailTarget(kind, title, itemId)
+        if (target == null) {
+            playSongFromRoute(rawItemId)
+            if (kind.equals("AUDIO", ignoreCase = true)) {
+                pendingRouteSongAlbumId = itemId
+                retryPendingRouteSongAlbum()
+            }
+            return
+        }
+        if (!openRouteDetail(target)) pendingRouteDetail = target
+    }
+
+    /** 路由要求的详情层（曲库 / 歌单未加载完时暂存，发布后重试一次）。 */
+    private var pendingRouteDetail: MusicRouteDetailTarget? = null
+
+    /** 搜索点开的曲目（曲库未加载完时暂存 id，发布后补开所属专辑详情）。 */
+    private var pendingRouteSongAlbumId: UUID? = null
+
+    private fun openRouteDetail(target: MusicRouteDetailTarget): Boolean {
+        val state = _uiState.value
+        val songs = serverLibrary.songs + localLibrary.songs
+        val albums = serverLibrary.albums + localLibrary.albums
+        val artists = serverLibrary.artists + localLibrary.artists
+        return when (target) {
+            is MusicRouteDetailTarget.Album -> {
+                val album = findMusicAlbum(albums, songs, target.name) ?: return false
+                openAlbum(album)
+                true
+            }
+            is MusicRouteDetailTarget.Artist -> {
+                val artist = findMusicArtist(artists, songs, target.name) ?: return false
+                openArtist(artist)
+                true
+            }
+            is MusicRouteDetailTarget.Playlist -> {
+                val playlist =
+                    state.playlists.firstOrNull { it.id == target.id }
+                        ?: serverPlaylists.firstOrNull { it.id == target.id }
+                        ?: return false
+                openPlaylist(playlist)
+                true
+            }
+        }
+    }
+
+    private fun retryPendingRouteDetail() {
+        pendingRouteDetail?.let { target -> if (openRouteDetail(target)) pendingRouteDetail = null }
+        retryPendingRouteSongAlbum()
+    }
+
+    /** 曲目 → 所属专辑详情（曲目或专辑解析不到时丢弃，不阻塞起播）。 */
+    private fun retryPendingRouteSongAlbum() {
+        val songId = pendingRouteSongAlbumId ?: return
+        val songs = serverLibrary.songs + localLibrary.songs
+        val song = songs.firstOrNull { it.itemId == songId } ?: return
+        pendingRouteSongAlbumId = null
+        val album =
+            findMusicAlbum(serverLibrary.albums + localLibrary.albums, songs, song.albumName)
+        if (album != null) openAlbum(album)
+    }
+
     private fun playRouteSong(itemId: UUID) {
         val serverIndex = serverLibrary.songs.indexOfFirst { it.itemId == itemId }
         if (serverIndex >= 0) {
@@ -510,6 +591,7 @@ constructor(
     private fun playPendingRouteSong() {
         pendingRouteSongId?.let(::playRouteSong)
         pendingRouteSongIds?.let(::playRouteSongs)
+        retryPendingRouteDetail()
     }
 
     /** 下载页多选播放：保持下载页选择顺序，只播放已解析到的本地 / 服务器曲目。 */
@@ -1361,6 +1443,7 @@ constructor(
             )
         }
         _uiState.update { it.copy(playlists = localRows + serverPlaylists) }
+        retryPendingRouteDetail()
     }
 
     /** 第一次失败视为偶发（服务端超时 / 弱网），自动重试一次后仍失败才抛给调用方。 */

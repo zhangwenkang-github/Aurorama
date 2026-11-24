@@ -468,6 +468,8 @@ fun NavigationRoot(
             currentDestination.isRoute<FavoritesRoute>() ||
             currentDestination.isRoute<DownloadsRoute>() ||
             currentDestination.isRoute<MusicModeRoute>() ||
+            // W1-T08：搜索点音乐结果进入的音乐页（`MusicItemRoute`）同样是顶层页面——侧轨 / 底栏与抽屉手势必须保留。
+            currentDestination.isRoute<MusicItemRoute>() ||
             currentDestination.isRoute<TemporaryLibraryRoute>() ||
             currentDestination.isRoute<LibraryRoute>() ||
             currentDestination.isRoute<SettingsRoute>()
@@ -587,6 +589,7 @@ fun NavigationRoot(
             temporaryLibrary?.kind == TemporaryLibraryKind.Video
     val musicSelected =
         currentDestination.isRoute<MusicModeRoute>() ||
+            currentDestination.isRoute<MusicItemRoute>() ||
             temporaryLibrary?.kind == TemporaryLibraryKind.Music
     val mediaSelected = currentDestination.isRoute<MediaRoute>()
     val downloadsSelected = currentDestination.isRoute<DownloadsRoute>()
@@ -1319,8 +1322,14 @@ fun NavigationRoot(
                             localUri = documentUri,
                         )
                     },
-                    onOpenMusic = { itemId ->
-                        navController.safeNavigate(MusicItemRoute(itemId.toString()))
+                    onOpenMusic = { itemId, kind, title ->
+                        navController.safeNavigate(
+                            MusicItemRoute(
+                                itemId = itemId.toString(),
+                                kind = kind,
+                                title = title,
+                            )
+                        )
                     },
                 )
             }
@@ -1428,7 +1437,11 @@ fun NavigationRoot(
                     theme = musicTheme,
                     onOpenDrawer = openDrawer,
                     initialSongId = route.itemId,
+                    initialItemKind = route.kind,
+                    initialItemTitle = route.title,
                     initialQueueItemIds = route.queueItemIds,
+                    // W1-T08：搜索结果打开的音乐页——详情层返回直接回搜索结果页（查询与结果由搜索页保留）。
+                    onExitRoute = { navController.safePopBackStack() },
                     onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
                     onSearchClick = openMusicSearch,
                 )
