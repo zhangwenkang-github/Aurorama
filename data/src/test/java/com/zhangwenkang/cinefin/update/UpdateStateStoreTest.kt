@@ -251,6 +251,32 @@ class UpdateStateStoreTest {
         assertEquals(250, failed.updatedAtEpochMs)
     }
 
+    @Test
+    fun releaseNotesRoundTripAndSurviveRediscoveryOfSameRelease() {
+        val store = UpdateStateStore(directory)
+        val notes = "## 2.0.0\n\n- 修复应用内更新链路"
+
+        assertEquals(
+            UpdateStateWriteResult.Success,
+            store.saveDiscoveredRelease(release(), nowEpochMs = 100, releaseNotes = notes),
+        )
+        assertEquals(
+            notes,
+            (store.loadDiscoveredRelease() as UpdateStateReadResult.Present).value.releaseNotes,
+        )
+
+        assertEquals(
+            UpdateStateWriteResult.Success,
+            store.saveDiscoveredRelease(release(), nowEpochMs = 200),
+        )
+        assertEquals(
+            notes,
+            (UpdateStateStore(directory).loadDiscoveredRelease() as UpdateStateReadResult.Present)
+                .value
+                .releaseNotes,
+        )
+    }
+
     private fun release(
         version: String = "1.4.0",
         assetName: String = "Aurorama-$version-arm64-v8a.apk",

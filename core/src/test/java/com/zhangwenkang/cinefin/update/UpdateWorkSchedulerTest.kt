@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.update
 
+import androidx.work.ExistingWorkPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -12,8 +13,13 @@ class UpdateWorkSchedulerTest {
         scheduler.scheduleAutomaticCheck()
 
         assertEquals(
-            listOf(UpdateWorkCommand.AutomaticCheck(initialDelayMs = 15_000L)),
-            gateway.commands,
+            listOf(
+                Enqueued(
+                    UpdateWorkCommand.AutomaticCheck(initialDelayMs = 15_000L),
+                    ExistingWorkPolicy.KEEP,
+                )
+            ),
+            gateway.enqueued,
         )
     }
 
@@ -25,29 +31,43 @@ class UpdateWorkSchedulerTest {
         scheduler.scheduleAutomaticCheck()
 
         assertEquals(
-            listOf(UpdateWorkCommand.AutomaticCheck(initialDelayMs = 0L)),
-            gateway.commands,
+            listOf(
+                Enqueued(
+                    UpdateWorkCommand.AutomaticCheck(initialDelayMs = 0L),
+                    ExistingWorkPolicy.KEEP,
+                )
+            ),
+            gateway.enqueued,
         )
     }
 
     @Test
-    fun manualCheckAndDownloadUseSeparateStableCommands() {
+    fun manualCheckAndDownloadReplaceQueuedWorkSoUserRequestsAreNeverSwallowed() {
         val gateway = FakeGateway()
         val scheduler = scheduler(gateway = gateway, automaticDelayMs = 0L)
         val updateId = "a".repeat(64)
 
         scheduler.scheduleManualCheck()
         scheduler.scheduleDownload(updateId)
-        scheduler.cancelDownload()
 
         assertEquals(
             listOf(
-                UpdateWorkCommand.ManualCheck,
-                UpdateWorkCommand.Download(updateId),
-                UpdateWorkCommand.CancelDownload,
+                Enqueued(UpdateWorkCommand.ManualCheck, ExistingWorkPolicy.REPLACE),
+                Enqueued(UpdateWorkCommand.Download(updateId), ExistingWorkPolicy.REPLACE),
             ),
-            gateway.commands,
+            gateway.enqueued,
         )
+    }
+
+    @Test
+    fun cancelDownloadCancelsTheUniqueDownloadWork() {
+        val gateway = FakeGateway()
+        val scheduler = scheduler(gateway = gateway, automaticDelayMs = 0L)
+
+        scheduler.cancelDownload()
+
+        assertEquals(1, gateway.cancelDownloadCalls)
+        assertEquals(emptyList<Enqueued>(), gateway.enqueued)
     }
 
     @Test(expected = IllegalArgumentException::class)
@@ -67,10 +87,23 @@ class UpdateWorkSchedulerTest {
         )
 }
 
-private class FakeGateway : UpdateWorkGateway {
-    val commands = mutableListOf<UpdateWorkCommand>()
+private data class Enqueued(
+    val command: UpdateWorkCommand,
+    val policy: ExistingWorkPolicy,
+)
 
-    override fun enqueue(command: UpdateWorkCommand) {
-        commands += command
+private class FakeGateway : UpdateWorkGateway {
+    val enqueued = mutableListOf<Enqueued>()
+    var cancelDownloadCalls = 0
+
+    override fun enqueue(
+        command: UpdateWorkCommand,
+        policy: ExistingWorkPolicy,
+    ) {
+        enqueued += Enqueued(command, policy)
+    }
+
+    override fun cancelDownload() {
+        cancelDownloadCalls++
     }
 }

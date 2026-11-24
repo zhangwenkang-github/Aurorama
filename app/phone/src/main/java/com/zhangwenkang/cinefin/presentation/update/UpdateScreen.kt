@@ -90,6 +90,16 @@ fun UpdateScreen(
                     verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
                 ) {
                     UpdateStatus(state)
+                    if (state.phase == UpdateUiPhase.AVAILABLE) {
+                        state.releaseNotes?.takeIf(String::isNotBlank)?.let { notes ->
+                            Text(
+                                text = notes,
+                                style = CinefinType.BodySmall,
+                                color = colors.onSurfaceVariant,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
                     if (
                         state.phase == UpdateUiPhase.CHECKING ||
                             state.phase == UpdateUiPhase.VERIFYING ||

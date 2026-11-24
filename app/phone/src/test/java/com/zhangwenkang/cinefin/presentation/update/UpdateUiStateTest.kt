@@ -30,6 +30,20 @@ class UpdateUiStateTest {
     }
 
     @Test
+    fun availableReleaseCarriesPersistedReleaseNotes() {
+        val notes = "## 2.0.0\n\n- 修复应用内更新链路"
+
+        val state =
+            buildUpdateUiState(
+                currentVersion = "1.3.0",
+                release = releaseState(releaseNotes = notes),
+            )
+
+        assertEquals(UpdateUiPhase.AVAILABLE, state.phase)
+        assertEquals(notes, state.releaseNotes)
+    }
+
+    @Test
     fun persistedDownloadingStateRestoresByteProgress() {
         val transfer = transferState(phase = UpdateTransferPhase.DOWNLOADING)
 
@@ -362,7 +376,7 @@ class UpdateUiStateTest {
         assertEquals(UpdatePrimaryAction.RETRY, cancelled.primaryAction)
     }
 
-    private fun releaseState(): StoredReleaseState {
+    private fun releaseState(releaseNotes: String? = null): StoredReleaseState {
         val version = "1.4.0"
         val assetName = "Aurorama-$version-arm64-v8a.apk"
         return StoredReleaseState(
@@ -375,6 +389,7 @@ class UpdateUiStateTest {
             downloadUrl = releaseAssetUrl(version, assetName),
             discoveredAtEpochMs = 1_000L,
             updatedAtEpochMs = 2_000L,
+            releaseNotes = releaseNotes,
         )
     }
 

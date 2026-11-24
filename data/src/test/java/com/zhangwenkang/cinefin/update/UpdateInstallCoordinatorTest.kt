@@ -85,6 +85,36 @@ class UpdateInstallCoordinatorTest {
     }
 
     @Test
+    fun missingDigestKeepsDownloadedPackageAndLaunchesInstaller() = runBlocking {
+        val store = readyStore(fileContents = "abc", assetDigest = null)
+        val transfer = (store.loadTransfer() as UpdateStateReadResult.Present).value
+        val complete = store.completeFile(transfer)
+
+        val attempted =
+            coordinator(
+                    store = store,
+                    gateway =
+                        UpdateInstallerGateway { file ->
+                            UpdateInstallerLaunchResult.Launched(command = file)
+                        },
+                )
+                .verifyAndLaunch(transfer.updateId)
+
+        assertEquals(
+            UpdateInstallAttemptResult.Launched(
+                command = complete,
+                baselineVersionCode = 4L,
+            ),
+            attempted,
+        )
+        assertTrue(complete.isFile)
+        assertEquals(
+            UpdateTransferPhase.READY_FOR_VERIFICATION,
+            (store.loadTransfer() as UpdateStateReadResult.Present).value.phase,
+        )
+    }
+
+    @Test
     fun absentOrMismatchedTransferFailsWithoutCallingInstaller() = runBlocking {
         val store = readyStore(fileContents = "abc")
         var gatewayCalls = 0
@@ -130,8 +160,12 @@ class UpdateInstallCoordinatorTest {
         assertEquals(UpdateInstallReturnResult.Failed, result)
     }
 
-    private fun readyStore(fileContents: String): UpdateStateStore {
-        val release = releaseIdentity()
+    private fun readyStore(
+        fileContents: String,
+        assetDigest: String? =
+            "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    ): UpdateStateStore {
+        val release = releaseIdentity(assetDigest)
         val store = UpdateStateStore(temporaryFolder.newFolder(), clock = { 1_000L })
         store.saveDiscoveredRelease(release, 1_000L)
         store.beginDownload(release, 1_000L)
@@ -178,7 +212,7 @@ class UpdateInstallCoordinatorTest {
             signerCertificateDigests = setOf("installed-signer"),
         )
 
-    private fun releaseIdentity(): UpdateReleaseIdentity {
+    private fun releaseIdentity(assetDigest: String?): UpdateReleaseIdentity {
         val version = "1.4.0"
         val assetName = "Aurorama-$version-arm64-v8a.apk"
         return UpdateReleaseIdentity(
@@ -186,7 +220,7 @@ class UpdateInstallCoordinatorTest {
             version = version,
             assetName = assetName,
             assetSize = 3L,
-            assetDigest = "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            assetDigest = assetDigest,
             downloadUrl = releaseAssetUrl(version, assetName),
         )
     }

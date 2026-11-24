@@ -18,12 +18,15 @@ internal sealed interface UpdateWorkCommand {
     data object ManualCheck : UpdateWorkCommand
 
     data class Download(val updateId: String) : UpdateWorkCommand
-
-    data object CancelDownload : UpdateWorkCommand
 }
 
 internal interface UpdateWorkGateway {
-    fun enqueue(command: UpdateWorkCommand)
+    fun enqueue(
+        command: UpdateWorkCommand,
+        policy: ExistingWorkPolicy,
+    )
+
+    fun cancelDownload()
 }
 
 /** UI / 启动入口依赖的最小调度能力；实现仍集中在唯一 Work 调度器。 */
@@ -38,8 +41,10 @@ interface UpdateWorkScheduling {
 }
 
 /**
- * WorkManager 只承担协调：两次检查各有一个唯一 Work，下载也有独立唯一 Work；全部要求联网，均使用 KEEP， 避免重复点击创建并行任务。动态 offset /
- * validator / 发现结果不进入 Work Data。
+ * WorkManager 只承担协调：两次检查各有一个唯一 Work，下载也有独立唯一 Work；全部要求联网。动态 offset / validator / 发现结果不进入 Work Data。
+ *
+ * 策略按入口区分：手动检查与下载用 REPLACE，因为上一次同唯一名任务可能长期滞留 ENQUEUED（网络约束未满足），KEEP 会把用户主动发起的请求静默吞掉； 自动检查用 KEEP，同一
+ * 24h 门控窗口内重复入队无意义，且不应替换已排队的自动任务。
  */
 class UpdateWorkScheduler
 internal constructor(
@@ -56,20 +61,23 @@ internal constructor(
     )
 
     override fun scheduleAutomaticCheck() {
-        gateway.enqueue(UpdateWorkCommand.AutomaticCheck(automaticCheckDelayMs()))
+        gateway.enqueue(
+            UpdateWorkCommand.AutomaticCheck(automaticCheckDelayMs()),
+            ExistingWorkPolicy.KEEP,
+        )
     }
 
     override fun scheduleManualCheck() {
-        gateway.enqueue(UpdateWorkCommand.ManualCheck)
+        gateway.enqueue(UpdateWorkCommand.ManualCheck, ExistingWorkPolicy.REPLACE)
     }
 
     override fun scheduleDownload(updateId: String) {
         require(UPDATE_ID_PATTERN.matches(updateId)) { "invalid updateId" }
-        gateway.enqueue(UpdateWorkCommand.Download(updateId))
+        gateway.enqueue(UpdateWorkCommand.Download(updateId), ExistingWorkPolicy.REPLACE)
     }
 
     override fun cancelDownload() {
-        gateway.enqueue(UpdateWorkCommand.CancelDownload)
+        gateway.cancelDownload()
     }
 
     private companion object {
@@ -79,29 +87,34 @@ internal constructor(
 
 private class WorkManagerUpdateWorkGateway(private val workManager: WorkManager) :
     UpdateWorkGateway {
-    override fun enqueue(command: UpdateWorkCommand) {
+    override fun enqueue(
+        command: UpdateWorkCommand,
+        policy: ExistingWorkPolicy,
+    ) {
         when (command) {
             is UpdateWorkCommand.AutomaticCheck ->
                 workManager.enqueueUniqueWork(
                     UPDATE_AUTO_CHECK_WORK_NAME,
-                    ExistingWorkPolicy.KEEP,
+                    policy,
                     checkRequest(UpdateCheckMode.AUTO, command.initialDelayMs),
                 )
             UpdateWorkCommand.ManualCheck ->
                 workManager.enqueueUniqueWork(
                     UPDATE_MANUAL_CHECK_WORK_NAME,
-                    ExistingWorkPolicy.KEEP,
+                    policy,
                     checkRequest(UpdateCheckMode.MANUAL, initialDelayMs = 0L),
                 )
             is UpdateWorkCommand.Download ->
                 workManager.enqueueUniqueWork(
                     UPDATE_DOWNLOAD_WORK_NAME,
-                    ExistingWorkPolicy.KEEP,
+                    policy,
                     downloadRequest(command.updateId),
                 )
-            UpdateWorkCommand.CancelDownload ->
-                workManager.cancelUniqueWork(UPDATE_DOWNLOAD_WORK_NAME)
         }
+    }
+
+    override fun cancelDownload() {
+        workManager.cancelUniqueWork(UPDATE_DOWNLOAD_WORK_NAME)
     }
 
     private fun checkRequest(

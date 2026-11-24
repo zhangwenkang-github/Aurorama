@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.update
 
 import java.io.File
 import java.security.MessageDigest
+import timber.log.Timber
 
 data class InstalledAppMetadata(
     val packageName: String,
@@ -91,7 +92,15 @@ fun verifyUpdatePackageFile(
     val expected =
         when (val parsed = parseUpdateDigest(expectedDigest)) {
             is UpdateDigestParseResult.Invalid ->
-                return UpdatePackageVerificationResult.Failure(parsed.failure)
+                when (parsed.failure) {
+                    // GitHub 对旧 release 资产可能不返回 digest：缺省只跳过哈希校验，
+                    // 已下载包保留，签名 / 包名 / 版本等其余校验照常执行。
+                    UpdateVerificationFailure.DIGEST_MISSING -> {
+                        Timber.w("更新包资产缺少 digest，跳过 SHA-256 校验：%s", file.name)
+                        null
+                    }
+                    else -> return UpdatePackageVerificationResult.Failure(parsed.failure)
+                }
             is UpdateDigestParseResult.Valid -> parsed.hex
         }
     if (!file.isFile) {
@@ -100,16 +109,20 @@ fun verifyUpdatePackageFile(
     if (file.length() != expectedSize) {
         return UpdatePackageVerificationResult.Failure(UpdateVerificationFailure.FILE_SIZE_MISMATCH)
     }
-    val actual =
-        try {
-            calculateSha256(file)
-        } catch (exception: Exception) {
+    if (expected != null) {
+        val actual =
+            try {
+                calculateSha256(file)
+            } catch (exception: Exception) {
+                return UpdatePackageVerificationResult.Failure(
+                    UpdateVerificationFailure.FILE_READ_ERROR
+                )
+            }
+        if (actual != expected) {
             return UpdatePackageVerificationResult.Failure(
-                UpdateVerificationFailure.FILE_READ_ERROR
+                UpdateVerificationFailure.DIGEST_MISMATCH
             )
         }
-    if (actual != expected) {
-        return UpdatePackageVerificationResult.Failure(UpdateVerificationFailure.DIGEST_MISMATCH)
     }
     val metadata =
         try {

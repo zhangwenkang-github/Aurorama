@@ -154,7 +154,14 @@ class UpdateCheckCoordinator(
                         assetDigest = decision.asset.digest,
                         downloadUrl = decision.asset.browserDownloadUrl,
                     )
-                when (val saved = store.saveDiscoveredRelease(identity, nowEpochMs)) {
+                when (
+                    val saved =
+                        store.saveDiscoveredRelease(
+                            release = identity,
+                            nowEpochMs = nowEpochMs,
+                            releaseNotes = release.body,
+                        )
+                ) {
                     is UpdateStateWriteResult.Failure ->
                         UpdateCheckResult.Failed(UpdateCheckFailure.STORAGE_ERROR)
                     UpdateStateWriteResult.Success -> {

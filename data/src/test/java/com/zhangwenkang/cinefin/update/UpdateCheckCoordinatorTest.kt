@@ -191,6 +191,25 @@ class UpdateCheckCoordinatorTest {
     }
 
     @Test
+    fun releaseNotesFromGitHubBodyArePersistedWithDiscovery() = runBlocking {
+        val now = 24L * dayMs
+        val store = UpdateStateStore(temporaryFolder.newFolder(), clock = { now })
+        val notes = "## 2.0.0\n\n- 修复应用内更新链路"
+        val coordinator =
+            coordinator(
+                source = { ReleaseFetchResult.Success(release.copy(body = notes)) },
+                gate = FakeCheckGate(),
+                clock = { now },
+                store = store,
+            )
+
+        coordinator.check(UpdateCheckMode.MANUAL)
+
+        val stored = store.loadDiscoveredRelease() as UpdateStateReadResult.Present
+        assertEquals(notes, stored.value.releaseNotes)
+    }
+
+    @Test
     fun failedAttemptPersistencePreventsNetworkCall() = runBlocking {
         val now = 25L * dayMs
         val gate = FakeCheckGate(failAttemptWrites = true)

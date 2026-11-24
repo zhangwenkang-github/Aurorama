@@ -73,6 +73,7 @@ data class GitHubReleaseDto(
     val draft: Boolean,
     val prerelease: Boolean,
     val assets: List<GitHubReleaseAssetDto>,
+    val body: String? = null,
 )
 
 @Serializable

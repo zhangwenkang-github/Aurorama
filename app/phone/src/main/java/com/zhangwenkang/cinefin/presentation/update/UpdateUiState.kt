@@ -64,6 +64,7 @@ data class UpdateUiState(
     val checkFailure: UpdateTerminalResult? = null,
     val primaryAction: UpdatePrimaryAction = UpdatePrimaryAction.NONE,
     val canCheck: Boolean = true,
+    val releaseNotes: String? = null,
 ) {
     val progress: Float?
         get() =
@@ -257,6 +258,7 @@ fun buildUpdateUiState(
             updateId = updateId,
             totalBytes = availableRelease.assetSize,
             primaryAction = UpdatePrimaryAction.DOWNLOAD,
+            releaseNotes = availableRelease.releaseNotes,
         )
     }
 

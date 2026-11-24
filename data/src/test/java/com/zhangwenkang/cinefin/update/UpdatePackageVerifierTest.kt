@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.update
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -281,6 +282,69 @@ class UpdatePackageVerifierTest {
 
         assertEquals(1, metadataReads)
         assertEquals(UpdatePackageVerificationResult.Success(candidateMetadata()), result)
+    }
+
+    @Test
+    fun missingDigestSkipsHashCheckButKeepsPackageAndRunsMetadataPolicy() {
+        val file = temporaryFolder.newFile("no-digest.apk").apply { writeText("abc") }
+        var metadataReads = 0
+
+        val result =
+            verifyUpdatePackageFile(
+                file = file,
+                expectedSize = 3L,
+                expectedDigest = null,
+                readCandidateMetadata = {
+                    metadataReads++
+                    candidateMetadata()
+                },
+                installed = installedPackage(),
+                deviceSdk = 36,
+            )
+
+        assertEquals(1, metadataReads)
+        assertEquals(UpdatePackageVerificationResult.Success(candidateMetadata()), result)
+        assertTrue(file.isFile)
+    }
+
+    @Test
+    fun missingDigestStillRejectsWrongSizedPackage() {
+        val file = temporaryFolder.newFile("short.apk").apply { writeText("ab") }
+
+        val result =
+            verifyUpdatePackageFile(
+                file = file,
+                expectedSize = 3L,
+                expectedDigest = null,
+                readCandidateMetadata = { error("metadata must not run after size failure") },
+                installed = installedPackage(),
+                deviceSdk = 36,
+            )
+
+        assertEquals(
+            UpdatePackageVerificationResult.Failure(UpdateVerificationFailure.FILE_SIZE_MISMATCH),
+            result,
+        )
+    }
+
+    @Test
+    fun malformedDigestStillFailsBeforeFileAndMetadataChecks() {
+        val file = temporaryFolder.newFile("malformed.apk").apply { writeText("abc") }
+
+        val result =
+            verifyUpdatePackageFile(
+                file = file,
+                expectedSize = 3L,
+                expectedDigest = "md5:" + "a".repeat(64),
+                readCandidateMetadata = { error("metadata must not run after malformed digest") },
+                installed = installedPackage(),
+                deviceSdk = 36,
+            )
+
+        assertEquals(
+            UpdatePackageVerificationResult.Failure(UpdateVerificationFailure.DIGEST_MALFORMED),
+            result,
+        )
     }
 
     private fun installedPackage() =

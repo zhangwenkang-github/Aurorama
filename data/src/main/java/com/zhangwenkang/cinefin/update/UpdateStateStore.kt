@@ -66,6 +66,7 @@ data class StoredReleaseState(
     val downloadUrl: String,
     val discoveredAtEpochMs: Long,
     val updatedAtEpochMs: Long,
+    val releaseNotes: String? = null,
 ) {
     init {
         require(schemaVersion == UPDATE_STATE_SCHEMA_VERSION)
@@ -180,6 +181,7 @@ class UpdateStateStore(
     fun saveDiscoveredRelease(
         release: UpdateReleaseIdentity,
         nowEpochMs: Long = clock(),
+        releaseNotes: String? = null,
     ): UpdateStateWriteResult {
         val existing = loadDiscoveredRelease()
         if (existing is UpdateStateReadResult.Invalid) {
@@ -187,6 +189,10 @@ class UpdateStateStore(
         }
         val previous = (existing as? UpdateStateReadResult.Present)?.value
         val sameRelease = previous?.release == release
+        val notes =
+            releaseNotes?.takeIf(String::isNotBlank)
+                // 同一 release 再次发现但本次没带回说明时，保留上次已存下的说明。
+                ?: previous?.releaseNotes?.takeIf { sameRelease }
         val discoveredAt =
             if (sameRelease) {
                 previous.discoveredAtEpochMs
@@ -212,6 +218,7 @@ class UpdateStateStore(
                     downloadUrl = release.downloadUrl,
                     discoveredAtEpochMs = discoveredAt,
                     updatedAtEpochMs = updatedAt,
+                    releaseNotes = notes,
                 ),
         )
     }
