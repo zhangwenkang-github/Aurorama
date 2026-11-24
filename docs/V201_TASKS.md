@@ -16,7 +16,7 @@
 | 卡 | 状态 | 内容 | 验收 |
 |---|---|---|---|
 | W0-D0 | DONE | 建分支 `codex/v2.0.1`、建本台账、AGENTS.md 工作流制度化（`87d6470c`）、PROJECT_PLAN 焦点切换+交接提示词 | — |
-| W0-D1 | TODO | 设计审计：对照 R1 权威基线（`docs/UI_DESIGN_SYSTEM.md`）+ `docs/design/` 决策证据（s1-decision / k1-aurora / v2-theme-frames / s4-revision）+ `docs/V2_DESIGN.md`，逐项核对实现偏差（含黄橙来源、R1 五主题 vs 代码 aurora/light/amoled/lumen/dynamic 映射） | 产出《设计偏差清单》（落 docs/V201_DESIGN_AUDIT.md），偏差逐条分派到卡 |
+| W0-D1 | DOING | 设计审计：对照 R1 权威基线（`docs/UI_DESIGN_SYSTEM.md`）+ `docs/design/` 决策证据（s1-decision / k1-aurora / v2-theme-frames / s4-revision）+ `docs/V2_DESIGN.md`，逐项核对实现偏差（含黄橙来源、R1 五主题 vs 代码 aurora/light/amoled/lumen/dynamic 映射）。子代理执行中 | 产出《设计偏差清单》（落 docs/V201_DESIGN_AUDIT.md），偏差逐条分派到卡 |
 | W0-D2 | TODO | 设计定稿：主题色板（去黄橙+还原定稿）、图标规范（去方框底+描边 token）、音乐工具行/播放页布局稿 | token 修改清单 + 交互稿，负责人定稿 |
 | W0-D3 | TODO | git 治理：核对 master 独有 2 个 docs 提交（a1992710/d7c309f0）是否已被 v2 覆盖；master 对齐 v2.0.0（执行前向用户报备 diff 摘要） | master 指向 v2.0.0；此后每次发布合并一次 |
 
@@ -73,3 +73,4 @@ A4 徽标 / A5 FAILED 同步 / A6 计数 / 对账口径 /「全部继续」/ Pad
 ## 过程日志（只留最近 ~5 条）
 
 - 2026-11-24：台账初建；分支 `codex/v2.0.1` @ `17848eff`；计划经用户两轮审批通过（含工作流七条、新需求按归属插波、主题还原 2.0.0 定稿、master 跟随发布）。
+- 2026-11-24：W0-D0 完成——master 独有资产移植（`f541b249`）、台账（`699bf34b`）、AGENTS.md 2.0.1 版（`87d6470c`）；W0-D1 设计审计子代理执行中；W0-D3 待用户确认后执行 master 对齐。
