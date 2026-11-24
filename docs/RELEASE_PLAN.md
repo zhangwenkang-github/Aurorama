@@ -110,6 +110,22 @@ $env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 | 1.1.0 | 2026-10-07（Q 波后重建） | 2 | `assembleLibreRelease "-Paurorama.universalApk=true"` | 163.2 MB | 74.0 MB |
 | 1.2.0 | 2026-10-07（候选＝发布对象） | 3 | `assembleLibreRelease "-Paurorama.universalApk=true"` | 163.3 MB | 74.1 MB |
 | 1.3.0 | 2026-10-18（最终） | 4 | `assembleLibreRelease "-Paurorama.universalApk=true"` | 163.6 MiB | 74.4 MiB |
+| 2.0.0 | 2026-11-24 | 7 | `assembleLibreRelease verifyMpvJniReleaseContract "-Paurorama.universalApk=true"` | 169.0 MiB | 78.8 MiB |
+
+**2.0.0 发布资产校验 · 发布对象（2026-11-24 · V2 W0–W9 全波次；分支 `codex/v2-integration`；本表为上传口径）**
+
+| 文件（上传时改名） | 体积（字节 / MiB） | SHA-256 |
+|--------------------|--------------------|---------|
+| `Aurorama-2.0.0-universal.apk`（构建产物 `phone-libre-universal-release.apk`） | 177,255,732 / 169.0 | `841dd9d1cc1f9b33ed4e9632659ba1676a95252f1c80a6f30b1b2fd4c0530999` |
+| `Aurorama-2.0.0-arm64-v8a.apk`（构建产物 `phone-libre-arm64-v8a-release.apk`） | 82,657,946 / 78.8 | `e211ec5b1238b9584cd1147e10a1c34e78ce92049869cef0d4bdfa91367c0825` |
+
+- 内容 = 2.0 全波次（Lumen 设计体系 / 下载引擎稳定性重写 / 离线降级与写补偿 / 音乐·阅读·搜索增强 / 设置反馈收口，详见 `docs/RELEASE_NOTES_v2.0.0.md`）；版本号 **2.0.0 (7)**。
+- `aapt2 dump badging`：universal 为 `io.github.zhangwenkang.aurorama` / `versionCode=7` / `versionName=2.0.0` / minSdk 28 / targetSdk 36。
+- `apksigner verify`：两份均 v2 = true（v1 = false）、单签名者；证书 SHA-256 = `e449c4aadde191a789fe72ca8f7ec5471547c21446ddc04e4b7b8b23cee155ff`（与 §2 一致）。
+- 门禁（2026-11-24 窗口真跑，含 `--rerun` 补跑）：10 模块单测 **3463 / 0 / 0 / 0**；`ktfmtCheck` 全绿；`assembleLibreRelease`（6m59s / 410 tasks）+ `verifyMpvJniReleaseContract` PASS（8 callbacks / 41 direct methods）。
+- T9 全域回归 R1–R11 全绿（K60/Pad，证据 `F:\Develop\code_data\qa\w9-t9\`；结论与裁定见 `docs/V2_W9_TASKS.md` 状态块与裁定登记）。
+- 发布面冒烟 ✅（2026-11-24）：K60 `8e875894` 装 arm64-v8a、Pad `43af8627` 装 universal，均 `install -r` 自 1.4.1(6) 覆盖 Success（签名一致）；首页 / 详情 / 播放 10s（K60，UI 55:16→55:30 推进）/ 媒体库 / 下载页全绿；双机 0 FATAL / 0 ANR；`versionName=2.0.0` / `versionCode=7` / 无 DEBUGGABLE 核验通过。
+- 发布用副本在 `F:\Develop\code_data\release-assets\2.0.0\`（与构建产物哈希一致）。**tag / GitHub Release 待用户当场授权后执行 §5。**
 
 参考：同基线 debug（arm64-v8a）约 143 MB —— release 经 R8 混淆 + 资源压缩后约 73.9 MB（约 −48%）。
 
