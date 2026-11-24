@@ -209,10 +209,19 @@ constructor(
                 }
                 resolvedUserId = selection.userId
                 val repository = repositoryProvider.get()
-                val isAdministrator = runCatching {
-                    repository.isCurrentUserAdministrator()
-                }
-                    .getOrDefault(false)
+                val isAdministrator =
+                    drawerAdministratorFlag(
+                        queried =
+                            runCatching { repository.isCurrentUserAdministrator() }
+                                .getOrDefault(false),
+                        currentUserId = selection.userId,
+                        cachedUserId =
+                            appPreferences.getValue(
+                                appPreferences.currentUserIsAdministratorUserId
+                            ),
+                        cachedValue =
+                            appPreferences.getValue(appPreferences.currentUserIsAdministrator),
+                    )
                 val libraries = runCatching { repository.getLibraries() }.getOrNull()
                 val stillCanonical = resolveCanonicalIdentity()
                 if (stillCanonical?.matches(canonical) != true) {
@@ -386,3 +395,19 @@ internal fun sidebarAdministratorFlag(
     cachedUserId: String?,
     cachedValue: Boolean,
 ): Boolean = currentUserId != null && currentUserId == cachedUserId && cachedValue
+
+/**
+ * 抽屉「加载完成」时的管理员门控值（纯函数，单测覆盖）：联网结果与同账号缓存合并。
+ *
+ * `isCurrentUserAdministrator()` 把「查询失败」与「会话身份尚未发布（`jellyfinApi.userId` 为空）」都折算成
+ * false，与「服务器明确说不是管理员」不可区分； 直接拿它覆盖状态，会让管理员在服务器短暂不可达 / 冷启动身份竞态时丢掉入口，而平板侧轨没有「打开抽屉再拉一次」的时机，入口会长期消失。
+ *
+ * 合并是安全的：查询成功一定先写缓存（含服务器改判为非管理员的 false），所以「同账号缓存为 true」只代表曾经明确确认过； 换账号 / 账号未知时缓存不生效，沿用
+ * [sidebarAdministratorFlag] 的语义。
+ */
+internal fun drawerAdministratorFlag(
+    queried: Boolean,
+    currentUserId: String?,
+    cachedUserId: String?,
+    cachedValue: Boolean,
+): Boolean = queried || sidebarAdministratorFlag(currentUserId, cachedUserId, cachedValue)
