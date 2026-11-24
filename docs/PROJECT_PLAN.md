@@ -38,13 +38,13 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
 | 连接层 | 🟢 W31 完成；遗留 `fix/w31-trust-session-reuse` 分支待合并 | `docs/ARCHITECTURE.md` §5.4 |
 | 投屏/同步观看 | ⛔ 投屏未开始（LATER）；SyncPlay 为 SHOULD（W4 评估） | `docs/V2_REQUIREMENTS.md` §9.5 |
-| 维护/缺陷修复 → 2.0.1 | 🟡 **W1 修复快线过半**（2026-11-25）：分支 `codex/v2.0.1`；W0 收官（设计定稿 `docs/V201_DESIGN_FINAL.md`：域色=身份、极光=行动）；T01–T04 已 DONE，余 T02b/T05–T08 | `docs/V201_TASKS.md` |
+| 维护/缺陷修复 → 2.0.1 | 🟡 **W1 修复快线近收官**（2026-11-25）：分支 `codex/v2.0.1`；W0 收官（设计定稿 `docs/V201_DESIGN_FINAL.md`：域色=身份、极光=行动）；T01–T06、T08 已 DONE，余 T02b/T05/T07 | `docs/V201_TASKS.md` |
 
 ## 4. 当前焦点（2026-11-24）
 
 1. **2.0.1 开工（分支 `codex/v2.0.1`）**：计划经用户两轮审批通过——21 项需求/bug + 2.0.0 遗留，波次 W0→W5（修复快线→设计基础→音乐重塑→播放器收尾→回归发布），台账 `docs/V201_TASKS.md`（22 卡全登记）。工作流七条已制度化进 `AGENTS.md`。
 2. **W0 已收官（2026-11-24）**：✅ 分支+台账+AGENTS.md；✅ W0-D1 设计审计（22 条偏差）；✅ W0-D2 设计定稿（`docs/V201_DESIGN_FINAL.md`，9 条裁定：域色=身份、极光=行动；琥珀退出交互强调；封面取色只留背景光晕；玻璃无 blur 为正式决定；主题选择器加跟随系统）；✅ W0-D3 master 已对齐 v2.0.0（`312209a6`，远端推送待授权）。
-3. **W1 修复快线过半（2026-11-25）**：✅ T03 logo（`52d57030`）、✅ T04 缓存无限制（`c7e6f2ff`+`84e7b800`）、✅ T01 更新链路（`a4b6ed4f`：REPLACE/digest 缺失不删包/manifest queries/更新说明渲染；真实升级 E2E 移 W5）、✅ T02 管理员入口（`56202e2d`：查询失败折算 false 覆盖已确认身份）；余 T02b（T02 遗留）/T05–T08 可并发派卡。
+3. **W1 修复快线近收官（2026-11-25）**：✅ T03 logo（`52d57030`）、✅ T04 缓存无限制（`c7e6f2ff`+`84e7b800`）、✅ T01 更新链路（`a4b6ed4f`；真实升级 E2E 移 W5）、✅ T02 管理员入口（`56202e2d`）、✅ T06 季页多选下移（`0ed6cf41`：hero 补稳定 key，K60 两场景坐标零偏移）、✅ T08 搜索音乐结果导航（`93b2697b`：根因=导航白名单漏登 MusicItemRoute + id 硬塞 initialSongId；专辑/艺术家/歌单进对应详情层，歌曲起播后开所属专辑详情，K60 取证导航保留+返回回搜索页）；余 T02b（T02 遗留）/T05（静默刷新）/T07（跨季误下载，先只读取证）可并发派卡。T08 留档：服务器音乐搜索只请求 AUDIO，非歌曲链路暂只单测覆盖；详情层左上返回键语义列 W3 再议。
 4. **主题特别要求（用户拍板）**：#9 按 W0-D2 定稿还原——T09 依 `V201_DESIGN_FINAL.md` §2 三批执行。
 5. **环境事实**：多设备在线装机用 `assembleLibreDebug` + `adb -s <id> install -r`；全模块单测注意 `:core`/`:app:phone` 是 `testLibreDebugUnitTest`、`:data` 是 `testDebugUnitTest`；ktfmt 修正任务名是 `ktfmtFormat`（无 `ktfmtApply`）；发布门须显式加跑 `verifyMpvJniReleaseContract`；GitHub 上传双资产偶发 502 拆「先建 Release 再分次传」可解。
 
@@ -55,10 +55,10 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
    工作区：F:/Develop/code_data/work_tree/Aurorama/v2-merge-141（分支 codex/v2.0.1）。
 2. 开工读序（固定）：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V201_TASKS.md 状态块
    → 记忆库 MEMORY.md（读序外文件按需，不通读）。
-3. 现状（≤4 行）：HEAD 以 git log 为准；W1 过半，T01–T04 已 DONE（a4b6ed4f/56202e2d/52d57030/c7e6f2ff+84e7b800）；
+3. 现状（≤4 行）：HEAD 以 git log 为准；W1 近收官，T01–T06、T08 已 DONE（a4b6ed4f/56202e2d/52d57030/c7e6f2ff+84e7b800/0ed6cf41/93b2697b）；
    master=312209a6（远端推送待授权）；设计定稿=docs/V201_DESIGN_FINAL.md。
-4. 本会话任务（1–2 卡）：W1 修复快线收尾——T05–T08 任选两张并发派子代理（T06 最小、T08 为 2.0.0 首修 P1 优先）；
-   额度宽裕可加派 T02b（小缺口）或 W2-T09 批①（角色收口，纯 token 层）。
+4. 本会话任务（1–2 卡）：W1 修复快线收官——T05（静默刷新）/T07（跨季误下载，先只读取证）/T02b（小缺口）
+   任选两张并发派子代理；W1 清零后可开 W2-T09 批①（角色收口，纯 token 层）。
 5. 设计分权（固定一行）：设计以 docs/V201_DESIGN_FINAL.md + docs/V2_DESIGN.md §3 为准，deepseek 零设计权。
 6. 门禁与纪律（固定引用）：见 AGENTS.md 质量门/红线；adb 取证派子代理，负责人复核证据关键行。
    【T07 取证限定只读《学生会的一己之见》下载清单成因，不做服务器写】
