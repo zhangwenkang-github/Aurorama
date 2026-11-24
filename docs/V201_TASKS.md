@@ -26,7 +26,7 @@
 |---|---|---|---|---|
 | T01 | #1 | TODO | 更新失效：`UpdateWorkScheduler` KEEP→REPLACE + 排队态回显；`UpdatePackageVerifier` digest 缺失不删包（改警告/或发布流程补 digest）；manifest 加 `<queries>`；`GitHubReleaseDto` 加 `body` + UpdateScreen 渲染更新说明（Markdown） | 真机 2.0.0→2.0.1-rc 真实升级：进度可见、安装成功、说明显示 |
 | T02 | #10 | TODO | 管理员入口不可见：adb 取证 `policy.isAdministrator` 实际值与缓存（`JellyfinRepositoryImpl.kt:2396-2420`、`DrawerViewModel`），按证据修 | admin 真机可见并进入控制台/资料管理 |
-| T03 | #3 | TODO | `core/.../drawable/ic_logo.xml` 换 B「极幕之眼」（启动图标已于 `8d691cb8` 换，app 内 logo 遗漏） | uiautomator 取证抽屉/顶栏与桌面图标一致 |
+| T03 | #3 | DONE | `core/.../drawable/ic_logo.xml` 已换 B「极幕之眼」（`52d57030`，与启动图标同源 ×0.2 构图，10 处引用全核对）；已知留档：渐变方向随启动图标渲染（与设计稿 objectBoundingBox 旋转差异，连启动图标一起改才算对齐，列 LATER）；Light 主题关于页 120dp 对比度偏低（列 LATER） | K60 装机+uiautomator 取证顶栏/抽屉 logo 节点正常，截图 2 张已删 ✅ |
 | T04 | #4 | TODO | 图片缓存默认 50MB（`AppPreferences.kt:262`）→ 默认无限制（0=不设 maxSizeBytes）；存量值不迁移，设置项注明 | 全新安装默认无限制 |
 | T05 | #16 | TODO | 节目页静默刷新：`ShowViewModel.loadShow` 不再先清空 seasons/actors（`:48-58`），新数据到位再替换；UI 不闪、位置不变 | 真机播放返回：不黑不闪、位置保持、已看勾更新 |
 | T06 | #17 | TODO | 多选下移：`SeasonScreen.kt:344` hero `item{}` 加稳定 key | 真机长按照片首屏位置不变 |
