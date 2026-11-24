@@ -10,7 +10,7 @@
 1. `docs/PROJECT_PLAN.md`（任务线一句话状态 + 当前焦点）
 2. 所在波次/任务线文档的**顶部状态块**（不要通读全文）
 3. 记忆库索引 `F:\Develop\codex_work\Documents\Kimi\engramory-memory\MEMORY.md`（按需打开条目）
-4. 2.0 需求以 `docs/V2_REQUIREMENTS.md` 为唯一账本；架构方向 `docs/V2_ARCHITECTURE.md`；设计方向 `docs/V2_DESIGN.md`。外部原始需求 `F:\Develop\codex_work\Documents\Codex\2.0更新文档.md` 永久只读、仅追溯用。
+4. 2.0.1 以 `docs/V201_TASKS.md` 为唯一任务台账；2.0 需求账本 `docs/V2_REQUIREMENTS.md`、架构 `docs/V2_ARCHITECTURE.md`、设计 `docs/V2_DESIGN.md` 仅追溯用。外部原始需求 `F:\Develop\codex_work\Documents\Codex\2.0更新文档.md` 永久只读。
 
 ## 工作方式（波次制，2026-11-24 按 2.0.1 用户拍板修订）
 
