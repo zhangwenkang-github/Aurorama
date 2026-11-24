@@ -32,7 +32,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 线 | 状态 | 文档 |
 |----|------|------|
 | 1.4.1 | 🟢 **已发布**（2026-11-18）：master=`76f5350b`、tag `v1.4.1`、GitHub Release 双 APK | 发布目录 `releases/1.4.1-signed-r34-2026-11-17/` |
-| 2.0.0 | 🟢 **T9 回归 R1–R11 全绿**（2026-11-24 会话15：K60 在线/断网域、孤儿清理终验 43.54MiB 已清、A3 根因钉死；Pad 写补偿/季页计数 24→23/搜索/书籍通知全绿；构建门 3463 单测 0 败+ktfmt+Release+JNI 契约全绿；新发现已裁定，搜索音乐结果导航=2.0.1 P1 首修）；**发布包装进行中**（版本 2.0.0/code 7 已 bump，签名构建→冒烟→待授权 push/tag/Release） | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · `V2_W9_TASKS.md` · `V2_W8_TASKS.md` |
+| 2.0.0 | 🟢 **已发布**（2026-11-24，用户当场授权）：分支 `codex/v2-integration`=`312209a6`、tag `v2.0.0`、GitHub Release 双 APK（发布后下载资产 SHA-256 复核一致）；T9 R1–R12 全绿（回归证据 `F:\Develop\code_data\qa\w9-t9\`）；2.0.1 候选已裁定（首修 P1=搜索音乐结果导航，余 LATER 见裁定登记） | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · `V2_W9_TASKS.md` |
 | 播放器 | 🟢 W2 架构重构完成；W4 开工（2026-11-19）：T0 现状核对 + 任务卡定稿（T1–T7）；retrySeek 跨条目重建已修（`ccdafefa`）；生产 TLS `-0x7280` 复验通过（服务器侧修复生效，K60 mpv 正常播放） | `docs/V2_W4_TASKS.md` · `docs/V2_ARCHITECTURE.md` §3 |
 | 下载/离线 | 🟢 W7 已收官（2026-11-22）：55 条 = ✅51/⚠️4/❌0；修复卡 F1b 音乐重下载删档绕过 / F2 PENDING 滞留 / F4 音乐离线冷路径 / F5 书籍通知 / F6 作者折叠 / F7 引擎空转热循环，全登记 W9 聚合（F1 引擎层与 F3 已修销项） | `docs/V2_W7_TASKS.md` · `docs/DOWNLOAD_PLAN.md` |
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
@@ -41,30 +41,14 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-24）
 
-1. **T9 回归 R1–R11 全绿（2026-11-24 会话15，全程子代理取证，证据 `F:\Develop\code_data\qa\w9-t9\`）**：K60 在线域 R1/R3/R4、断网域 R2/R8、R5 孤儿清理终验（两轮清 3 孤儿回收 43.54MiB、A3 根因=孤儿占位 rename 失败真机钉死、③snackbar 复验）、Pad R6 写补偿（三目标 4–9s 补传回读 favorite=True 且 played 未覆盖）/R11 季页计数（用户授权删《齐木楠雄的灾难》S1E1 Played=true，24→23 约 1.5s 自动刷新）/R7 搜索/R9 书籍通知直达阅读器。回归新发现已裁定（见 `V2_W9_TASKS.md` 裁定登记顶部）：**搜索音乐结果点击导航缺陷 = 2.0.1 P1 首修**，A4 徽标/A5 FAILED 同步/A6 计数/对账口径/「全部继续」/Pad 库页离线降级 = LATER，A1/A2 观察级 DROP。
-2. **发布包装进行中**：构建门全绿（3463 单测 0 败 + ktfmtCheck + assembleLibreRelease + mpv JNI 契约 PASS）；版本 bump 2.0.0/code 7（`Versions.kt`）；签名发布构建（universal + 四 ABI 分包）→ apksigner 指纹核验 → 发布面真机冒烟（release 包 `install -r` 覆盖 K60/Pad）→ 回写 `RELEASE_PLAN.md` §7；**push/tag/GitHub Release 需用户当场授权**。
-3. **新环境事实**：Gradle `installLibreDebug` 会安装到**所有已连设备**——多设备在线改 `assembleLibreDebug` + `adb -s <id> install -r` 定向安装；K60 触摸注入已恢复。根 `testDebugUnitTest` 不覆盖带 flavor 模块（`:core`/`:app:phone` 需 `testLibreDebugUnitTest`）；`verifyMpvJniReleaseContract` 不在 assemble 依赖链，发布门须显式加跑。
-4. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布；master 已推送至 `d7c309f0`。
+1. **2.0.0 已发布（2026-11-24，用户当场授权）**：`codex/v2-integration` 推送至 `312209a6` + tag `v2.0.0` + GitHub Release 双 APK（发布后自检 SHA-256 复核一致）。T9 回归 R1–R12 全绿（证据 `F:\Develop\code_data\qa\w9-t9\`）：K60 在线/断网域、R5 孤儿清理终验（回收 43.54MiB，A3 根因=孤儿占位 rename 失败钉死）、Pad 写补偿/R11 季页计数（授权删《齐木楠雄的灾难》S1E1，24→23 即时刷新）/R7 搜索/R9 书籍通知直达；发布面冒烟双机 0 FATAL/ANR。
+2. **2.0.1 候选池（已裁定，开工提示词用户届时自写——流程可能调整、使用中可能出新问题新需求，一并处理）**：首修 P1=音乐搜索结果点击回库根页+左侧导航消失；LATER=A4 旧记录已下载徽标/A5 FAILED 态 UI 同步/A6 下载页计数跳变/对账口径 FAILED 行认领同名 g1/「全部继续」对 FAILED 无效/Pad 库内容页离线降级缺口（详见 `V2_W9_TASKS.md` 裁定登记顶部）。
+3. **环境事实**：多设备在线装机用 `assembleLibreDebug` + `adb -s <id> install -r` 定向安装；全模块单测注意 `:core`/`:app:phone` 是 `testLibreDebugUnitTest`；发布门须显式加跑 `verifyMpvJniReleaseContract`；GitHub 上传双资产偶发 502，拆「先建 Release 再分次传资产」可解。
+4. **主仓工作区卫生已清（2026-11-18）**：v1.4.0/v1.4.1 已发布；master 已推送至 `d7c309f0`。
 
-### W9 会话16 开工提示词（新会话直接粘贴；只含文档没有的引导，事实一律看状态块）
+### 下会话开工提示词
 
-```
-你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
-工作区：F:\Develop\code_data\work_tree\Aurorama\v2-merge-141（分支 codex/v2-integration）。
-开工读序：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V2_W9_TASKS.md 状态块
-→ 记忆库 MEMORY.md（读序外文件按需，不通读；设备/取证纪律以状态块为准）。
-现状：HEAD 以 git log 为准；T9 R1–R12 全绿，2.0.0(7) 发布包装完成，
-唯一剩余 = push/tag/GitHub Release（需用户当场授权）。
-本会话任务（1–2 卡）：①获授权后执行 RELEASE_PLAN §5（push codex/v2-integration
-+ tag v2.0.0 + GitHub Release 双 APK，资产 F:\Develop\code_data\release-assets\2.0.0\，
-notes 用 docs/RELEASE_NOTES_v2.0.0.md，发布后自检：资产可下载+SHA-256 复核一致）；
-②2.0.1 首修立项：搜索音乐结果点击导航缺陷（P1，裁定登记已立案）评估开工。
-设计分权：设计以 docs/V2_DESIGN.md 为准，deepseek 零设计权。
-门禁与纪律：见 AGENTS.md 质量门/红线；adb 取证下放子代理；
-多设备在线时装机用 assembleLibreDebug + adb -s 定向安装；
-push/tag/GitHub Release 需用户当场授权。
-交接：收口按 AGENTS.md 五件事；提示词只写文档没有的引导，不重复状态块内容。
-```
+（2026-11-24 用户指示：不预写 2.0.1 提示词——流程可能调整、使用中可能出新问题新需求，届时由用户开工时自写，一并处理。2.0.1 候选池见焦点节第 2 条与 `V2_W9_TASKS.md` 裁定登记。）
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）
 

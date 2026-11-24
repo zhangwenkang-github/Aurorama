@@ -125,7 +125,7 @@ $env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 - 门禁（2026-11-24 窗口真跑，含 `--rerun` 补跑）：10 模块单测 **3463 / 0 / 0 / 0**；`ktfmtCheck` 全绿；`assembleLibreRelease`（6m59s / 410 tasks）+ `verifyMpvJniReleaseContract` PASS（8 callbacks / 41 direct methods）。
 - T9 全域回归 R1–R11 全绿（K60/Pad，证据 `F:\Develop\code_data\qa\w9-t9\`；结论与裁定见 `docs/V2_W9_TASKS.md` 状态块与裁定登记）。
 - 发布面冒烟 ✅（2026-11-24）：K60 `8e875894` 装 arm64-v8a、Pad `43af8627` 装 universal，均 `install -r` 自 1.4.1(6) 覆盖 Success（签名一致）；首页 / 详情 / 播放 10s（K60，UI 55:16→55:30 推进）/ 媒体库 / 下载页全绿；双机 0 FATAL / 0 ANR；`versionName=2.0.0` / `versionCode=7` / 无 DEBUGGABLE 核验通过。
-- 发布用副本在 `F:\Develop\code_data\release-assets\2.0.0\`（与构建产物哈希一致）。**tag / GitHub Release 待用户当场授权后执行 §5。**
+- 发布用副本在 `F:\Develop\code_data\release-assets\2.0.0\`（与构建产物哈希一致）。**已发布 2026-11-24（用户当场授权）：分支 `codex/v2-integration` 推送至 `312209a6`、tag `v2.0.0`、[GitHub Release](https://github.com/zhangwenkang-github/Aurorama/releases/tag/v2.0.0)「极光幕 / Aurorama v2.0.0」双 APK（首次含资产上传遇 GitHub 502，拆为先建 Release 再分次传资产）；发布后自检 ✅（重新下载两资产，SHA-256 / 体积与本表复核一致）。**
 
 参考：同基线 debug（arm64-v8a）约 143 MB —— release 经 R8 混淆 + 资源压缩后约 73.9 MB（约 −48%）。
 
