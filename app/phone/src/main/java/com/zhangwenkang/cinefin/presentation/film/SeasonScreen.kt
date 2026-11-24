@@ -341,7 +341,7 @@ private fun SeasonScreenLayout(
                         }
                     }
                 }
-                item {
+                item(key = "hero_${season.id}") {
                     DetailHero(
                         item = season,
                         lazyListState = lazyListState,
