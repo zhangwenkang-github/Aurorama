@@ -37,11 +37,17 @@ class BaseApplication : Application(), SingletonImageLoader.Factory {
                 val builder =
                     DiskCache.Builder()
                         .directory(context.cacheDir.resolve("image_cache").toOkioPath())
-                // 偏好 0（默认）= 不设上限：不调用 maxSizeBytes，由 Coil 按可用空间自行管理。
-                ImageCacheSize.maxDiskCacheBytes(
+                val maxSizeBytes =
+                    ImageCacheSize.maxDiskCacheBytes(
                         appPreferences.getValue(appPreferences.imageCacheSize)
                     )
-                    ?.let { builder.maxSizeBytes(it) }
+                if (maxSizeBytes != null) {
+                    // 显式上限：Coil 走 maxSizeBytes 分支，不受 maximumMaxSizeBytes 钳制。
+                    builder.maxSizeBytes(maxSizeBytes)
+                } else {
+                    // 0（默认）= 无固定上限：保留 Coil「可用空间 × 2%（10MB 保底）」，解除 250MB 默认硬顶。
+                    builder.maximumMaxSizeBytes(Long.MAX_VALUE)
+                }
                 builder.build()
             }
             .crossfade(true)
