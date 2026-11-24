@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  极光幕（Aurorama）应用内标记 · 与启动图标同构（方向 1「极光帘幕」）。
-  1) 暗场圆角片底保证在亮色表面上仍有轮廓；2) 极光丝带自左上流下（青 → 蓝）；
-  3) 幕布地平线收在下方。全部矢量，最小用到 18dp（控制台返回胶囊）仍可读。
+  B「极幕之眼」（K1 定稿，docs/design/_src/direction-k1.html icon-b 段）：极光渐变光圈 + 切口光束 + 极星。
+  图形取自启动图标前景 ic_launcher_foreground.xml 同一套 560 设计稿坐标，按 ×0.2 居中到 100dp 画布
+  （启动图标 ×0.136 是为 108dp 自适应画布留 66dp 安全区，应用内标记需要更饱满的构图）。
+  纯前景、不依赖背景层：渐变光圈 / 光束 / 极星全部自绘，18dp（控制台返回胶囊）到 120dp（关于页）同一份资源。
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
@@ -10,49 +11,31 @@
     android:height="100dp"
     android:viewportWidth="100"
     android:viewportHeight="100">
-
-    <!-- 暗场片底 -->
-    <path android:pathData="M26,10 L74,10 A16,16 0 0 1 90,26 L90,74 A16,16 0 0 1 74,90 L26,90 A16,16 0 0 1 10,74 L10,26 A16,16 0 0 1 26,10 Z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="18"
-                android:startY="12"
-                android:endX="84"
-                android:endY="90"
-                android:type="linear">
-                <item android:offset="0" android:color="#FF191C20" />
-                <item android:offset="1" android:color="#FF0B0C0E" />
-            </gradient>
-        </aapt:attr>
-    </path>
-
-    <!-- 发丝描边 -->
-    <path
-        android:pathData="M26,10 L74,10 A16,16 0 0 1 90,26 L90,74 A16,16 0 0 1 74,90 L26,90 A16,16 0 0 1 10,74 L10,26 A16,16 0 0 1 26,10 Z"
-        android:fillColor="#00000000"
-        android:strokeColor="#FF2E3237"
-        android:strokeWidth="2" />
-
-    <!-- 极光丝带：自左上流下 -->
-    <path android:pathData="M40,20 C52,30 58,42 56,54 C54,66 46,74 42,84 L30,84 C36,74 42,66 40,54 C38,42 30,30 22,22 Z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="26"
-                android:startY="20"
-                android:endX="48"
-                android:endY="84"
-                android:type="linear">
-                <item android:offset="0" android:color="#FF5CE1D2" />
-                <item android:offset="1" android:color="#FF7CC4FF" />
-            </gradient>
-        </aapt:attr>
-    </path>
-
-    <!-- 幕布地平线 -->
-    <path
-        android:pathData="M22,74 C36,67 64,67 78,74"
-        android:fillColor="#00000000"
-        android:strokeColor="#FF7CC4FF"
-        android:strokeWidth="3"
-        android:strokeLineCap="round" />
+    <group android:translateX="-6" android:translateY="-6"
+        android:scaleX="0.2" android:scaleY="0.2">
+        <!-- 极光渐变光圈：虚线圆环换算为 265.3° 圆弧（dasharray 880/320、rotate -128°） -->
+        <path android:pathData="M163.02,130.28 A190,190 0 1 1 140.22,408.69"
+            android:fillColor="#00000000" android:strokeWidth="46" android:strokeLineCap="round">
+            <aapt:attr name="android:strokeColor">
+                <gradient android:type="linear" android:startX="90" android:startY="90" android:endX="470" android:endY="470">
+                    <item android:offset="0" android:color="#FF3DE8C2"/>
+                    <item android:offset="0.55" android:color="#FF6FA0FF"/>
+                    <item android:offset="1" android:color="#FFB07CFF"/>
+                </gradient>
+            </aapt:attr>
+        </path>
+        <!-- 幕布切口中的一束光 -->
+        <path android:pathData="M382,356 L452,424 L402,452 L340,372 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient android:type="linear" android:startX="340" android:startY="356" android:endX="452" android:endY="452">
+                    <item android:offset="0" android:color="#FF3DE8C2"/>
+                    <item android:offset="0.55" android:color="#FF6FA0FF"/>
+                    <item android:offset="1" android:color="#FFB07CFF"/>
+                </gradient>
+            </aapt:attr>
+        </path>
+        <!-- 极星 -->
+        <path android:pathData="M183,180 a13,13 0 1 1 26,0 a13,13 0 1 1 -26,0"
+            android:fillColor="#FFEAFBFF"/>
+    </group>
 </vector>
