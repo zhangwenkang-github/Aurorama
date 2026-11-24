@@ -2,7 +2,7 @@
 
 > **新会话第一步读这里**，再读所在波次/线文档的顶部状态块，最后查记忆库 `MEMORY.md`。
 > 本文件只放项目级事实与各线一句话状态；过程日志与历史细节在 `docs/archive/`（按需读取，不主动加载）。
-> 最后更新：2026-11-24　分支 `codex/v2-integration`
+> 最后更新：2026-11-24　分支 `codex/v2.0.1`
 
 ## 1. 项目是什么
 
@@ -38,17 +38,32 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
 | 连接层 | 🟢 W31 完成；遗留 `fix/w31-trust-session-reuse` 分支待合并 | `docs/ARCHITECTURE.md` §5.4 |
 | 投屏/同步观看 | ⛔ 投屏未开始（LATER）；SyncPlay 为 SHOULD（W4 评估） | `docs/V2_REQUIREMENTS.md` §9.5 |
+| 维护/缺陷修复 → 2.0.1 | 🟡 **W0 开工中**（2026-11-24）：分支 `codex/v2.0.1` 已建；台账 22 卡 + W0/W5 + LATER 池已登记；设计审计（W0-D1）进行中；计划经用户两轮审批（工作流七条/主题还原定稿/master 跟随发布） | `docs/V201_TASKS.md` |
 
 ## 4. 当前焦点（2026-11-24）
 
-1. **2.0.0 已发布（2026-11-24，用户当场授权）**：`codex/v2-integration` 推送至 `312209a6` + tag `v2.0.0` + GitHub Release 双 APK（发布后自检 SHA-256 复核一致）。T9 回归 R1–R12 全绿（证据 `F:\Develop\code_data\qa\w9-t9\`）：K60 在线/断网域、R5 孤儿清理终验（回收 43.54MiB，A3 根因=孤儿占位 rename 失败钉死）、Pad 写补偿/R11 季页计数（授权删《齐木楠雄的灾难》S1E1，24→23 即时刷新）/R7 搜索/R9 书籍通知直达；发布面冒烟双机 0 FATAL/ANR。
-2. **2.0.1 候选池（已裁定，开工提示词用户届时自写——流程可能调整、使用中可能出新问题新需求，一并处理）**：首修 P1=音乐搜索结果点击回库根页+左侧导航消失；LATER=A4 旧记录已下载徽标/A5 FAILED 态 UI 同步/A6 下载页计数跳变/对账口径 FAILED 行认领同名 g1/「全部继续」对 FAILED 无效/Pad 库内容页离线降级缺口（详见 `V2_W9_TASKS.md` 裁定登记顶部）。
-3. **环境事实**：多设备在线装机用 `assembleLibreDebug` + `adb -s <id> install -r` 定向安装；全模块单测注意 `:core`/`:app:phone` 是 `testLibreDebugUnitTest`；发布门须显式加跑 `verifyMpvJniReleaseContract`；GitHub 上传双资产偶发 502，拆「先建 Release 再分次传资产」可解。
-4. **主仓工作区卫生已清（2026-11-18）**：v1.4.0/v1.4.1 已发布；master 已推送至 `d7c309f0`。
+1. **2.0.1 开工（分支 `codex/v2.0.1` @ `17848eff`）**：计划经用户两轮审批通过——21 项需求/bug + 2.0.0 遗留，波次 W0→W5（修复快线→设计基础→音乐重塑→播放器收尾→回归发布），台账 `docs/V201_TASKS.md`（22 卡全登记）。工作流七条已制度化进 `AGENTS.md`：下载分散到功能波次、adb 取证/简单修复下放子代理、卡数按上下文弹性、波次按依赖风险排、全主题落卡核销、新需求按归属插波、每波次 20% 缓冲。
+2. **W0 进度**：✅ 分支+台账+AGENTS.md；🔄 W0-D1 设计审计（偏差清单 `docs/V201_DESIGN_AUDIT.md`）；⬜ W0-D2 设计定稿（依赖 D1）；⬜ W0-D3 git 治理——master 独有资产已移植（`f541b249`），master 对齐 v2.0.0 待用户确认后执行。
+3. **主题特别要求（用户拍板）**：#9 不止去黄橙，还要按 W0-D1 偏差清单还原 2.0.0 负责人定稿的设计（R1 基线 + docs/design/ 证据链）。
+4. **环境事实**：多设备在线装机用 `assembleLibreDebug` + `adb -s <id> install -r`；全模块单测注意 `:core`/`:app:phone` 是 `testLibreDebugUnitTest`；发布门须显式加跑 `verifyMpvJniReleaseContract`；GitHub 上传双资产偶发 502 拆「先建 Release 再分次传」可解。
 
 ### 下会话开工提示词
 
-（2026-11-24 用户指示：不预写 2.0.1 提示词——流程可能调整、使用中可能出新问题新需求，届时由用户开工时自写，一并处理。2.0.1 候选池见焦点节第 2 条与 `V2_W9_TASKS.md` 裁定登记。）
+```
+1. 角色与工作区：你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
+   工作区：F:/Develop/code_data/work_tree/Aurorama/v2-merge-141（分支 codex/v2.0.1）。
+2. 开工读序：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V201_TASKS.md 状态块
+   → 记忆库 MEMORY.md（读序外文件按需，不通读）。
+3. 现状：HEAD 以 git log 为准；W0 已建分支/台账/AGENTS.md 2.0.1 版（87d6470c）；
+   master 独有资产已移植（f541b249）；W0-D1 设计审计结果见 docs/V201_DESIGN_AUDIT.md（若未完成先收）。
+4. 本会话任务：W0-D2 设计定稿（按 V201_DESIGN_AUDIT 偏差清单定 token 修改清单与音乐
+   工具行/播放页交互稿）+ W0-D3 master 对齐 v2.0.0（用户已确认后执行）；额度宽裕可并发
+   派 W1-T03（logo 换 B 版）/W1-T04（缓存默认无限制）两张独立小卡。
+5. 设计分权：设计以 docs/UI_DESIGN_SYSTEM.md R1 基线 + docs/design/ 证据链 + W0-D2 定稿
+   为准，deepseek 零设计权。
+6. 门禁与纪律：见 AGENTS.md 质量门/红线；adb 取证派子代理，负责人复核证据关键行。
+7. 交接：收口按 AGENTS.md 五件事，提示词按统一标准填槽更新。
+```
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）
 
