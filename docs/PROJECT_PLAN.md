@@ -38,31 +38,30 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
 | 连接层 | 🟢 W31 完成；遗留 `fix/w31-trust-session-reuse` 分支待合并 | `docs/ARCHITECTURE.md` §5.4 |
 | 投屏/同步观看 | ⛔ 投屏未开始（LATER）；SyncPlay 为 SHOULD（W4 评估） | `docs/V2_REQUIREMENTS.md` §9.5 |
-| 维护/缺陷修复 → 2.0.1 | 🟡 **W0 开工中**（2026-11-24）：分支 `codex/v2.0.1` 已建；台账 22 卡 + W0/W5 + LATER 池已登记；设计审计（W0-D1）进行中；计划经用户两轮审批（工作流七条/主题还原定稿/master 跟随发布） | `docs/V201_TASKS.md` |
+| 维护/缺陷修复 → 2.0.1 | 🟡 **W1 修复快线开工**（2026-11-24）：分支 `codex/v2.0.1`；W0 收官（台账 22 卡、master 已对齐 v2.0.0、设计审计 22 条偏差、**设计定稿 `docs/V201_DESIGN_FINAL.md`**：域色=身份、极光=行动）；T03/T04 已派子代理 | `docs/V201_TASKS.md` |
 
 ## 4. 当前焦点（2026-11-24）
 
-1. **2.0.1 开工（分支 `codex/v2.0.1` @ `17848eff`）**：计划经用户两轮审批通过——21 项需求/bug + 2.0.0 遗留，波次 W0→W5（修复快线→设计基础→音乐重塑→播放器收尾→回归发布），台账 `docs/V201_TASKS.md`（22 卡全登记）。工作流七条已制度化进 `AGENTS.md`：下载分散到功能波次、adb 取证/简单修复下放子代理、卡数按上下文弹性、波次按依赖风险排、全主题落卡核销、新需求按归属插波、每波次 20% 缓冲。
-2. **W0 进度**：✅ 分支+台账+AGENTS.md；🔄 W0-D1 设计审计（偏差清单 `docs/V201_DESIGN_AUDIT.md`）；⬜ W0-D2 设计定稿（依赖 D1）；⬜ W0-D3 git 治理——master 独有资产已移植（`f541b249`），master 对齐 v2.0.0 待用户确认后执行。
-3. **主题特别要求（用户拍板）**：#9 不止去黄橙，还要按 W0-D1 偏差清单还原 2.0.0 负责人定稿的设计（R1 基线 + docs/design/ 证据链）。
-4. **环境事实**：多设备在线装机用 `assembleLibreDebug` + `adb -s <id> install -r`；全模块单测注意 `:core`/`:app:phone` 是 `testLibreDebugUnitTest`；发布门须显式加跑 `verifyMpvJniReleaseContract`；GitHub 上传双资产偶发 502 拆「先建 Release 再分次传」可解。
+1. **2.0.1 开工（分支 `codex/v2.0.1`）**：计划经用户两轮审批通过——21 项需求/bug + 2.0.0 遗留，波次 W0→W5（修复快线→设计基础→音乐重塑→播放器收尾→回归发布），台账 `docs/V201_TASKS.md`（22 卡全登记）。工作流七条已制度化进 `AGENTS.md`。
+2. **W0 已收官（2026-11-24）**：✅ 分支+台账+AGENTS.md；✅ W0-D1 设计审计（22 条偏差）；✅ W0-D2 设计定稿（`docs/V201_DESIGN_FINAL.md`，9 条裁定：域色=身份、极光=行动；琥珀退出交互强调；封面取色只留背景光晕；玻璃无 blur 为正式决定；主题选择器加跟随系统）；✅ W0-D3 master 已对齐 v2.0.0（`312209a6`，远端推送待授权）。
+3. **W1 修复快线进行中**：T03（logo 换 B 版）/T04（缓存默认无限制）已派子代理；余 T01/T02/T05–T08 可继续并发派卡。
+4. **主题特别要求（用户拍板）**：#9 按 W0-D2 定稿还原——T09 依 `V201_DESIGN_FINAL.md` §2 三批执行。
+5. **环境事实**：多设备在线装机用 `assembleLibreDebug` + `adb -s <id> install -r`；全模块单测注意 `:core`/`:app:phone` 是 `testLibreDebugUnitTest`；发布门须显式加跑 `verifyMpvJniReleaseContract`；GitHub 上传双资产偶发 502 拆「先建 Release 再分次传」可解。
 
 ### 下会话开工提示词
 
 ```
-1. 角色与工作区：你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
+1. 角色与工作区（固定一行）：你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
    工作区：F:/Develop/code_data/work_tree/Aurorama/v2-merge-141（分支 codex/v2.0.1）。
-2. 开工读序：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V201_TASKS.md 状态块
+2. 开工读序（固定）：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V201_TASKS.md 状态块
    → 记忆库 MEMORY.md（读序外文件按需，不通读）。
-3. 现状：HEAD 以 git log 为准；W0 已建分支/台账/AGENTS.md 2.0.1 版（87d6470c）；
-   master 独有资产已移植（f541b249）；W0-D1 设计审计结果见 docs/V201_DESIGN_AUDIT.md（若未完成先收）。
-4. 本会话任务：W0-D2 设计定稿（按 V201_DESIGN_AUDIT 偏差清单定 token 修改清单与音乐
-   工具行/播放页交互稿）+ W0-D3 master 对齐 v2.0.0（用户已确认后执行）；额度宽裕可并发
-   派 W1-T03（logo 换 B 版）/W1-T04（缓存默认无限制）两张独立小卡。
-5. 设计分权：设计以 docs/UI_DESIGN_SYSTEM.md R1 基线 + docs/design/ 证据链 + W0-D2 定稿
-   为准，deepseek 零设计权。
-6. 门禁与纪律：见 AGENTS.md 质量门/红线；adb 取证派子代理，负责人复核证据关键行。
-7. 交接：收口按 AGENTS.md 五件事，提示词按统一标准填槽更新。
+3. 现状（≤4 行）：HEAD 以 git log 为准；W0 已收官（D0–D3），设计定稿=docs/V201_DESIGN_FINAL.md；
+   master=312209a6（远端推送待授权）；T03/T04 子代理结果若已合入则核台账。
+4. 本会话任务（1–2 卡）：W1 修复快线继续派卡——优先 T01（更新链路）+T02（管理员入口）或
+   T05–T08 任选两张并发；额度宽裕可加派 W2-T09 批①（角色收口，纯 token 层）。
+5. 设计分权（固定一行）：设计以 docs/V201_DESIGN_FINAL.md + docs/V2_DESIGN.md §3 为准，deepseek 零设计权。
+6. 门禁与纪律（固定引用）：见 AGENTS.md 质量门/红线；adb 取证派子代理，负责人复核证据关键行。
+7. 交接（固定一行）：收口按 AGENTS.md 五件事，提示词按统一标准填槽更新。
 ```
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）
