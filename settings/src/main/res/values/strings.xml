@@ -19,7 +19,7 @@
     <string name="settings_use_cache_title">Cache images</string>
     <string name="settings_use_cache_summary">Cache images on disk to speed up loading times. Will take effect after app restart.</string>
     <string name="settings_cache_size">Cache size</string>
-    <string name="settings_cache_size_message">App will use this amount of MB of your disk space to store images from Jellyfin server. Larger values might be beneficial on slower networks.</string>
+    <string name="settings_cache_size_message">App will use this amount of MB of your disk space to store images from Jellyfin server. 0 = no limit (the default; managed automatically from free space). Larger values might be beneficial on slower networks.</string>
     <string name="settings_category_network">Network</string>
     <string name="settings_request_timeout">Request timeout</string>
     <string name="settings_connect_timeout">Connect timeout</string>

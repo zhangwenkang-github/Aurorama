@@ -36,6 +36,7 @@ import com.zhangwenkang.cinefin.network.buildCertificateAwareOkHttpClient
 import com.zhangwenkang.cinefin.presentation.update.launchAutomaticUpdateCheck
 import com.zhangwenkang.cinefin.repository.UserPolicyStore
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.settings.domain.ImageCacheSize
 import com.zhangwenkang.cinefin.update.UpdateWorkScheduler
 import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceInstaller
 import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceRuntime
@@ -168,12 +169,15 @@ class BaseApplication : Application(), Configuration.Provider, SingletonImageLoa
                 else CachePolicy.DISABLED
             )
             .diskCache {
-                DiskCache.Builder()
-                    .directory(context.cacheDir.resolve("image_cache").toOkioPath())
-                    .maxSizeBytes(
-                        appPreferences.getValue(appPreferences.imageCacheSize) * 1024L * 1024
+                val builder =
+                    DiskCache.Builder()
+                        .directory(context.cacheDir.resolve("image_cache").toOkioPath())
+                // 偏好 0（默认）= 不设上限：不调用 maxSizeBytes，由 Coil 按可用空间自行管理。
+                ImageCacheSize.maxDiskCacheBytes(
+                        appPreferences.getValue(appPreferences.imageCacheSize)
                     )
-                    .build()
+                    ?.let { builder.maxSizeBytes(it) }
+                builder.build()
             }
             .crossfade(true)
             .build()

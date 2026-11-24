@@ -58,7 +58,7 @@
     <string name="settings_connect_timeout">連接超時（毫秒）</string>
     <string name="settings_socket_timeout">Socket 超時（毫秒）</string>
     <string name="settings_use_cache_summary">在磁碟上快取圖片以減少載入時間。 將在應用程式重新啟動後生效。</string>
-    <string name="settings_cache_size_message">應用程式將使用此大小的磁碟空間儲存來自 Jellyfin 伺服器的圖片。 較大的值可能對較慢的網路有益。</string>
+    <string name="settings_cache_size_message">應用程式將使用此大小的磁碟空間儲存來自 Jellyfin 伺服器的圖片。0 = 無限制（預設無限制，由系統按可用空間自動管理）。 較大的值可能對較慢的網路有益。</string>
     <string name="download_mobile_data">使用行動網路下載</string>
     <string name="mpv_player_summary">使用實驗性 mpv 播放器播放影片。 mpv 支援更多的影片、音訊和字幕編解碼器。</string>
     <string name="player_gestures_vb">音量和亮度手勢</string>

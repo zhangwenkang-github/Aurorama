@@ -40,7 +40,7 @@
     <string name="player_gestures_vb_summary">在屏幕左侧上下滑动调整亮度，在屏幕右侧上下滑动调整音量</string>
     <string name="settings_use_cache_summary">将图片缓存至本地以加快加载速度。应用重启后生效。</string>
     <string name="settings_cache_size">缓存大小</string>
-    <string name="settings_cache_size_message">应用程序将会利用这些存储空间来存储 Jellyfin 服务器的图片。在较慢的网络下，更大的数值可能会更好。</string>
+    <string name="settings_cache_size_message">应用程序将会利用这些存储空间来存储 Jellyfin 服务器的图片。0 = 无限制（默认无限制，由系统按可用空间自动管理）。在较慢的网络下，更大的数值可能会更好。</string>
     <string name="player_gestures_vb">音量和亮度手势</string>
     <string name="player_gestures_zoom">缩放手势</string>
     <string name="player_gestures_zoom_summary">在屏幕上捏合将视频填满屏幕</string>

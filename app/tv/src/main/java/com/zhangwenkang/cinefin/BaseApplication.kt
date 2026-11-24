@@ -12,6 +12,7 @@ import coil3.request.CachePolicy
 import coil3.request.crossfade
 import coil3.svg.SvgDecoder
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.settings.domain.ImageCacheSize
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 import kotlin.time.ExperimentalTime
@@ -33,12 +34,15 @@ class BaseApplication : Application(), SingletonImageLoader.Factory {
                 else CachePolicy.DISABLED
             )
             .diskCache {
-                DiskCache.Builder()
-                    .directory(context.cacheDir.resolve("image_cache").toOkioPath())
-                    .maxSizeBytes(
-                        appPreferences.getValue(appPreferences.imageCacheSize) * 1024L * 1024
+                val builder =
+                    DiskCache.Builder()
+                        .directory(context.cacheDir.resolve("image_cache").toOkioPath())
+                // 偏好 0（默认）= 不设上限：不调用 maxSizeBytes，由 Coil 按可用空间自行管理。
+                ImageCacheSize.maxDiskCacheBytes(
+                        appPreferences.getValue(appPreferences.imageCacheSize)
                     )
-                    .build()
+                    ?.let { builder.maxSizeBytes(it) }
+                builder.build()
             }
             .crossfade(true)
             .build()

@@ -260,7 +260,8 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
 
     // Cache
     val imageCache = Preference("pref_image_cache", true)
-    val imageCacheSize = Preference("pref_image_cache_size", 50)
+    /** 图片磁盘缓存上限（MB）。默认 [ImageCacheSize.DEFAULT_MB] = 不设上限； 存量用户已存的数值（如旧的 50）原样生效，不做迁移。 */
+    val imageCacheSize = Preference("pref_image_cache_size", ImageCacheSize.DEFAULT_MB)
 
     // Sorting
     val sortBy = Preference("pref_sort_by", "SortName")
