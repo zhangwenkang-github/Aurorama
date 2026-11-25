@@ -1706,7 +1706,11 @@ constructor(
         }
     }
 
-    /** 长按行：进入多选并把该曲目加入选中。 */
+    /**
+     * W3-T16 · §4.3：歌曲行长按 = 进入多选并把该曲目加入选中。
+     *
+     * 长按不再是上下文菜单入口（菜单只由行内 ⋮ 打开）；多选态内长按等价于切换该曲选中（调用方分派 [onBatchToggle]）。
+     */
     fun onBatchLongPress(song: MusicSong) {
         val ids = visibleSongs().map { it.playlistSelectionKey() }.toSet()
         updateBatchSelectionByUser { selection ->
@@ -2959,12 +2963,6 @@ constructor(
         val state = _uiState.value
         val album = findMusicAlbum(state.albums, state.songs, song.albumName) ?: return
         openAlbum(album)
-    }
-
-    /** W5 T1（MUSIC-47 配套）：工具栏「多选」入口——进入多选态（空选）；长按曲目改为上下文菜单，不再进多选。 */
-    fun enterBatchSelection() {
-        if (_batchSelectionState.value.selection.selectionMode) return
-        updateBatchSelectionByUser { selection -> selection.copy(selectionMode = true) }
     }
 
     /** W5 T1（MUSIC-19）：播放页点艺术家名 → 艺术家详情（按当前曲库聚合的艺人分组定位，找不到则忽略）。 */

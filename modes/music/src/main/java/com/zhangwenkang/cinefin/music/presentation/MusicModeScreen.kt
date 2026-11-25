@@ -276,7 +276,7 @@ fun MusicModeScreen(
     var renamePlaylistDialogName by rememberSaveable { mutableStateOf("") }
     var deletePlaylistDialogId by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingPlaylistSongs by remember { mutableStateOf<List<MusicSong>>(emptyList()) }
-    // W5 T1（MUSIC-47）：长按曲目 = 上下文菜单 bottom sheet（多选改由工具栏「多选」入口进入）
+    // W3-T16 · §4.3：长按曲目 = 进入多选并选中该曲；上下文菜单只由行内 ⋮ 打开（W5 T1 的显式「多选」入口已删除）
     var contextSong by remember { mutableStateOf<MusicSong?>(null) }
     // W5 T6（MUSIC-34）：音频信息面板（长按菜单「音频信息」/ 音效面板「输出信息」共用）
     var audioInfo by remember { mutableStateOf<MusicAudioInfo?>(null) }
@@ -554,7 +554,6 @@ fun MusicModeScreen(
                     onOpenRecent = viewModel::openRecent,
                     onOpenSleep = { sleepSheetOpen = true },
                     onSearchClick = onSearchClick,
-                    onBatchEnter = viewModel::enterBatchSelection,
                     onBatchSelectAll = viewModel::onBatchSelectAll,
                     onBatchSelectNone = viewModel::onBatchSelectNone,
                     onBatchExit = viewModel::onBatchExit,
@@ -599,7 +598,6 @@ fun MusicModeScreen(
                                 onSelectPageSize = viewModel::setSongPageSize,
                                 onPlayAll = { viewModel.playAll() },
                                 onShuffleAll = { viewModel.playAll(shuffle = true) },
-                                onBatchEnter = viewModel::enterBatchSelection,
                             )
                         },
                     )
@@ -655,7 +653,8 @@ fun MusicModeScreen(
                                 batchSelection = batchSelection,
                                 onSongClick = viewModel::playSong,
                                 onToggleFavorite = viewModel::toggleFavorite,
-                                onSongLongPress = { song -> contextSong = song },
+                                onBatchLongPress = viewModel::onBatchLongPress,
+                                onOpenContextMenu = { song -> contextSong = song },
                                 onBatchToggle = viewModel::onBatchToggle,
                                 onDownloadAlbum = requestAlbumDownload,
                                 albumMissingCount = viewModel::albumDownloadMissingCount,
@@ -676,7 +675,8 @@ fun MusicModeScreen(
                                 onPlaylistClick = viewModel::openPlaylist,
                                 onSongClick = viewModel::playSong,
                                 onToggleFavorite = viewModel::toggleFavorite,
-                                onSongLongPress = { song -> contextSong = song },
+                                onBatchLongPress = viewModel::onBatchLongPress,
+                                onOpenContextMenu = { song -> contextSong = song },
                                 onBatchToggle = viewModel::onBatchToggle,
                                 onAlbumBatchLongPress = viewModel::onAlbumBatchLongPress,
                                 onAlbumBatchToggle = viewModel::onAlbumBatchToggle,
@@ -1343,8 +1343,6 @@ private fun MusicHeader(
     onOpenSleep: () -> Unit,
     /** W75 #13：顶栏搜索入口（复用媒体库页现有搜索流程）。 */
     onSearchClick: () -> Unit,
-    /** W5 T1：详情页「多选」入口——长按曲目改开上下文菜单后，多选从这里进。 */
-    onBatchEnter: () -> Unit,
     onBatchSelectAll: () -> Unit,
     onBatchSelectNone: () -> Unit,
     onBatchExit: () -> Unit,
@@ -1420,15 +1418,6 @@ private fun MusicHeader(
             }
             if (onExitTemporaryLibrary != null && detail == null) {
                 CinefinBackToDefaultChip(onClick = onExitTemporaryLibrary)
-            }
-            // W5 T1：详情页也保留多选入口（该槽在批量态本就放「全选」文字键，口径一致）
-            if (detail != null && detail.songs.isNotEmpty()) {
-                CinefinButton(
-                    text = "多选",
-                    onClick = onBatchEnter,
-                    size = CinefinButtonSize.Small,
-                    variant = CinefinButtonVariant.Text,
-                )
             }
             CinefinIconButton(onClick = onOpenFavorites) { tint ->
                 Icon(
@@ -1580,7 +1569,6 @@ private fun MusicToolbarRow(
     onSelectPageSize: (Int) -> Unit,
     onPlayAll: () -> Unit,
     onShuffleAll: () -> Unit,
-    onBatchEnter: () -> Unit,
 ) {
     Row(
         modifier =
@@ -1607,21 +1595,6 @@ private fun MusicToolbarRow(
             onSelectPageSize = onSelectPageSize,
         )
         Spacer(modifier = Modifier.weight(1f))
-        // W5 T1 · MUSIC-47：多选改由工具栏入口进入（长按曲目 = 上下文菜单）；仅歌曲 / 专辑 Tab 且有内容时显示
-        val batchScopeAvailable =
-            when (state.tab) {
-                MusicTab.SONGS -> state.songs.isNotEmpty()
-                MusicTab.ALBUMS -> state.albums.isNotEmpty()
-                else -> false
-            }
-        if (batchScopeAvailable) {
-            CinefinButton(
-                text = "多选",
-                onClick = onBatchEnter,
-                size = CinefinButtonSize.Small,
-                variant = CinefinButtonVariant.Text,
-            )
-        }
         if (visibility.showsPlayAll) {
             // W3-T14 · §4.1：一级 CTA 用 T09 批② 的 Aurora tone（极光渐变实底 + onAurora 内容 + glow）
             CinefinButton(
@@ -1863,7 +1836,8 @@ private fun LibraryPane(
     onSongClick: (MusicSong) -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
     onBatchToggle: (MusicSong) -> Unit,
-    onSongLongPress: (MusicSong) -> Unit = {},
+    onBatchLongPress: (MusicSong) -> Unit = {},
+    onOpenContextMenu: (MusicSong) -> Unit = {},
     onAlbumBatchLongPress: (MusicAlbum) -> Unit = {},
     onAlbumBatchToggle: (MusicAlbum) -> Unit = {},
     onAddToLocalPlaylist: ((MusicSong) -> Unit)? = null,
@@ -1891,7 +1865,8 @@ private fun LibraryPane(
                 onSongClick = onSongClick,
                 onToggleFavorite = onToggleFavorite,
                 onBatchToggle = onBatchToggle,
-                onSongLongPress = onSongLongPress,
+                onBatchLongPress = onBatchLongPress,
+                onOpenContextMenu = onOpenContextMenu,
                 onAddToLocalPlaylist = onAddToLocalPlaylist,
             )
         MusicTab.ALBUMS ->
@@ -1930,7 +1905,8 @@ private fun LibraryPane(
                             batchSelection = batchSelection,
                             onSongClick = onSongClick,
                             onToggleFavorite = onToggleFavorite,
-                            onSongLongPress = onSongLongPress,
+                            onBatchLongPress = onBatchLongPress,
+                            onOpenContextMenu = onOpenContextMenu,
                             onBatchToggle = onBatchToggle,
                             onAddToLocalPlaylist = onAddToLocalPlaylist,
                         )
@@ -1972,7 +1948,8 @@ private fun SuggestionPane(
     onSongClick: (MusicSong) -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
     onBatchToggle: (MusicSong) -> Unit,
-    onSongLongPress: (MusicSong) -> Unit,
+    onBatchLongPress: (MusicSong) -> Unit,
+    onOpenContextMenu: (MusicSong) -> Unit,
     onAddToLocalPlaylist: ((MusicSong) -> Unit)?,
 ) {
     if (sections.isEmpty()) {
@@ -2012,7 +1989,8 @@ private fun SuggestionPane(
                     onSongClick = onSongClick,
                     onToggleFavorite = onToggleFavorite,
                     onBatchToggle = onBatchToggle,
-                    onSongLongPress = onSongLongPress,
+                    onBatchLongPress = onBatchLongPress,
+                    onOpenContextMenu = onOpenContextMenu,
                     onAddToLocalPlaylist = onAddToLocalPlaylist,
                 )
             }
@@ -2072,7 +2050,8 @@ private fun DetailPane(
     onSongClick: (MusicSong) -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
     onBatchToggle: (MusicSong) -> Unit,
-    onSongLongPress: (MusicSong) -> Unit = {},
+    onBatchLongPress: (MusicSong) -> Unit = {},
+    onOpenContextMenu: (MusicSong) -> Unit = {},
     onDownloadAlbum: () -> Unit = {},
     albumMissingCount: () -> Int? = { null },
     onAddToLocalPlaylist: ((MusicSong) -> Unit)? = null,
@@ -2103,7 +2082,8 @@ private fun DetailPane(
         onSongClick = onSongClick,
         onToggleFavorite = onToggleFavorite,
         onBatchToggle = onBatchToggle,
-        onSongLongPress = onSongLongPress,
+        onBatchLongPress = onBatchLongPress,
+        onOpenContextMenu = onOpenContextMenu,
         onAddToLocalPlaylist = onAddToLocalPlaylist,
         header =
             when {
@@ -2438,7 +2418,8 @@ private fun SongList(
     onSongClick: (MusicSong) -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
     onBatchToggle: (MusicSong) -> Unit = {},
-    onSongLongPress: (MusicSong) -> Unit = {},
+    onBatchLongPress: (MusicSong) -> Unit = {},
+    onOpenContextMenu: (MusicSong) -> Unit = {},
     onAddToLocalPlaylist: ((MusicSong) -> Unit)? = null,
 ) {
     if (songs.isEmpty()) {
@@ -2573,7 +2554,8 @@ private fun SongList(
                 onSongClick = onSongClick,
                 onToggleFavorite = onToggleFavorite,
                 onBatchToggle = onBatchToggle,
-                onSongLongPress = onSongLongPress,
+                onBatchLongPress = onBatchLongPress,
+                onOpenContextMenu = onOpenContextMenu,
                 onAddToLocalPlaylist = onAddToLocalPlaylist,
             )
         }
@@ -2593,7 +2575,8 @@ private fun SongListRow(
     onSongClick: (MusicSong) -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
     onBatchToggle: (MusicSong) -> Unit,
-    onSongLongPress: (MusicSong) -> Unit,
+    onBatchLongPress: (MusicSong) -> Unit,
+    onOpenContextMenu: (MusicSong) -> Unit,
     onAddToLocalPlaylist: ((MusicSong) -> Unit)?,
 ) {
     val downloadStatus = downloadState.activeStatus(song)
@@ -2626,10 +2609,11 @@ private fun SongListRow(
         selected = batchSelection.isSelected(song.playlistSelectionKey()),
         onClick = { if (batchSelection.selectionMode) onBatchToggle(song) else onSongClick(song) },
         onLongClick = {
-            // W5 T1 · MUSIC-47：长按 = 上下文菜单；多选态内仍按切换选中处理
-            if (batchSelection.selectionMode) onBatchToggle(song) else onSongLongPress(song)
+            // W3-T16 · §4.3：长按 = 进入多选并选中该曲；多选态内仍按切换选中处理
+            if (batchSelection.selectionMode) onBatchToggle(song) else onBatchLongPress(song)
         },
-        onOpenActions = { onSongLongPress(song) },
+        // 上下文菜单只由行内 ⋮ 触发（长按已归多选）
+        onOpenActions = { onOpenContextMenu(song) },
         onToggleFavorite = { onToggleFavorite(song) },
         onAddToPlaylist = onAddToLocalPlaylist?.let { callback -> { callback(song) } },
     )
