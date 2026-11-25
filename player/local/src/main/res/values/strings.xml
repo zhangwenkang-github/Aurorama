@@ -326,8 +326,7 @@
     <string name="player_controls_label_pip">PiP</string>
     <string name="player_controls_fullscreen">Fullscreen</string>
     <string name="player_controls_fullscreen_exit">Exit fullscreen</string>
-    <!-- W12 播放页第四轮：进度条下 6 键（音轨/字幕/倍率/码率/解码/详细信息）+ 右上 5 键 -->
-    <string name="player_controls_label_bitrate">Bitrate</string>
+    <!-- W12 播放页第四轮：进度条下 5 键（音轨/字幕/倍率/解码/详细信息，码率 2.0.1 迁设置页）+ 右上 5 键 -->
     <string name="player_controls_label_decode">Decoding</string>
     <string name="player_controls_decode_kernel">Player core</string>
     <string name="player_controls_decode_kernel_caption">Switches in place: position and selected tracks are kept</string>

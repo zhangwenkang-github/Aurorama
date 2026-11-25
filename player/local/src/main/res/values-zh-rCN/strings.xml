@@ -327,8 +327,7 @@
     <string name="player_controls_label_pip">画中画</string>
     <string name="player_controls_fullscreen">进入全屏</string>
     <string name="player_controls_fullscreen_exit">退出全屏</string>
-    <!-- W12 播放页第四轮：进度条下 6 键（音轨/字幕/倍率/码率/解码/详细信息）+ 右上 5 键 -->
-    <string name="player_controls_label_bitrate">码率</string>
+    <!-- W12 播放页第四轮：进度条下 5 键（音轨/字幕/倍率/解码/详细信息，码率 2.0.1 迁设置页）+ 右上 5 键 -->
     <string name="player_controls_label_decode">解码</string>
     <string name="player_controls_decode_kernel">播放内核</string>
     <string name="player_controls_decode_kernel_caption">就地切换，保留播放进度与已选轨道</string>
