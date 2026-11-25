@@ -192,4 +192,8 @@
     <string name="settings_hide_bottom_bar_summary">紧凑形态隐藏底部导航</string>
     <string name="settings_hide_bottom_bar_tablet_note">平板形态使用侧轨，本就没有底栏</string>
     <string name="settings_device_summary">应用权限与通知</string>
+    <string name="settings_streaming_bitrate">串流码率</string>
+    <string name="settings_streaming_bitrate_summary">服务器转码上限；自动档由服务器决定直连或转码</string>
+    <string name="settings_streaming_bitrate_auto">自动（不设上限）</string>
+    <string name="settings_streaming_bitrate_original">原始画质（不转码）</string>
 </resources>

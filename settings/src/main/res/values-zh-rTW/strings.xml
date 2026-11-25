@@ -137,4 +137,8 @@
     <string name="media_segments_type_outro">收尾</string>
     <string name="media_segments_type_intro">開頁</string>
     <string name="offline_mode_summary">离線模式摘要</string>
+    <string name="settings_streaming_bitrate">串流碼率</string>
+    <string name="settings_streaming_bitrate_summary">伺服器轉碼上限；自動檔由伺服器決定直連或轉碼</string>
+    <string name="settings_streaming_bitrate_auto">自動（不設上限）</string>
+    <string name="settings_streaming_bitrate_original">原始畫質（不轉碼）</string>
 </resources>

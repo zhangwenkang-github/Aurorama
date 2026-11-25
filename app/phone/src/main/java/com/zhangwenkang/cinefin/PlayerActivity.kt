@@ -535,7 +535,6 @@ class PlayerActivity : BasePlayerActivity() {
                     onSelectToneMapping = { mode -> applyMpvToneMapping(mode) },
                     onSelectDecodeMode = { mode -> selectDecodeMode(mode) },
                     onAutoFallbackChange = { enabled -> selectAutoFallback(enabled) },
-                    onSelectBitrate = { bitrate -> selectStreamingBitrate(bitrate) },
                     onSubtitleModeChanged = { mode -> viewModel.setSubtitleMode(mode) },
                     // W27：侧载字幕导入 / 移除 + PlayerDebugOverlay 实时数据源
                     onImportSubtitle = { subtitleImportLauncher.launch(arrayOf("*/*")) },
@@ -1687,18 +1686,6 @@ class PlayerActivity : BasePlayerActivity() {
             viewModel.clearDecodeFallback()
         }
         Timber.d("解码自动回退开关：%s", if (enabled) "开" else "关（强制所选内核）")
-    }
-
-    /**
-     * 码率档位：选具体 bps 档时重新拉取播放信息，服务器返回 `transcodingPath`（HLS 转码流）后播放它。
-     *
-     * 偏好已由面板写入 bps 新语义，data 层据此构造 PlaybackInfo 请求；这里只需重启播放页让 `getMediaSources` 重新走一遍（不清偏好，不重登）。
-     */
-    private fun selectStreamingBitrate(bitrate: Long) {
-        appPreferences.setPlayerStreamingBitrate(bitrate)
-        // 用户显式选码率：清空回退档位（自动档重新按优先级链走）
-        viewModel.clearDecodeFallback()
-        restartPlaybackKeepingPosition("streaming bitrate=$bitrate")
     }
 
     /** 重启播放页并从当前位置续播：清 ViewModel（连着旧 player）后 recreate，Intent 里带上位置 */

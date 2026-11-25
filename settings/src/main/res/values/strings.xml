@@ -198,4 +198,8 @@
     <string name="settings_hide_bottom_bar_summary">Hide bottom navigation in compact layout</string>
     <string name="settings_hide_bottom_bar_tablet_note">Tablets use the side rail, so there is no bottom bar</string>
     <string name="settings_device_summary">App permissions and notifications</string>
+    <string name="settings_streaming_bitrate">Streaming bitrate</string>
+    <string name="settings_streaming_bitrate_summary">Transcode ceiling the server may use; Auto lets the server decide</string>
+    <string name="settings_streaming_bitrate_auto">Auto (no limit)</string>
+    <string name="settings_streaming_bitrate_original">Original quality (no transcoding)</string>
 </resources>

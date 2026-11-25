@@ -46,7 +46,6 @@ import com.zhangwenkang.cinefin.player.local.domain.PlayerVideoTransform
 import com.zhangwenkang.cinefin.player.local.domain.VideoMirrorMode
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
-import com.zhangwenkang.cinefin.settings.domain.PlayerStreamingQuality
 import com.zhangwenkang.cinefin.settings.domain.models.Preference
 
 /**
@@ -88,8 +87,6 @@ data class PlayerSettingsSnapshot(
     val gesturesSpeedRamp: Boolean,
     val seekSensitivity: String,
     val verticalSensitivity: String,
-    /** 码率档位：0 / -1 / 具体 bps，见 [PlayerStreamingQuality] */
-    val streamingBitrate: Long,
     /** 解码策略：hardware / software（W12 反馈 B） */
     val decodeMode: String,
 
@@ -214,12 +211,6 @@ class PlayerSettingsController(
     fun setVerticalSensitivity(value: String) =
         write(appPreferences.playerGesturesVerticalSensitivity, value)
 
-    /** 码率档位：写 bps 新语义后由 Activity 重启播放页重新拉取播放信息（服务器转码生效） */
-    fun setStreamingBitrate(value: Long) {
-        appPreferences.setPlayerStreamingBitrate(value)
-        refresh()
-    }
-
     /** 解码策略：hardware / software（mpv 的硬解开关同步由面板写 playerMpvHwdec） */
     fun setDecodeMode(value: String) = write(appPreferences.playerDecodeMode, value)
 
@@ -302,7 +293,6 @@ class PlayerSettingsController(
             seekSensitivity = appPreferences.getValue(appPreferences.playerGesturesSeekSensitivity),
             verticalSensitivity =
                 appPreferences.getValue(appPreferences.playerGesturesVerticalSensitivity),
-            streamingBitrate = appPreferences.getPlayerStreamingBitrate(),
             decodeMode = appPreferences.getValue(appPreferences.playerDecodeMode),
             decodeFallbackStage = appPreferences.getValue(appPreferences.playerDecodeFallbackStage),
             toneMapping =
@@ -884,51 +874,4 @@ private fun HdrCapabilityRow(
         selected = false,
         onClick = {},
     )
-}
-
-/**
- * 码率面板：**自动 / 原始画质 / 官方快照档位**。
- *
- * 档位高度参考 Android client `v2.7.3` 快照，是非协议硬限制标签；实际只把 bps 作为 `maxStreamingBitrate` 请求服务器转码并播放返回的
- * `transcodingPath`。原始画质 = 只直连不转码。
- */
-@Composable
-internal fun PlayerBitratePanel(
-    controller: PlayerSettingsController,
-    onSelectBitrate: (Long) -> Unit,
-) {
-    val current = controller.state.streamingBitrate
-    Column(modifier = Modifier.fillMaxSize()) {
-        PanelList {
-            PanelRow(
-                label = stringResource(PlayerR.string.player_controls_bitrate_auto),
-                caption = stringResource(PlayerR.string.player_controls_bitrate_auto_caption),
-                selected = current == PlayerStreamingQuality.AUTO,
-                onClick = {
-                    controller.setStreamingBitrate(PlayerStreamingQuality.AUTO)
-                    onSelectBitrate(PlayerStreamingQuality.AUTO)
-                },
-            )
-            PanelRow(
-                label = stringResource(PlayerR.string.player_controls_bitrate_original),
-                caption = stringResource(PlayerR.string.player_controls_bitrate_original_caption),
-                selected = current == PlayerStreamingQuality.ORIGINAL,
-                onClick = {
-                    controller.setStreamingBitrate(PlayerStreamingQuality.ORIGINAL)
-                    onSelectBitrate(PlayerStreamingQuality.ORIGINAL)
-                },
-            )
-            PanelTitle(stringResource(PlayerR.string.player_controls_bitrate_caption))
-            PlayerStreamingQuality.qualityPresets().forEach { preset ->
-                PanelRow(
-                    label = PlayerStreamingQuality.bitrateLabel(preset.bitsPerSecond),
-                    selected = current == preset.bitsPerSecond,
-                    onClick = {
-                        controller.setStreamingBitrate(preset.bitsPerSecond)
-                        onSelectBitrate(preset.bitsPerSecond)
-                    },
-                )
-            }
-        }
-    }
 }

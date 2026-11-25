@@ -34,6 +34,7 @@ import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceIntSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceLongInput
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceMultiSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceSelect
+import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceStreamingBitrate
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceSwitch
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceThemeSelector
 import com.zhangwenkang.cinefin.settings.presentation.settings.SettingsAction
@@ -115,6 +116,16 @@ fun SettingsGroupCard(
                                         SettingsAction.OnUpdate(preference.copy(value = value))
                                     )
                                     preference.onUpdate(value)
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        is PreferenceStreamingBitrate ->
+                            SettingsStreamingBitrateCard(
+                                preference = preference,
+                                onSelect = { value ->
+                                    onAction(
+                                        SettingsAction.OnUpdate(preference.copy(value = value))
+                                    )
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                             )

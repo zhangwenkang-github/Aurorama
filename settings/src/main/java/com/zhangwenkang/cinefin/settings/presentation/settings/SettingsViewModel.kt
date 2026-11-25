@@ -12,6 +12,7 @@ import com.zhangwenkang.cinefin.settings.R
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.OfflineModeWritePort
 import com.zhangwenkang.cinefin.settings.domain.PlaybackSpeedOptions
+import com.zhangwenkang.cinefin.settings.domain.PlayerStreamingQuality
 import com.zhangwenkang.cinefin.settings.domain.models.HomeLibrarySettings
 import com.zhangwenkang.cinefin.settings.domain.models.LibraryCatalog
 import com.zhangwenkang.cinefin.settings.domain.models.Preference
@@ -30,8 +31,10 @@ import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceIntSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceLongInput
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceMultiSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceSelect
+import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceStreamingBitrate
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceSwitch
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceThemeSelector
+import com.zhangwenkang.cinefin.settings.presentation.models.StreamingBitrateOption
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -58,6 +61,30 @@ constructor(
     /** 「首选语言」下拉的候选值域：与 `R.array.languages_values` 同一份（ISO 639-2 与 BCP-47 混合） */
     private val languageOptionValues by lazy {
         context.resources.getStringArray(R.array.languages_values).toList()
+    }
+
+    /**
+     * 串流码率档位（W4-T23）：直接展开 `PlayerStreamingQuality` 的档位表，设置页与播放链路不会出现第二份档位定义。
+     *
+     * 自动 / 原始两项走资源字符串（可本地化），具体档位用档位表自身的标签（`1080p · 20 Mbps`）。
+     */
+    private val streamingBitrateOptions: List<StreamingBitrateOption> by lazy {
+        listOf(
+            StreamingBitrateOption(
+                value = PlayerStreamingQuality.AUTO,
+                labelStringResource = R.string.settings_streaming_bitrate_auto,
+            ),
+            StreamingBitrateOption(
+                value = PlayerStreamingQuality.ORIGINAL,
+                labelStringResource = R.string.settings_streaming_bitrate_original,
+            ),
+        ) +
+            PlayerStreamingQuality.qualityPresets().map { preset ->
+                StreamingBitrateOption(
+                    value = preset.bitsPerSecond,
+                    label = PlayerStreamingQuality.bitrateLabel(preset.bitsPerSecond),
+                )
+            }
     }
 
     /**
@@ -605,6 +632,21 @@ constructor(
                                                         appPreferences.playerBackend,
                                                     options = R.array.player_backends,
                                                     optionValues = R.array.player_backends,
+                                                ),
+                                                /*
+                                                 * W4-T23：串流码率从播放器码率面板迁到设置页。
+                                                 * 档位表与播放链路共用 PlayerStreamingQuality，写回统一走
+                                                 * AppPreferences.setPlayerStreamingBitrate（旧 Mbps 迁移标记随写入落地）。
+                                                 */
+                                                PreferenceStreamingBitrate(
+                                                    nameStringResource =
+                                                        R.string.settings_streaming_bitrate,
+                                                    descriptionStringRes =
+                                                        R.string.settings_streaming_bitrate_summary,
+                                                    supportedDeviceTypes = listOf(DeviceType.PHONE),
+                                                    options = streamingBitrateOptions,
+                                                    value =
+                                                        appPreferences.getPlayerStreamingBitrate(),
                                                 ),
                                                 PreferenceCategory(
                                                     nameStringResource = R.string.mpv_options,
@@ -1426,6 +1468,17 @@ constructor(
                                                             ),
                                                 )
                                             }
+                                            // W4-T23：码率行每次重建都从偏好重读，否则选中后行值停在模板里的旧档
+                                            is PreferenceStreamingBitrate -> {
+                                                preference.copy(
+                                                    enabled =
+                                                        preference.enabled &&
+                                                            preference.dependencies.all {
+                                                                appPreferences.getValue(it)
+                                                            },
+                                                    value = appPreferences.getPlayerStreamingBitrate(),
+                                                )
+                                            }
                                             is PreferenceThemeSelector -> {
                                                 // W1-T5：存量原值 + 遗留动态取色开关一起决定选中行。
                                                 preference.copy(
@@ -1578,6 +1631,9 @@ constructor(
                             action.preference.backendPreference,
                             action.preference.value,
                         )
+                    // W4-T23：码率不进通用 setValue——旧 Mbps 迁移标记由 setPlayerStreamingBitrate 统一落盘
+                    is PreferenceStreamingBitrate ->
+                        appPreferences.setPlayerStreamingBitrate(action.preference.value)
                     is PreferenceHomeLibrary -> {
                         val hidden = appPreferences.getValue(appPreferences.uiHomeLibrariesHidden)
                         if (

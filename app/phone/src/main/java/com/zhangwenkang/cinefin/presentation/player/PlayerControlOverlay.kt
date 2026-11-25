@@ -307,8 +307,6 @@ internal enum class PlayerPanel {
     Settings,
     /** 解码面板（W12 反馈 B）：内核切换 + 硬解 / 软解策略，独立入口 */
     Decode,
-    /** 码率面板（W12 反馈 B）：服务器转码档位，独立入口 */
-    Bitrate,
     /** W4-T8e：SyncPlay 入口面板（未入组 = 创建 / 加入；已入组 = 组名 + 成员 + 离开组） */
     SyncPlay,
 }
@@ -316,13 +314,13 @@ internal enum class PlayerPanel {
 /**
  * 控制层版式规格（W12 终版布局 + 反馈 A 控件样式统一）。
  *
- * 终版（用户确认，勿再变动）：进度条一行 = 当前时间 · 进度条 · 总时长；进度条下方左侧 6 键 = 音轨 / 字幕 / 倍率 / 码率 / 解码 / 详细信息，右侧 = 全屏键；右上角 5
- * 键 = 画中画 / 睡眠 / 选集 / 画面 / 设置；锁定键贴画面区右缘垂直居中；中央五键居中。
+ * 终版（用户确认，勿再变动）：进度条一行 = 当前时间 · 进度条 · 总时长；进度条下方左侧 5 键 = 音轨 / 字幕 / 倍率 / 解码 / 详细信息，右侧 = 全屏键；右上角 5 键 =
+ * 画中画 / 睡眠 / 选集 / 画面 / 设置；锁定键贴画面区右缘垂直居中；中央五键居中。
  *
  * 窄屏（<600dp，手机 / 分屏 / 小窗）整体收一档，保证工具行 + 全屏键一行不越界（极窄窗由横向滚动兜底）。
  *
- * W17 起工具行**6 键恒定齐全**（见 [playerToolLabelsVisible]）：全屏 / 宽度充足 = 图标下加小字； 窄屏 / Compact =
- * 只留图标。倍率键只显示图标，当前值由 1× 徽标显示。
+ * W17 起工具行**5 键恒定齐全**（见 [playerToolLabelsVisible]）；W4-T23 起「码率」随面板迁到设置页：全屏 / 宽度充足 = 图标下加小字； 窄屏 /
+ * Compact = 只留图标。倍率键只显示图标，当前值由 1× 徽标显示。
  */
 internal data class PlayerControlSpec(
     /** 窄屏（<600dp）收一档 */
@@ -337,17 +335,17 @@ internal data class PlayerControlSpec(
     val toolRowPaddingDp: Float,
 ) {
     /**
-     * 底栏一行 = 6 个工具键 + 1× 徽标 + 右下全屏键 + 8 个间距（含全屏键前的留白，W13 反馈③新增 1×）。 1× 徽标 W14
+     * 底栏一行 = 5 个工具键 + 1× 徽标 + 右下全屏键 + 7 个间距（含全屏键前的留白，W13 反馈③新增 1×）。 1× 徽标 W14
      * 起按文本自适应（不再占一个键框），按最宽档估值计；极端窄窗由工具行的横向滚动兜底。
      */
     val bottomRowWidthDp: Float
         get() = bottomRowWidthDp(showLabels = false)
 
     /**
-     * W17：底栏一行宽度预算。[showLabels] = true 时 6 个工具键按「图标 + 小字」的加宽键框计 （全屏键恒为纯图标，不参与加宽）。
+     * W17：底栏一行宽度预算。[showLabels] = true 时 5 个工具键按「图标 + 小字」的加宽键框计 （全屏键恒为纯图标，不参与加宽）。
      *
      * W67b：预计结束时刻移到这一行后，[withEndTime] = true 时再加「1× 徽标 + 结束时间文本 + 两侧 8dp 间距」， 供
-     * [playerBottomKeysForWidth] 做 6 键 / 4 键分级。
+     * [playerBottomKeysForWidth] 做 5 键 / 4 键分级。
      */
     fun bottomRowWidthDp(showLabels: Boolean, withEndTime: Boolean = false): Float {
         val toolKeyWidth =
@@ -357,10 +355,10 @@ internal data class PlayerControlSpec(
                 toolKeySizeDp
             }
         val base =
-            toolKeyWidth * 6f +
+            toolKeyWidth * 5f +
                 toolKeySizeDp +
                 maxOf(toolKeyWidth, PLAYER_SPEED_BADGE_WIDTH_DP) +
-                keyGapDp * 8f
+                keyGapDp * 7f
         return if (withEndTime) base + PLAYER_END_TIME_WIDTH_DP else base
     }
 }
@@ -387,7 +385,7 @@ internal fun playerControlSpec(widthDp: Float): PlayerControlSpec {
 }
 
 /**
- * 进度条下方左侧 6 键的**固定顺序**（W12 终版布局，勿再变动）：音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息。
+ * 进度条下方左侧 5 键的**固定顺序**（W12 终版布局，勿再变动；W4-T23 删码率键）：音轨 · 字幕 · 倍率 · 解码 · 详细信息。
  *
  * 抽成有序表是为了让「顺序」可被单测钉住——这一版布局是多轮确认的最终版，改顺序就是回归。
  */
@@ -395,7 +393,6 @@ internal enum class PlayerBottomKey {
     Audio,
     Subtitle,
     Speed,
-    Bitrate,
     Decode,
     Info,
 }
@@ -405,7 +402,6 @@ internal val PLAYER_BOTTOM_KEY_ORDER: List<PlayerBottomKey> =
         PlayerBottomKey.Audio,
         PlayerBottomKey.Subtitle,
         PlayerBottomKey.Speed,
-        PlayerBottomKey.Bitrate,
         PlayerBottomKey.Decode,
         PlayerBottomKey.Info,
     )
@@ -417,12 +413,12 @@ internal val PLAYER_BOTTOM_KEY_ORDER: List<PlayerBottomKey> =
 internal const val PLAYER_TOOL_ROW_WIDE_WIDTH_DP = 600f
 
 /**
- * 工具区（右上 5 键 + 左下 6 键）是否在图标下显示小字（W17 用户确认）。
+ * 工具区（右上 5 键 + 左下 5 键）是否在图标下显示小字（W17 用户确认）。
  *
  * 判据：Compact（自由窗口 / 分屏窄宽）一律只留图标；全屏（`PlayerActivity.fullscreenMode`）一律显示； 非全屏时宽度 ≥ 600dp 或平板 /
  * 折叠展开形态显示。非全屏手机形态（窄屏）只留图标—— 38dp 键框放不下文字，硬塞会撑破底栏。
  *
- * 键本身（6 键）永远都在，文字只是可读性增强：W17 起「码率 / 解码」不再从工具行隐藏， 因此设置面板里 W13 加的两行兜底入口已删除（用户确认不留兜底入口）。
+ * 键本身（5 键）永远都在，文字只是可读性增强：W17 起「解码」不再从工具行隐藏，因此设置面板里 W13 加的兜底入口已删除（用户确认不留兜底入口）； 码率入口 W4-T23 起只在设置页。
  */
 internal fun playerToolLabelsVisible(
     isFullscreen: Boolean,
@@ -441,8 +437,8 @@ internal fun playerToolLabelsVisible(
  * W67b：左下工具行的键集分级。
  *
  * 预计结束时刻移到该行后，窄窗优先保证结束时间完整：行宽预算（键 + 1× 徽标 + 结束时刻 + 右下全屏键 + 间距 + 左右留白，见
- * [PlayerControlSpec.bottomRowWidthDp]）放不下 6 键时，省略「码率 / 解码」两键—— 只剩 音轨 · 字幕 · 倍率 · 详细信息 + 1× +
- * 结束时刻；宽窗 / 全屏 / 平板照旧全量 6 键。 返回恒为 [PLAYER_BOTTOM_KEY_ORDER] 的子序列（顺序不变）。
+ * [PlayerControlSpec.bottomRowWidthDp]）放不下 5 键时，省略「解码」键—— 只剩 音轨 · 字幕 · 倍率 · 详细信息 + 1× + 结束时刻；宽窗 /
+ * 全屏 / 平板照旧全量 5 键。 返回恒为 [PLAYER_BOTTOM_KEY_ORDER] 的子序列（顺序不变）。
  */
 internal fun playerBottomKeysForWidth(
     widthDp: Float,
@@ -453,9 +449,7 @@ internal fun playerBottomKeysForWidth(
 ): List<PlayerBottomKey> {
     val budget = spec.bottomRowWidthDp(showLabels, hasEndTime) + spec.toolRowPaddingDp * 2f
     if (budget <= widthDp) return PLAYER_BOTTOM_KEY_ORDER
-    return PLAYER_BOTTOM_KEY_ORDER.filter {
-        it != PlayerBottomKey.Bitrate && it != PlayerBottomKey.Decode
-    }
+    return PLAYER_BOTTOM_KEY_ORDER.filter { it != PlayerBottomKey.Decode }
 }
 
 /** 右上角 5 键的**固定顺序**（W12 终版布局，勿再变动）：画中画 · 睡眠 · 选集 · 画面 · 设置。 */
@@ -765,8 +759,6 @@ fun PlayerControlOverlay(
     onSelectDecodeMode: (String) -> Unit = {},
     /** 失败自动回退开关（W19）：开 = 既有回退链；关 = 强制所选内核，失败只提示错误 */
     onAutoFallbackChange: (Boolean) -> Unit = {},
-    /** 码率档位（自动 / 原始画质 / 具体 bps）：由 Activity 落偏好并重启播放页重新拉取播放信息 */
-    onSelectBitrate: (Long) -> Unit = {},
     /** mpv 换硬件解码：即时写 mpv 属性 */
     onSelectMpvHwdec: (String) -> Unit,
     /** W4-T3b：设备播放能力快照（进程级只探测一次，由宿主注入）；解码面板「设备能力」区数据源 */
@@ -1077,7 +1069,7 @@ fun PlayerControlOverlay(
     val sidePanelInset =
         if (layout.hasSideContent && sidePanelExpanded) layout.sidePanelWidthDp.dp else 0.dp
     /*
-     * W17 反馈⑤：工具区（右上 5 键 + 左下 6 键）是否在图标下加小字。
+     * W17 反馈⑤：工具区（右上 5 键 + 左下 5 键）是否在图标下加小字。
      * Compact 一律只留图标；全屏 / 宽度 ≥600dp / 平板·折叠显示；非全屏手机形态（窄屏）只留图标。
      */
     val toolLabelsVisible =
@@ -1108,12 +1100,11 @@ fun PlayerControlOverlay(
                 sleepActive = sleepState.active,
                 progressStatusText = progressStatusText,
                 subtitleEnabled = hasSelectedTrack(runtime.tracks, C.TRACK_TYPE_TEXT),
-                bitrateActive = settingsController.state.streamingBitrate > 0L,
                 decodeActive =
                     settingsController.state.decodeMode == PlayerViewModel.DECODE_MODE_SOFTWARE ||
                         settingsController.state.backend == PlayerViewModel.PLAYER_BACKEND_MPV,
                 spec = spec,
-                // W67b：结束时间进了工具行——窄窗按宽度预算省略码率 / 解码，优先保证 1× + 结束时间完整
+                // W67b：结束时间进了工具行——窄窗按宽度预算省略解码键，优先保证 1× + 结束时间完整
                 bottomKeys =
                     playerBottomKeysForWidth(
                         widthDp = (layout.windowWidthDp - sidePanelInset.value).coerceAtLeast(0f),
@@ -1122,7 +1113,7 @@ fun PlayerControlOverlay(
                         spec = spec,
                     ),
                 isFullscreen = isFullscreen,
-                // W17：6 键恒定齐全；文字只在窄屏以外的形态出现
+                // W17：5 键恒定齐全；文字只在窄屏以外的形态出现
                 showLabels = toolLabelsVisible,
                 onSeek = onSeekRequest,
                 onSeekFraction = onSeekFractionRequest,
@@ -1130,7 +1121,6 @@ fun PlayerControlOverlay(
                 onAudio = { navigatePanel(PlayerPanel.Audio) },
                 onSubtitle = { navigatePanel(PlayerPanel.Subtitle) },
                 onSpeed = { navigatePanel(PlayerPanel.Speed) },
-                onBitrate = { navigatePanel(PlayerPanel.Bitrate) },
                 onDecode = { navigatePanel(PlayerPanel.Decode) },
                 onInfo = { navigatePanel(PlayerPanel.Info) },
                 onToggleFullscreen = onToggleFullscreen,
@@ -1142,8 +1132,8 @@ fun PlayerControlOverlay(
 
     /*
      * 控件分布（W12 终版，勿再变动）：
-     * 右上角 5 键 = 画中画 · 睡眠 · 选集 · 画面 · 设置；进度条下一行 = 左 6 键
-     * （音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息）+ 右下全屏键；中央五键；锁定键贴画面区右缘垂直居中。
+     * 右上角 5 键 = 画中画 · 睡眠 · 选集 · 画面 · 设置；进度条下一行 = 左 5 键
+     * （音轨 · 字幕 · 倍率 · 解码 · 详细信息）+ 右下全屏键；中央五键；锁定键贴画面区右缘垂直居中。
      */
     val toolCluster: @Composable () -> Unit = {
         PlayerToolCluster(
@@ -1236,9 +1226,7 @@ fun PlayerControlOverlay(
                         onOpenQueue = { navigatePanel(PlayerPanel.Queue) },
                         onOpenInfo = { navigatePanel(PlayerPanel.Info) },
                         onOpenSettings = { navigatePanel(PlayerPanel.Settings) },
-                        onOpenBitrate = { navigatePanel(PlayerPanel.Bitrate) },
                         onOpenDecode = { navigatePanel(PlayerPanel.Decode) },
-                        bitrateActive = settingsController.state.streamingBitrate > 0L,
                         decodeActive =
                             settingsController.state.decodeMode ==
                                 PlayerViewModel.DECODE_MODE_SOFTWARE ||
@@ -1650,11 +1638,6 @@ fun PlayerControlOverlay(
                             onSelectDecodeMode = onSelectDecodeMode,
                             onSelectToneMapping = onSelectToneMapping,
                             onAutoFallbackChange = onAutoFallbackChange,
-                        )
-                    PlayerPanel.Bitrate ->
-                        PlayerBitratePanel(
-                            controller = settingsController,
-                            onSelectBitrate = onSelectBitrate,
                         )
                     PlayerPanel.Info ->
                         InfoPanel(
@@ -2364,7 +2347,7 @@ private fun ErrorActionButton(
 /**
  * 底栏（W12 终版布局 + W17 文字化）：进度条一行（当前时间 · 进度条 · 总时长）+ 左下工具行 + 右下全屏键。
  *
- * 左下工具行（W17 用户确认）：**6 键恒定齐全**（音轨 · 字幕 · 倍速 · 码率 · 解码 · 详细信息）+ 「详细信息」右侧的 1× 徽标；[showLabels] =
+ * 左下工具行（W17 用户确认，W4-T23 删码率键）：**5 键恒定齐全**（音轨 · 字幕 · 倍速 · 解码 · 详细信息）+ 「详细信息」右侧的 1× 徽标；[showLabels] =
  * true（全屏 / 宽度充足 / 平板）时在图标下加 10sp 小字， 窄屏与 Compact 只留图标。倍速键只显示图标，当前值由 1× 徽标（纯展示、不可点击）显示。
  * 右下角全屏键**保持纯图标**，与工具行不重叠。
  */
@@ -2384,16 +2367,14 @@ private fun PlayerBottomBar(
     progressStatusText: String?,
     /** 字幕键激活态（改在进度条下方这一行，W12 终版布局） */
     subtitleEnabled: Boolean,
-    /** 码率键激活态：选了具体码率档（服务器转码中） */
-    bitrateActive: Boolean,
     /** 解码键激活态：软解或 mpv 内核 */
     decodeActive: Boolean,
     /** 版式规格（W12 反馈 A）：窄屏整体收一档 */
     spec: PlayerControlSpec,
-    /** W67b：本行实际渲染的左下工具键（窄窗省略码率 / 解码，给 1× + 预计结束时刻让位） */
+    /** W67b：本行实际渲染的左下工具键（窄窗省略解码键，给 1× + 预计结束时刻让位） */
     bottomKeys: List<PlayerBottomKey>,
     isFullscreen: Boolean,
-    /** W17 反馈⑤：是否在 6 键图标下加小字（窄屏 / Compact 只留图标） */
+    /** W17 反馈⑤：是否在 5 键图标下加小字（窄屏 / Compact 只留图标） */
     showLabels: Boolean = false,
     onSeek: (Long) -> Unit,
     /** W73（#7）：时长未知窗口的拖动比例（进度条就绪后按真实时长换算落点） */
@@ -2402,7 +2383,6 @@ private fun PlayerBottomBar(
     onAudio: () -> Unit,
     onSubtitle: () -> Unit,
     onSpeed: () -> Unit,
-    onBitrate: () -> Unit,
     onDecode: () -> Unit,
     onInfo: () -> Unit,
     onToggleFullscreen: () -> Unit,
@@ -2426,7 +2406,7 @@ private fun PlayerBottomBar(
     ) {
         /*
          * 进度条一行（W12 终版布局）：左 = 当前时间、中 = 进度条（保留流光渐变）、右 = 总时长——三者同一条线。
-         * 时间码不再单独占行，进度条也不再通栏贴底（下方还有 6 键工具行）。
+         * 时间码不再单独占行，进度条也不再通栏贴底（下方还有 5 键工具行）。
          */
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -2474,8 +2454,8 @@ private fun PlayerBottomBar(
         Spacer(Modifier.height(CinefinSpacing.Space1))
 
         /*
-         * 进度条下方（W13 方案 A 起分级显示）：全屏 / 宽度充足 = 6 键（音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息）+ 1×；
-         * 非全屏窄窗 = 音轨 · 字幕 · 倍率 · 详细信息 + 1×（码率 / 解码 改从「设置 → 播放」进入）。右下恒为全屏键。
+         * 进度条下方（W13 方案 A 起分级显示）：全屏 / 宽度充足 = 5 键（音轨 · 字幕 · 倍率 · 解码 · 详细信息）+ 1×；
+         * 非全屏窄窗 = 音轨 · 字幕 · 倍率 · 详细信息 + 1×（解码改从「设置 → 播放」进入；码率在设置页）。右下恒为全屏键。
          * 行内横向可滚：窗口再窄也只是多滑一下，不会把键挤出屏幕（W12 反馈 A + W11 反馈⑧ 的兜底）。
          */
         Row(
@@ -2492,7 +2472,7 @@ private fun PlayerBottomBar(
                 horizontalArrangement = Arrangement.spacedBy(spec.keyGapDp.dp),
                 modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
             ) {
-                // W17：宽窗 6 键齐全（showLabels 只控制图标下的小字）；W67b：窄窗按宽度预算省略码率 / 解码，
+                // W17：宽窗 5 键齐全（showLabels 只控制图标下的小字）；W67b：窄窗按宽度预算省略解码键，
                 // 把宽度让给右侧固定的「1× · 预计结束时刻」；行内仍可横滑，不挤不重叠。
                 bottomKeys.forEach { key ->
                     when (key) {
@@ -2542,22 +2522,6 @@ private fun PlayerBottomBar(
                                 label =
                                     if (showLabels) {
                                         stringResource(PlayerR.string.player_controls_label_speed)
-                                    } else {
-                                        null
-                                    },
-                            )
-                        PlayerBottomKey.Bitrate ->
-                            PlayerIconButton(
-                                iconRes = PlayerR.drawable.ic_player_bitrate,
-                                contentDescription =
-                                    stringResource(PlayerR.string.player_controls_label_bitrate),
-                                selected = bitrateActive,
-                                onClick = onBitrate,
-                                size = spec.toolKeySizeDp.dp,
-                                iconSize = spec.iconSizeDp.dp,
-                                label =
-                                    if (showLabels) {
-                                        stringResource(PlayerR.string.player_controls_label_bitrate)
                                     } else {
                                         null
                                     },
@@ -2664,17 +2628,16 @@ private fun PlayerSpeedBadge(speed: Float, modifier: Modifier = Modifier) {
 }
 
 /**
- * 小窗（Compact）的工具行：小窗既没有右上角 5 键、也没有进度条下 6 键的位置， 因此用一个横向可滚的小键行把全部入口兜住——一个功能一个入口、功能不缩水，
- * 窗口再窄也只是多滑一下（W11 反馈⑧：不靠隐藏修复；W12 补 码率 / 解码 两个新入口）。
+ * 小窗（Compact）的工具行：小窗既没有右上角 5 键、也没有进度条下 5 键的位置， 因此用一个横向可滚的小键行把全部入口兜住——一个功能一个入口、功能不缩水，
+ * 窗口再窄也只是多滑一下（W11 反馈⑧：不靠隐藏修复；W12 补 解码 新入口；码率 W4-T23 起只在设置页）。
  *
- * W17 起 Compact 骨架一律**只留图标、不加文字**（键行已横向可滚）；6 键入口恒定齐全， 「码率 / 解码」不再从这一行消失（设置面板里的兜底入口已按用户确认移除）。
+ * W17 起 Compact 骨架一律**只留图标、不加文字**（键行已横向可滚）；入口恒定齐全，「解码」不再从这一行消失（设置面板里的兜底入口已按用户确认移除）。
  * 倍率键只显示图标，当前值由「详细信息」右侧的 1× 徽标显示（纯展示，W14）。
  */
 @Composable
 internal fun PlayerCompactToolKeys(
     subtitleEnabled: Boolean,
     aspectActive: Boolean,
-    bitrateActive: Boolean,
     decodeActive: Boolean,
     isPipSupported: Boolean,
     /** 当前倍率：1× 徽标显示的值（倍速入口只有倍率图标键） */
@@ -2685,7 +2648,6 @@ internal fun PlayerCompactToolKeys(
     onOpenQueue: () -> Unit,
     onOpenInfo: () -> Unit,
     onOpenSettings: () -> Unit,
-    onOpenBitrate: () -> Unit,
     onOpenDecode: () -> Unit,
     onSpeed: () -> Unit,
     onSleep: () -> Unit,
@@ -2695,7 +2657,7 @@ internal fun PlayerCompactToolKeys(
     syncPlayAvailable: Boolean = false,
     onOpenSyncPlay: () -> Unit = {},
 ) {
-    // 顺序与画面区版式同源：音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息 + 1×，其余入口跟在后面
+    // 顺序与画面区版式同源：音轨 · 字幕 · 倍率 · 解码 · 详细信息 + 1×，其余入口跟在后面
     PlayerIconButton(
         iconRes = CoreR.drawable.ic_speaker,
         contentDescription = stringResource(PlayerR.string.select_audio_track),
@@ -2715,13 +2677,6 @@ internal fun PlayerCompactToolKeys(
         contentDescription = stringResource(PlayerR.string.player_controls_label_speed),
         selected = speed != 1f,
         onClick = onSpeed,
-        size = 40.dp,
-    )
-    PlayerIconButton(
-        iconRes = PlayerR.drawable.ic_player_bitrate,
-        contentDescription = stringResource(PlayerR.string.player_controls_label_bitrate),
-        selected = bitrateActive,
-        onClick = onOpenBitrate,
         size = 40.dp,
     )
     PlayerIconButton(
@@ -3685,7 +3640,6 @@ private fun panelTitleRes(panel: PlayerPanel): Int =
         PlayerPanel.Sleep -> PlayerR.string.player_controls_sleep_timer
         PlayerPanel.Settings -> PlayerR.string.player_controls_settings
         PlayerPanel.Decode -> PlayerR.string.player_controls_label_decode
-        PlayerPanel.Bitrate -> PlayerR.string.player_controls_label_bitrate
         PlayerPanel.SyncPlay -> PlayerR.string.player_sync_panel_title
         PlayerPanel.None -> PlayerR.string.player_controls_settings
     }

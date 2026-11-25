@@ -9,8 +9,9 @@ import org.junit.Test
  * 播放页控件分布与流光进度条的回归测试（W11 反馈③④⑧ + W12 终版布局）。
  *
  * 两条约束容易在后续会话里被改回去，所以钉成断言：
- * 1. 进度条下方 6 键与右上角 5 键的**顺序**是用户多轮确认的终版布局（改顺序即回归）；
- * 2. 底栏一行（6 键 + 全屏键）在窄窗里放不下时必须能靠横向滚动兜底，键尺寸不能比 W12 更大。
+ * 1. 进度条下方 5 键与右上角 5 键的**顺序**是用户多轮确认的终版布局（改顺序即回归）；W4-T23 起「码率」键随码率面板 一起迁到设置页，底栏只剩 音轨 · 字幕 · 倍率 · 解码
+ *    · 详细信息；
+ * 2. 底栏一行（5 键 + 全屏键）在窄窗里放不下时必须能靠横向滚动兜底，键尺寸不能比 W12 更大。
  *
  * 2.0.1 定稿 §2 批② 起已播段改用 theme 层 `auroraGradient`（3 色等距，旧的「辅光蓝 <10%」双色渐变退役，对应断言随之删除， 渐变角度几何改由 `core`
  * 的 `AuroraGradientTest` 钉住）。
@@ -20,12 +21,11 @@ class PlayerControlLayoutTest {
     @Test
     fun bottomKeys_keepFinalOrder() {
         assertEquals(
-            "进度条下方左侧 6 键顺序：音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息",
+            "进度条下方左侧 5 键顺序：音轨 · 字幕 · 倍率 · 解码 · 详细信息",
             listOf(
                 PlayerBottomKey.Audio,
                 PlayerBottomKey.Subtitle,
                 PlayerBottomKey.Speed,
-                PlayerBottomKey.Bitrate,
                 PlayerBottomKey.Decode,
                 PlayerBottomKey.Info,
             ),
@@ -69,7 +69,7 @@ class PlayerControlLayoutTest {
                 formFactor = PlayerFormFactor.Phone,
             ),
         )
-        assertEquals("左下 6 键恒定齐全", 6, PLAYER_BOTTOM_KEY_ORDER.size)
+        assertEquals("左下 5 键恒定齐全", 5, PLAYER_BOTTOM_KEY_ORDER.size)
     }
 
     @Test
@@ -83,12 +83,11 @@ class PlayerControlLayoutTest {
 
         assertFalse("非全屏窄窗（手机形态 411dp）只留图标、不加文字（验收⑤）", showsLabels)
         assertEquals(
-            "窄屏仍保留全部 6 个入口（码率 / 解码 不再隐藏）",
+            "窄屏仍保留全部 5 个入口（解码不再隐藏）",
             listOf(
                 PlayerBottomKey.Audio,
                 PlayerBottomKey.Subtitle,
                 PlayerBottomKey.Speed,
-                PlayerBottomKey.Bitrate,
                 PlayerBottomKey.Decode,
                 PlayerBottomKey.Info,
             ),
@@ -172,7 +171,7 @@ class PlayerControlLayoutTest {
     @Test
     fun bottomRow_fitsPhoneWidthWithoutScrolling() {
         // 411dp 是最窄的常见手机形态（Pad 5 wm 覆盖 / K60 竖屏）。W17 起窄屏只留图标、不加文字，
-        // 但仍按「6 键 + 1× 徽标 + 全屏键」计算，必须一行放得下
+        // 但仍按「5 键 + 1× 徽标 + 全屏键」计算，必须一行放得下
         val spec = playerControlSpec(411f)
         val used = spec.bottomRowWidthDp(showLabels = false) + spec.toolRowPaddingDp * 2f
 
@@ -270,8 +269,8 @@ class PlayerControlLayoutTest {
     // ---------- W67b：结束时间进左下工具行后的键集分级 ----------
 
     @Test
-    fun bottomKeys_narrowPhoneWithEndTime_dropsBitrateAndDecode() {
-        // K60 竖屏 411dp：6 键 + 1× + 结束时间超预算 → 省「码率 / 解码」，保证结束时间完整
+    fun bottomKeys_narrowPhoneWithEndTime_dropsDecode() {
+        // K60 竖屏 411dp：5 键 + 1× + 结束时间超预算 → 省「解码」，保证结束时间完整
         val spec = playerControlSpec(411f)
         assertEquals(
             "窄窗保留 音轨 · 字幕 · 倍率 · 详细信息 + 1× + 结束时间（顺序不变）",
@@ -291,8 +290,8 @@ class PlayerControlLayoutTest {
     }
 
     @Test
-    fun bottomKeys_narrowPhoneWithoutEndTime_keepsSixKeys() {
-        // 时长未知 / 直播：结束时间不占位 → 6 键照旧（W17 行为不回归）
+    fun bottomKeys_narrowPhoneWithoutEndTime_keepsAllKeys() {
+        // 时长未知 / 直播：结束时间不占位 → 5 键照旧（W17 行为不回归）
         val spec = playerControlSpec(411f)
         assertEquals(
             PLAYER_BOTTOM_KEY_ORDER,
@@ -306,8 +305,8 @@ class PlayerControlLayoutTest {
     }
 
     @Test
-    fun bottomKeys_wideWindows_keepSixKeys() {
-        // K60 全屏横屏（914dp）与 Pad 5 横屏（1137dp）：带小字的 6 键 + 1× + 结束时间仍放得下
+    fun bottomKeys_wideWindows_keepAllKeys() {
+        // K60 全屏横屏（914dp）与 Pad 5 横屏（1137dp）：带小字的 5 键 + 1× + 结束时间仍放得下
         val phoneLandscape = playerControlSpec(914f)
         assertEquals(
             PLAYER_BOTTOM_KEY_ORDER,
@@ -331,9 +330,10 @@ class PlayerControlLayoutTest {
         val budget =
             spec.bottomRowWidthDp(showLabels = true, withEndTime = true) +
                 spec.toolRowPaddingDp * 2f
-        assertTrue("600dp 档的预算应超过 600dp（否则用例失去意义）", budget > 600f)
+        // W4-T23：删掉码率键后，600dp 档的 5 键 + 结束时间已能收进 600dp 以内——分级边界随预算一起前移
+        assertTrue("W4-T23 起 600dp 档应放得下全部 5 键（预算 $budget dp）", budget <= 600f)
         assertEquals(
-            "刚好放得下（含端点）时 6 键齐全",
+            "刚好放得下（含端点）时 5 键齐全",
             PLAYER_BOTTOM_KEY_ORDER,
             playerBottomKeysForWidth(budget, showLabels = true, hasEndTime = true, spec = spec),
         )
