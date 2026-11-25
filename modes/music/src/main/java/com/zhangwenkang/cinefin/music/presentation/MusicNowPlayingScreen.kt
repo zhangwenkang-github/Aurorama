@@ -370,7 +370,7 @@ private fun PlayerPage(
         CompositionLocalProvider(LocalMusicPullProgress provides pullProgress) {
             BoxWithConstraints(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
                 when (playerLayoutMode(maxWidth, maxHeight)) {
-                    // W5 T1 · MUSIC-20：宽屏（≥840dp）左右分栏——左封面+信息+进度+传输，右「歌词 | 队列」Tab
+                    // W5 T1 · MUSIC-20：宽屏（≥840dp）左右分栏——左封面+信息+进度+传输，右栏仅歌词（W3-T18 §4.5 单入口）
                     PlayerLayoutMode.Wide ->
                         WidePlayerLayout(
                             queue = queue,
