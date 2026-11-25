@@ -453,6 +453,8 @@ fun NavigationRoot(
     // 「已在主页（不重复导航 / 只收二级层）」与「在二级页 / 其它入口（走既有顶层导航）」。
     var musicOverlayReselectSignal by remember { mutableIntStateOf(0) }
     var musicInnerPageOpen by remember { mutableStateOf(false) }
+    // W3-T18 · §4.5：全屏播放页打开时隐藏 App 底栏 / 侧轨（音乐页回报，返回即恢复）。
+    var musicFullscreenPlayerOpen by remember { mutableStateOf(false) }
 
     val currentDestination = navBackStackEntry?.destination
     // 主导航：手机底部 4 tab / 平板侧轨；抽屉继续承载全量入口（库列表 / 控制台 / 服务器）
@@ -466,19 +468,24 @@ fun NavigationRoot(
     // 不能用 ::class.qualifiedName 比较（踩坑 28）；统一用 isRoute 按序列化器哈希匹配。
     // 控制台 / 元数据管理器**不在**这份集合里（W6-R6N，用户反馈 2）：这两个页面只保留控制台
     // 自己的侧栏，app 侧轨 / 底部 Tab 与边缘抽屉手势都要让位给 WebView。
+    val fullscreenMusicPlayerOpen =
+        musicFullscreenPlayerOpen &&
+            (currentDestination.isRoute<MusicModeRoute>() ||
+                currentDestination.isRoute<MusicItemRoute>())
     val showNavigation =
-        currentDestination.isRoute<HomeRoute>() ||
-            currentDestination.isRoute<VideoRoute>() ||
-            currentDestination.isRoute<MediaRoute>() ||
-            currentDestination.isRoute<BookshelfRoute>() ||
-            currentDestination.isRoute<FavoritesRoute>() ||
-            currentDestination.isRoute<DownloadsRoute>() ||
-            currentDestination.isRoute<MusicModeRoute>() ||
-            // W1-T08：搜索点音乐结果进入的音乐页（`MusicItemRoute`）同样是顶层页面——侧轨 / 底栏与抽屉手势必须保留。
-            currentDestination.isRoute<MusicItemRoute>() ||
-            currentDestination.isRoute<TemporaryLibraryRoute>() ||
-            currentDestination.isRoute<LibraryRoute>() ||
-            currentDestination.isRoute<SettingsRoute>()
+        !fullscreenMusicPlayerOpen &&
+            (currentDestination.isRoute<HomeRoute>() ||
+                currentDestination.isRoute<VideoRoute>() ||
+                currentDestination.isRoute<MediaRoute>() ||
+                currentDestination.isRoute<BookshelfRoute>() ||
+                currentDestination.isRoute<FavoritesRoute>() ||
+                currentDestination.isRoute<DownloadsRoute>() ||
+                currentDestination.isRoute<MusicModeRoute>() ||
+                // W1-T08：搜索点音乐结果进入的音乐页（`MusicItemRoute`）同样是顶层页面——侧轨 / 底栏与抽屉手势必须保留。
+                currentDestination.isRoute<MusicItemRoute>() ||
+                currentDestination.isRoute<TemporaryLibraryRoute>() ||
+                currentDestination.isRoute<LibraryRoute>() ||
+                currentDestination.isRoute<SettingsRoute>())
     val context = LocalContext.current
     val settingsRoute = remember {
         SettingsRoute(indexes = intArrayOf(CoreR.string.title_settings))
@@ -1433,6 +1440,7 @@ fun NavigationRoot(
                     // W68：锁屏 / 通知点击音乐条目 → 直接展开全屏播放覆盖层（与点迷你条一致）。
                     openNowPlayingSignal = musicOpenNowPlayingSignal,
                     onInnerPageOpenChange = { musicInnerPageOpen = it },
+                    onFullscreenPlayerOpenChange = { musicFullscreenPlayerOpen = it },
                     onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
                     onSearchClick = openMusicSearch,
                 )
@@ -1448,6 +1456,7 @@ fun NavigationRoot(
                     initialQueueItemIds = route.queueItemIds,
                     // W1-T08：搜索结果打开的音乐页——详情层返回直接回搜索结果页（查询与结果由搜索页保留）。
                     onExitRoute = { navController.safePopBackStack() },
+                    onFullscreenPlayerOpenChange = { musicFullscreenPlayerOpen = it },
                     onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
                     onSearchClick = openMusicSearch,
                 )
@@ -1805,12 +1814,14 @@ fun NavigationRoot(
         modifier = Modifier.localLibraryQaTestTagsAsResourceId(qaSemantics != null),
     ) {
         when {
-            compactNavigation && showNavigation ->
+            compactNavigation ->
                 Column(modifier = Modifier.fillMaxSize()) {
                     Box(modifier = Modifier.weight(1f)) { host() }
                     // W42「隐藏底栏」：紧凑形态可整体隐藏底栏（重启保留）；各页自身按 safeDrawing
                     // 底部留白，隐藏后不会顶到手势条，导航仍可从顶栏 logo / 汉堡打开抽屉到达。
-                    if (!drawerData.hideBottomBar) {
+                    // W3-T18：全屏音乐播放页（showNavigation=false）同样整条隐藏，退出即恢复；
+                    // host() 固定在同一槽位，避免切换条件时重建 NavHost（会丢失页内覆盖层状态）。
+                    if (showNavigation && !drawerData.hideBottomBar) {
 
                         // 手势条安全区也要跟着底栏一起铺满底色，否则系统导航区会露出外层主题的石板色
                         // （真机表现为底栏下缘露出一条外层底色）。
@@ -1832,30 +1843,32 @@ fun NavigationRoot(
                         }
                     }
                 }
-            !compactNavigation && showNavigation ->
+            else ->
                 Row(modifier = Modifier.fillMaxSize()) {
-                    CinefinSideNavigation(
-                        destinations = railDestinations,
-                        mediaLibraries = navigationLibraries,
-                        // W53B：本地库只读本机索引，离线模式也列出（与服务器库分开的子分组）。
-                        localLibraries = drawerData.localLibraries,
-                        currentLibraryId = currentLibrary?.libraryId,
-                        currentLocalLibraryId = currentLocalLibraryId,
-                        mediaGroupExpanded = mediaGroupExpanded,
-                        onToggleMediaGroup = { mediaGroupExpanded = !mediaGroupExpanded },
-                        onOpenLibrary = openLibrary,
-                        onOpenLocalLibrary = openLocalLibrary,
-                        expandedWidthDp = adaptiveRailWidthDp,
-                        expanded = railExpanded,
-                        onToggleExpanded = { railExpanded = !railExpanded },
-                        groupBreaks = railBreaks,
-                        pinnedTailCount = railPinnedTail,
-                        qaSemantics = qaSemantics,
-                    )
+                    // W3-T18：全屏音乐播放页隐藏侧轨（showNavigation=false）；host() 槽位稳定。
+                    if (showNavigation) {
+                        CinefinSideNavigation(
+                            destinations = railDestinations,
+                            mediaLibraries = navigationLibraries,
+                            // W53B：本地库只读本机索引，离线模式也列出（与服务器库分开的子分组）。
+                            localLibraries = drawerData.localLibraries,
+                            currentLibraryId = currentLibrary?.libraryId,
+                            currentLocalLibraryId = currentLocalLibraryId,
+                            mediaGroupExpanded = mediaGroupExpanded,
+                            onToggleMediaGroup = { mediaGroupExpanded = !mediaGroupExpanded },
+                            onOpenLibrary = openLibrary,
+                            onOpenLocalLibrary = openLocalLibrary,
+                            expandedWidthDp = adaptiveRailWidthDp,
+                            expanded = railExpanded,
+                            onToggleExpanded = { railExpanded = !railExpanded },
+                            groupBreaks = railBreaks,
+                            pinnedTailCount = railPinnedTail,
+                            qaSemantics = qaSemantics,
+                        )
+                    }
 
                     Box(modifier = Modifier.weight(1f)) { host() }
                 }
-            else -> host()
         }
     }
 }

@@ -65,7 +65,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -85,6 +85,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
@@ -240,6 +241,8 @@ fun MusicModeScreen(
     onExitRoute: (() -> Unit)? = null,
     /** W56：把「音乐页内二级层（全屏播放 / 歌词页 / 专辑·艺术家·歌单详情）是否打开」回报给导航层（决定再点图标是只收二级层还是不重复导航）。 */
     onInnerPageOpenChange: ((Boolean) -> Unit)? = null,
+    /** W3-T18 · §4.5：全屏播放页显隐回报——导航层据此隐藏 App 底栏（返回即恢复）。 */
+    onFullscreenPlayerOpenChange: ((Boolean) -> Unit)? = null,
     /** W60b：下载反馈 Snackbar「查看」→ 下载页。 */
     onOpenDownloads: () -> Unit = {},
     /** W75 #13：顶栏搜索入口（复用媒体库页现有搜索流程，导航由调用方负责）。 */
@@ -513,6 +516,9 @@ fun MusicModeScreen(
     LaunchedEffect(nowPlayingOpen, state.detail) {
         onInnerPageOpenChange?.invoke(nowPlayingOpen || state.detail != null)
     }
+    // W3-T18：全屏播放页打开时隐藏 App 底栏 / 侧轨；离开覆盖层（含退出音乐页）恢复。
+    LaunchedEffect(nowPlayingOpen) { onFullscreenPlayerOpenChange?.invoke(nowPlayingOpen) }
+    DisposableEffect(Unit) { onDispose { onFullscreenPlayerOpenChange?.invoke(false) } }
 
     // 系统返回键与左上角返回一致（W3-R3b 缺陷 1）：详情（专辑 / 艺术家 / 歌单）内先回音乐主界面，
     // 而不是直接退回首页；不在详情时交给 NavHost 正常返回。
@@ -730,16 +736,9 @@ fun MusicModeScreen(
                     )
                 } else {
                     val liveQueue = queue
-                    val barMediaColors =
-                        MusicCoverPalette.mediaColors(
-                            itemId = displayCurrentItem?.itemId?.toString(),
-                            imageUri = displayCurrentItem?.thumbnailUri,
-                        )
                     // W5-T3（MUSIC-39）：展开全屏时迷你条同时 fadeOut(150)；全屏收起后重现 scaleIn(0.96) + fadeIn(200)
                     val reduceMotion = CinefinMotion.reduceMotion()
-                    CompositionLocalProvider(
-                        LocalMediaColors provides (barMediaColors ?: LocalMediaColors.current)
-                    ) {
+                    run {
                         AnimatedVisibility(
                             visible = !nowPlayingOpen,
                             enter =
@@ -2995,7 +2994,7 @@ private fun NowPlayingBar(
                     )
                 }
             }
-            // 极细进度线：贴条上缘 2dp，media.base（调色板覆盖后随封面色），暂停时 alpha 降到 40%（tween(Fast) 过渡）
+            // 极细进度线：贴条上缘 2dp，W3-T18 起一律极光渐变（§4.5，封面取色只允许用于背景环境光晕），暂停时 alpha 降到 40%（tween(Fast) 过渡）
             // W5-T8（MUSIC-49）：缓冲中进度线转 indeterminate（一段 30% 宽的高亮匀速扫过），播放键仍是暂停态。
             val pausedAlpha = if (isPlaying) 1f else MusicMiniBarPausedProgressAlpha
             val progressAlpha =
@@ -3039,7 +3038,7 @@ private fun NowPlayingBar(
                                     val segment = size.width * MusicMiniBarBufferingSegmentFraction
                                     val left = (size.width + segment) * bufferingPhase - segment
                                     drawRect(
-                                        color = media.base,
+                                        color = colors.aurora1,
                                         topLeft = Offset(left, 0f),
                                         size = Size(segment, size.height),
                                     )
@@ -3051,7 +3050,9 @@ private fun NowPlayingBar(
                             Modifier.fillMaxHeight()
                                 .fillMaxWidth(progress)
                                 .graphicsLayer { alpha = progressAlpha.value }
-                                .background(media.base)
+                                .background(
+                                    Brush.horizontalGradient(listOf(colors.aurora1, colors.aurora2))
+                                )
                     )
                 }
             }
@@ -3059,21 +3060,21 @@ private fun NowPlayingBar(
     }
 }
 
-/** 40dp 封面缩略（`TwoXs` 圆角；无图时露出域/封面色的音符占位，不会出现黑块）。 */
+/** 40dp 封面缩略（`TwoXs` 圆角；无图时露出中性音符占位，不会出现黑块）。 */
 @Composable
 private fun MusicMiniBarArtwork(imageUri: String?, title: String) {
-    val media = LocalMediaColors.current
+    val colors = LocalCinefinColors.current
     Box(
         modifier =
             Modifier.size(MusicMiniBarArtworkSize)
                 .clip(CinefinShapes.TwoXs)
-                .background(media.container),
+                .background(colors.surfaceContainerHigh),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             painter = painterResource(CoreR.drawable.ic_music),
             contentDescription = null,
-            tint = media.bright,
+            tint = colors.onSurfaceVariant,
             modifier = Modifier.size(MusicMiniBarArtworkSize * 0.5f),
         )
         if (imageUri != null) {

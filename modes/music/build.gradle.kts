@@ -44,7 +44,6 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.lifecycle.viewmodel)
     implementation(libs.androidx.paging)
-    implementation(libs.androidx.palette)
     implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
     implementation(libs.coil.compose)
     implementation(libs.kotlinx.serialization.json)
