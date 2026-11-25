@@ -131,10 +131,10 @@ constructor(
     }
 
     /**
-     * W75 #2：账号能力刷新（导航变化时调用）。
+     * W75 #2 / 2.0.1 T02b：账号能力刷新（导航变化时调用）。
      *
-     * - 当前账号与上次解析一致：只把缓存值同步回状态（零请求，首帧即正确）；
-     * - 换了账号（同进程内切换）：先用缓存值抹掉上一个账号留下的管理员入口、再向服务器确认一次。
+     * - 当前账号与上次解析一致且缓存里有这个账号的记录：只把缓存值同步回状态（零请求，首帧即正确）；
+     * - 换了账号，或**缓存里没有当前账号的任何记录**（全新登录 + 首次查询就失败）：先用缓存值抹掉上一个账号留下的管理员入口、再向服务器确认一次。
      */
     fun refreshAccount() {
         viewModelScope.launch {
@@ -145,11 +145,18 @@ constructor(
                 return@launch
             }
             val userId = canonical.selection.userId
+            val cachedUserId =
+                appPreferences.getValue(appPreferences.currentUserIsAdministratorUserId)
             val cached = cachedAdministratorFlag(userId)
-            val switched = userId != resolvedUserId
+            val needsConfirmation =
+                drawerAccountNeedsServerConfirmation(
+                    currentUserId = userId,
+                    resolvedUserId = resolvedUserId,
+                    cachedUserId = cachedUserId,
+                )
             resolvedUserId = userId
             when {
-                switched -> {
+                needsConfirmation -> {
                     if (_state.value.isAdministrator != cached) {
                         _state.value = _state.value.copy(isAdministrator = cached)
                     }
@@ -394,7 +401,33 @@ internal fun sidebarAdministratorFlag(
     currentUserId: String?,
     cachedUserId: String?,
     cachedValue: Boolean,
-): Boolean = currentUserId != null && currentUserId == cachedUserId && cachedValue
+): Boolean = sidebarAdministratorCacheHasRecord(currentUserId, cachedUserId) && cachedValue
+
+/**
+ * 管理员能力缓存里是否有**当前账号的记录**（纯函数，单测覆盖，W1-T02b）。
+ *
+ * 记录包含结论本身（true / false），所以「有记录」和「有记录且为 false」要分开看：前者说明服务器已经明确表态过， 后者只是其中一种结论；两者都不是「从没查成功过」（缓存为空 /
+ * 记的是别的账号）。
+ */
+internal fun sidebarAdministratorCacheHasRecord(
+    currentUserId: String?,
+    cachedUserId: String?,
+): Boolean = currentUserId != null && currentUserId == cachedUserId
+
+/**
+ * 导航时是否需要为当前账号重跑一次完整 [DrawerViewModel.load]（纯函数，单测覆盖，W1-T02b）。
+ *
+ * 换账号要重判；此外「当前账号在管理员能力缓存中没有任何记录」也要重判——全新登录 + 首次查询就失败时， 缓存里查不到这个账号， 若按「同账号 → 零请求」处理，管理员入口会一直隐藏到换账号 /
+ * 重启才恢复。 有记录时保持零请求：成功查询已写入结论（含服务器改判的 false），重复查询不会带来新信息。 账号未知（null）时同样要重判：此时入口必须隐藏，交给一次完整加载去解析身份。
+ */
+internal fun drawerAccountNeedsServerConfirmation(
+    currentUserId: String?,
+    resolvedUserId: String?,
+    cachedUserId: String?,
+): Boolean =
+    currentUserId == null ||
+        currentUserId != resolvedUserId ||
+        !sidebarAdministratorCacheHasRecord(currentUserId, cachedUserId)
 
 /**
  * 抽屉「加载完成」时的管理员门控值（纯函数，单测覆盖）：联网结果与同账号缓存合并。
