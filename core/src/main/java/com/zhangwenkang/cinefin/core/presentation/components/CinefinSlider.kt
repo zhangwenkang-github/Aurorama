@@ -30,6 +30,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.unit.LayoutDirection
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -67,11 +68,14 @@ object CinefinSliderDefaults {
 /**
  * Cinefin 统一滑杆（W44）：4dp 胶囊轨道 + 18dp 圆点拇指（替代 M3 默认的"竖条拇指"）。
  *
- * 交互与 M3 `Slider` 对齐：按下即跳到该位置、拖动实时回调、抬手（或取消）回调 [onValueChangeFinished]； [steps] > 0
- * 时按档位吸附（ReplayGain 覆盖用 0.5 dB 步进）；禁用态整体降到 40% 透明度但仍可辨； 支持 RTL（最小值从右往左）；整条 36dp
- * 触控带消费自己的手势，纵向滚动容器不会抢走滑动。
+ * 交互与 M3 `Slider` 对齐：点按（按下到抬手的位移始终在触摸阈值内）落位到抬手位置、水平拖动实时回调、抬手（或取消）回调 [onValueChangeFinished]；
+ * [steps] > 0 时按档位吸附（ReplayGain 覆盖用 0.5 dB 步进）；禁用态整体降到 40% 透明度但仍可辨； 支持 RTL（最小值从右往左）。
  *
- * 触摸 / 数值换算逻辑抽成 [cinefinSliderValueAt] / [cinefinSliderFraction] 纯函数，便于单测。
+ * W2-T12 防误触（需求 #13）：只有水平位移超过触摸阈值**且严格大于**垂直位移时才接管拖拽（[cinefinSliderShouldClaimDrag]）；垂直主导的
+ * 手势不消费任何事件、不改任何值，直接放行给父级滚动容器——可滚动页面里手指落在滑杆上做竖向滚动不会再误改值。
+ *
+ * 触摸 / 数值换算逻辑抽成 [cinefinSliderValueAt] / [cinefinSliderFraction] / [cinefinSliderShouldClaimDrag]
+ * 纯函数，便于单测。
  *
  * W49 补齐键盘步进（对齐 M3 `Slider`）：方向键按档位步进（无档位时按区间 1%）、Home / End 到端点、 PageUp / PageDown 跳 10%，RTL
  * 下左右方向对调；无障碍 `setProgress` 的目标值按档位就近吸附。
@@ -151,6 +155,7 @@ fun CinefinSlider(
                 .pointerInput(enabled, valueRange, steps, isRtl) {
                     if (!enabled) return@pointerInput
                     val thumbRadiusPx = CinefinProgressVisuals.ThumbRadius.toPx()
+                    val touchSlop = viewConfiguration.touchSlop
                     fun valueAt(x: Float): Float {
                         val position = if (isRtl) size.width - x else x
                         return cinefinSliderValueAt(
@@ -162,19 +167,40 @@ fun CinefinSlider(
                         )
                     }
                     awaitEachGesture {
+                        // 按下不消费、不落位：先判断这是点按还是水平拖拽，垂直手势整段放行给父级滚动。
                         val down = awaitFirstDown()
-                        down.consume()
-                        currentOnValueChange(valueAt(down.position.x))
+                        val downX = down.position.x
+                        val downY = down.position.y
+                        var dragging = false
                         while (true) {
                             val event = awaitPointerEvent()
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            val horizontal = change.position.x - downX
+                            val vertical = change.position.y - downY
+                            if (!dragging) {
+                                if (cinefinSliderShouldClaimDrag(horizontal, vertical, touchSlop)) {
+                                    dragging = true
+                                } else if (!change.pressed) {
+                                    // 全程未越过阈值 = 点按：抬手落位（垂直滚动时永远走不到这里改值）。
+                                    change.consume()
+                                    currentOnValueChange(valueAt(change.position.x))
+                                    currentOnValueChangeFinished?.invoke()
+                                    break
+                                } else if (
+                                    abs(horizontal) > touchSlop || abs(vertical) > touchSlop
+                                ) {
+                                    // 越过阈值但垂直（或斜向）主导：不消费、不改值，交给父级滚动容器。
+                                    break
+                                } else {
+                                    continue
+                                }
+                            }
+                            change.consume()
+                            currentOnValueChange(valueAt(change.position.x))
                             if (!change.pressed) {
-                                change.consume()
                                 currentOnValueChangeFinished?.invoke()
                                 break
                             }
-                            currentOnValueChange(valueAt(change.position.x))
-                            change.consume()
                         }
                     }
                 }
@@ -230,6 +256,20 @@ fun CinefinSlider(
         )
     }
 }
+
+/**
+ * 滑杆是否接管本次拖拽（W2-T12 防误触）：水平位移超过触摸阈值，且**严格大于**垂直位移。
+ *
+ * 判据用位移绝对值：`|dx| > touchSlop` 且 `|dx| > |dy|`。
+ * - 阈值以内：不接管（留给点按与父级滚动判定）；
+ * - 45° 斜向（`|dx| == |dy|`）与垂直略大：**不接管**——垂直滚动容器优先，宁可少响应滑杆也不误改值；
+ * - 阈值取自 [androidx.compose.ui.platform.ViewConfiguration.touchSlop]（设备无关的触摸判定阈值）。
+ */
+fun cinefinSliderShouldClaimDrag(
+    horizontalPx: Float,
+    verticalPx: Float,
+    touchSlopPx: Float,
+): Boolean = abs(horizontalPx) > touchSlopPx && abs(horizontalPx) > abs(verticalPx)
 
 /** 滑杆值 → 0..1 比例（超界夹紧，退化区间返回 0）。 */
 fun cinefinSliderFraction(value: Float, range: ClosedFloatingPointRange<Float>): Float {

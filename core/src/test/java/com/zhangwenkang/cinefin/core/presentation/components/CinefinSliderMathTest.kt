@@ -1,6 +1,8 @@
 package com.zhangwenkang.cinefin.core.presentation.components
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** W44：统一滑杆的数值 / 触摸换算纯函数单测（`CinefinSlider`）。 */
@@ -117,6 +119,24 @@ class CinefinSliderMathTest {
         assertEquals(0.5f, cinefinSliderStepSize(-12f..12f, 47), 0.0001f)
         assertEquals(1f, cinefinSliderStepSize(range, 0), 0.0001f)
         assertEquals(0f, cinefinSliderStepSize(5f..5f, 3), 0.0001f)
+    }
+
+    @Test
+    fun claimDragOnlyWhenHorizontalDominates() {
+        val slop = 24f
+        // 水平主导：接管（左拖同样接管）
+        assertTrue(cinefinSliderShouldClaimDrag(30f, 5f, slop))
+        assertTrue(cinefinSliderShouldClaimDrag(-30f, -5f, slop))
+        // 垂直主导：放行给父级滚动
+        assertFalse(cinefinSliderShouldClaimDrag(5f, 30f, slop))
+        assertFalse(cinefinSliderShouldClaimDrag(30f, 31f, slop))
+        // 低于阈值：不接管（留给点按）
+        assertFalse(cinefinSliderShouldClaimDrag(20f, 0f, slop))
+        // 恰好等于阈值：不接管（必须"超过"阈值）
+        assertFalse(cinefinSliderShouldClaimDrag(24f, 0f, slop))
+        // 45° 斜向边界：垂直容器优先，不接管
+        assertFalse(cinefinSliderShouldClaimDrag(30f, 30f, slop))
+        assertFalse(cinefinSliderShouldClaimDrag(-30f, 30f, slop))
     }
 
     @Test
