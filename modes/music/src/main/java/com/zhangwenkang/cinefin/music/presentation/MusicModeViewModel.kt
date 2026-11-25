@@ -2103,7 +2103,11 @@ constructor(
             var failure: UserDataWriteFailure? = null
             val removed = runCatching {
                 selected.forEach { song ->
-                    val outcome = repository.removeFromPlaylist(detail.playlist.id, song.itemId)
+                    val outcome =
+                        repository.removeFromPlaylist(
+                            detail.playlist.id,
+                            song.playlistEntryId ?: song.itemId.toString(),
+                        )
                     if (outcome is UserDataWriteOutcome.Failed) {
                         failure = failure ?: outcome.failure
                     }
@@ -2500,6 +2504,125 @@ constructor(
                     showLocalPlaylistFailure(
                         "删除歌单失败",
                         error.message ?: "本地歌单写入失败，请稍后重试",
+                    )
+                }
+        }
+    }
+
+    /**
+     * W3-T19：服务器歌单改名（`POST /Playlists/{id}`，只改 Name 不动曲目）。
+     *
+     * 成功后同步已打开详情的标题并刷新歌单列表（服务端为唯一事实源）。
+     */
+    fun renameServerPlaylist(playlistId: UUID, name: String) {
+        val normalized = name.trim()
+        if (normalized.isEmpty()) {
+            showLocalPlaylistFailure("重命名失败", "歌单名不能为空")
+            return
+        }
+        viewModelScope.launch {
+            val outcome = runCatching {
+                repository.renameServerPlaylist(playlistId, normalized)
+            }
+                .getOrNull()
+            if (outcome == UserDataWriteOutcome.Confirmed) {
+                _uiState.update { state ->
+                    val detail = state.detail as? MusicDetail.Playlist
+                    if (detail?.playlist?.id == playlistId) {
+                        state.copy(
+                            detail = detail.copy(playlist = detail.playlist.copy(name = normalized))
+                        )
+                    } else {
+                        state
+                    }
+                }
+                refreshServerPlaylists()
+            } else {
+                showLocalPlaylistFailure(
+                    "重命名失败",
+                    (outcome as? UserDataWriteOutcome.Failed)
+                        ?.failure
+                        .writeErrorMessage("服务器歌单改名失败，请稍后重试"),
+                )
+            }
+        }
+    }
+
+    /** W3-T19：删除服务器歌单（不可逆）；成功后关闭对应详情并刷新歌单列表。 */
+    fun deleteServerPlaylist(playlistId: UUID) {
+        viewModelScope.launch {
+            val outcome = runCatching { repository.deleteServerPlaylist(playlistId) }.getOrNull()
+            if (outcome == UserDataWriteOutcome.Confirmed) {
+                val detail = _uiState.value.detail as? MusicDetail.Playlist
+                if (detail?.playlist?.id == playlistId) closeDetail()
+                clearBatchSelection()
+                refreshServerPlaylists()
+            } else {
+                showLocalPlaylistFailure(
+                    "删除歌单失败",
+                    (outcome as? UserDataWriteOutcome.Failed)
+                        ?.failure
+                        .writeErrorMessage("服务器歌单删除失败，请稍后重试"),
+                )
+            }
+        }
+    }
+
+    /** W3-T19：服务器歌单内换位（`POST /Playlists/{id}/Items/{entryId}/Move/{newIndex}`），成功后回读顺序。 */
+    fun moveServerPlaylistEntry(playlistId: UUID, entryId: String, targetPosition: Int) {
+        if (targetPosition < 0) return
+        viewModelScope.launch {
+            val outcome = runCatching {
+                repository.moveServerPlaylistItem(playlistId, entryId, targetPosition)
+            }
+                .getOrNull()
+            if (outcome == UserDataWriteOutcome.Confirmed) {
+                refreshServerPlaylistEntries(playlistId)
+            } else {
+                showLocalPlaylistFailure(
+                    "排序失败",
+                    (outcome as? UserDataWriteOutcome.Failed)
+                        ?.failure
+                        .writeErrorMessage("服务器歌单排序失败，请稍后重试"),
+                )
+            }
+        }
+    }
+
+    /** W3-T19：重新拉取服务器歌单卡片列表（改名 / 删除后刷新入口）。 */
+    private fun refreshServerPlaylists() {
+        viewModelScope.launch {
+            runCatching { repository.getPlaylists(forceRefresh = true) }
+                .onSuccess { playlists ->
+                    serverPlaylists = playlists
+                    publishPlaylists()
+                }
+                .onFailure { error -> Timber.w(error, "刷新服务器歌单列表失败") }
+        }
+    }
+
+    /** W3-T19：重新拉取服务器歌单内曲目（换位后以服务端顺序为准）。 */
+    private fun refreshServerPlaylistEntries(playlistId: UUID) {
+        viewModelScope.launch {
+            runCatching { repository.getPlaylistSongs(playlistId) }
+                .onSuccess { songs ->
+                    _uiState.update { state ->
+                        val detail = state.detail as? MusicDetail.Playlist
+                        if (
+                            detail != null &&
+                                detail.playlist.id == playlistId &&
+                                detail.playlist.kind == MusicPlaylistKind.SERVER
+                        ) {
+                            state.copy(detail = detail.copy(songs = songs, loading = false))
+                        } else {
+                            state
+                        }
+                    }
+                }
+                .onFailure { error ->
+                    showLocalPlaylistFailure(
+                        "歌单刷新失败",
+                        error.message?.takeIf { it.isNotBlank() } ?: "无法读取歌单内容",
                     )
                 }
         }

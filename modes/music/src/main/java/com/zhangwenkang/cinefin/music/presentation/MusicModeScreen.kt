@@ -277,7 +277,9 @@ fun MusicModeScreen(
     var createServerPlaylistDialogOpen by rememberSaveable { mutableStateOf(false) }
     var renamePlaylistDialogId by rememberSaveable { mutableStateOf<String?>(null) }
     var renamePlaylistDialogName by rememberSaveable { mutableStateOf("") }
+    var renamePlaylistDialogIsServer by rememberSaveable { mutableStateOf(false) }
     var deletePlaylistDialogId by rememberSaveable { mutableStateOf<String?>(null) }
+    var deletePlaylistDialogIsServer by rememberSaveable { mutableStateOf(false) }
     var pendingPlaylistSongs by remember { mutableStateOf<List<MusicSong>>(emptyList()) }
     // W3-T16 · §4.3：长按曲目 = 进入多选并选中该曲；上下文菜单只由行内 ⋮ 打开（W5 T1 的显式「多选」入口已删除）
     var contextSong by remember { mutableStateOf<MusicSong?>(null) }
@@ -704,9 +706,20 @@ fun MusicModeScreen(
                                 onRenameLocalPlaylist = { playlist ->
                                     renamePlaylistDialogId = playlist.id.toString()
                                     renamePlaylistDialogName = playlist.name
+                                    renamePlaylistDialogIsServer = false
                                 },
                                 onDeleteLocalPlaylist = { playlist ->
                                     deletePlaylistDialogId = playlist.id.toString()
+                                    deletePlaylistDialogIsServer = false
+                                },
+                                onRenameServerPlaylist = { playlist ->
+                                    renamePlaylistDialogId = playlist.id.toString()
+                                    renamePlaylistDialogName = playlist.name
+                                    renamePlaylistDialogIsServer = true
+                                },
+                                onDeleteServerPlaylist = { playlist ->
+                                    deletePlaylistDialogId = playlist.id.toString()
+                                    deletePlaylistDialogIsServer = true
                                 },
                                 onImportLocalPlaylist = {
                                     try {
@@ -934,11 +947,8 @@ fun MusicModeScreen(
                     activeStatus = contextDownloadStatus,
                     fromLocalLibrary = contextSheetSong.localUri != null,
                 )
-            // W3-T15：歌单详情（本地歌单）内追加「上移 / 下移」，位置按当前详情列表实时计算。
-            val contextPlaylist =
-                (state.detail as? MusicDetail.Playlist)?.takeIf { detail ->
-                    detail.playlist.kind == MusicPlaylistKind.LOCAL
-                }
+            // W3-T15/T19：歌单详情内追加「上移 / 下移」，位置按当前详情列表实时计算（本地 / 服务器歌单都支持）。
+            val contextPlaylist = state.detail as? MusicDetail.Playlist
             val contextPlaylistIndex =
                 contextPlaylist?.songs?.indexOfFirst { song ->
                     song.playlistSelectionKey() == contextSheetSong.playlistSelectionKey()
@@ -987,18 +997,30 @@ fun MusicModeScreen(
                         }
                         MusicSongAction.MOVE_UP,
                         MusicSongAction.MOVE_DOWN -> {
-                            val playlistId = contextPlaylist?.playlist?.id
-                            val entryId = contextSheetSong.playlistEntryId
-                            if (
-                                playlistId != null && entryId != null && contextPlaylistIndex >= 0
-                            ) {
-                                val target =
-                                    if (action == MusicSongAction.MOVE_UP) {
-                                        contextPlaylistIndex - 1
-                                    } else {
-                                        contextPlaylistIndex + 1
+                            val playlist = contextPlaylist?.playlist
+                            val target =
+                                if (action == MusicSongAction.MOVE_UP) {
+                                    contextPlaylistIndex - 1
+                                } else {
+                                    contextPlaylistIndex + 1
+                                }
+                            if (playlist != null && contextPlaylistIndex >= 0 && target >= 0) {
+                                if (playlist.kind == MusicPlaylistKind.LOCAL) {
+                                    contextSheetSong.playlistEntryId?.let { entryId ->
+                                        viewModel.moveLocalPlaylistEntry(
+                                            playlist.id,
+                                            entryId,
+                                            target,
+                                        )
                                     }
-                                viewModel.moveLocalPlaylistEntry(playlistId, entryId, target)
+                                } else {
+                                    viewModel.moveServerPlaylistEntry(
+                                        playlist.id,
+                                        contextSheetSong.playlistEntryId
+                                            ?: contextSheetSong.itemId.toString(),
+                                        target,
+                                    )
+                                }
                             }
                         }
                     }
@@ -1186,12 +1208,16 @@ fun MusicModeScreen(
 
         renamePlaylistDialogId?.let { playlistId ->
             PlaylistNameDialog(
-                title = "重命名本地歌单",
+                title = if (renamePlaylistDialogIsServer) "重命名服务器歌单" else "重命名本地歌单",
                 initialName = renamePlaylistDialogName,
                 confirmLabel = "保存",
                 onConfirm = { name ->
                     UUID.fromString(playlistId).let { id ->
-                        viewModel.renameLocalPlaylist(id, name)
+                        if (renamePlaylistDialogIsServer) {
+                            viewModel.renameServerPlaylist(id, name)
+                        } else {
+                            viewModel.renameLocalPlaylist(id, name)
+                        }
                     }
                     renamePlaylistDialogId = null
                 },
@@ -1200,13 +1226,23 @@ fun MusicModeScreen(
         }
 
         deletePlaylistDialogId?.let { playlistId ->
-            DeleteLocalPlaylistDialog(
-                onConfirm = {
-                    UUID.fromString(playlistId).let { id -> viewModel.deleteLocalPlaylist(id) }
-                    deletePlaylistDialogId = null
-                },
-                onDismiss = { deletePlaylistDialogId = null },
-            )
+            if (deletePlaylistDialogIsServer) {
+                DeleteServerPlaylistDialog(
+                    onConfirm = {
+                        UUID.fromString(playlistId).let { id -> viewModel.deleteServerPlaylist(id) }
+                        deletePlaylistDialogId = null
+                    },
+                    onDismiss = { deletePlaylistDialogId = null },
+                )
+            } else {
+                DeleteLocalPlaylistDialog(
+                    onConfirm = {
+                        UUID.fromString(playlistId).let { id -> viewModel.deleteLocalPlaylist(id) }
+                        deletePlaylistDialogId = null
+                    },
+                    onDismiss = { deletePlaylistDialogId = null },
+                )
+            }
         }
 
         if (pendingPlaylistSongs.isNotEmpty()) {
@@ -1272,6 +1308,31 @@ private fun DeleteLocalPlaylistDialog(onConfirm: () -> Unit, onDismiss: () -> Un
         onDismissRequest = onDismiss,
         title = { Text("删除本地歌单") },
         text = { Text("歌单条目会一并删除，音乐文件和服务器歌单不受影响。") },
+        confirmButton = {
+            CinefinButton(
+                text = "删除",
+                onClick = onConfirm,
+                size = CinefinButtonSize.Small,
+            )
+        },
+        dismissButton = {
+            CinefinButton(
+                text = "取消",
+                onClick = onDismiss,
+                variant = CinefinButtonVariant.Text,
+                size = CinefinButtonSize.Small,
+            )
+        },
+    )
+}
+
+/** W3-T19：服务器歌单删除（不可逆）——确认框明确写出会删服务器上的歌单。 */
+@Composable
+private fun DeleteServerPlaylistDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("删除服务器歌单") },
+        text = { Text("将同时删除服务器上的该歌单，且无法撤销；歌单里的音乐文件本身不受影响。") },
         confirmButton = {
             CinefinButton(
                 text = "删除",
@@ -1851,6 +1912,8 @@ private fun LibraryPane(
     onCreateServerPlaylist: () -> Unit = {},
     onRenameLocalPlaylist: (MusicPlaylist) -> Unit = {},
     onDeleteLocalPlaylist: (MusicPlaylist) -> Unit = {},
+    onRenameServerPlaylist: (MusicPlaylist) -> Unit = {},
+    onDeleteServerPlaylist: (MusicPlaylist) -> Unit = {},
     onImportLocalPlaylist: () -> Unit = {},
     onSongPageChange: (Int) -> Unit = {},
 ) {
@@ -1938,6 +2001,8 @@ private fun LibraryPane(
                 onImportLocalPlaylist = onImportLocalPlaylist,
                 onRenameLocalPlaylist = onRenameLocalPlaylist,
                 onDeleteLocalPlaylist = onDeleteLocalPlaylist,
+                onRenameServerPlaylist = onRenameServerPlaylist,
+                onDeleteServerPlaylist = onDeleteServerPlaylist,
             )
     }
 }
@@ -2247,6 +2312,8 @@ private fun PlaylistList(
     onImportLocalPlaylist: () -> Unit,
     onRenameLocalPlaylist: (MusicPlaylist) -> Unit,
     onDeleteLocalPlaylist: (MusicPlaylist) -> Unit,
+    onRenameServerPlaylist: (MusicPlaylist) -> Unit,
+    onDeleteServerPlaylist: (MusicPlaylist) -> Unit,
 ) {
     if (playlists.isEmpty()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -2277,41 +2344,52 @@ private fun PlaylistList(
                 onClick = { onPlaylistClick(playlist) },
                 leading = { ArtworkThumb(imageUri = playlist.imageUri, title = playlist.name) },
                 badge = "本地".takeIf { playlist.kind == MusicPlaylistKind.LOCAL },
-                trailing =
-                    if (playlist.kind == MusicPlaylistKind.LOCAL) {
-                        {
-                            Box {
-                                CinefinIconButton(onClick = { menuOpen = true }) { tint ->
-                                    Text(
-                                        text = "⋮",
-                                        style = CinefinType.TitleMedium,
-                                        color = tint,
-                                    )
-                                }
-                                DropdownMenu(
-                                    expanded = menuOpen,
-                                    onDismissRequest = { menuOpen = false },
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text("重命名") },
-                                        onClick = {
-                                            menuOpen = false
-                                            onRenameLocalPlaylist(playlist)
-                                        },
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("删除") },
-                                        onClick = {
-                                            menuOpen = false
-                                            onDeleteLocalPlaylist(playlist)
-                                        },
-                                    )
-                                }
+                // W3-T19：本地 / 服务器歌单共用同一份 ⋮（重命名 / 删除）；回调按 kind 分流。
+                trailing = {
+                    Box {
+                        CinefinIconButton(onClick = { menuOpen = true }) { tint ->
+                            Text(
+                                text = "⋮",
+                                style = CinefinType.TitleMedium,
+                                color = tint,
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = menuOpen,
+                            onDismissRequest = { menuOpen = false },
+                        ) {
+                            playlistRowMenuActions(playlist.kind).forEach { action ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            when (action) {
+                                                PlaylistRowMenuAction.RENAME -> "重命名"
+                                                PlaylistRowMenuAction.DELETE -> "删除"
+                                            }
+                                        )
+                                    },
+                                    onClick = {
+                                        menuOpen = false
+                                        when (action) {
+                                            PlaylistRowMenuAction.RENAME ->
+                                                if (playlist.kind == MusicPlaylistKind.LOCAL) {
+                                                    onRenameLocalPlaylist(playlist)
+                                                } else {
+                                                    onRenameServerPlaylist(playlist)
+                                                }
+                                            PlaylistRowMenuAction.DELETE ->
+                                                if (playlist.kind == MusicPlaylistKind.LOCAL) {
+                                                    onDeleteLocalPlaylist(playlist)
+                                                } else {
+                                                    onDeleteServerPlaylist(playlist)
+                                                }
+                                        }
+                                    },
+                                )
                             }
                         }
-                    } else {
-                        null
-                    },
+                    }
+                },
             )
         }
     }

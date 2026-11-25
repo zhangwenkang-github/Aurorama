@@ -27,6 +27,7 @@ import org.jellyfin.sdk.model.api.MediaStreamType
 import org.jellyfin.sdk.model.api.MediaType
 import org.jellyfin.sdk.model.api.MetadataRefreshMode
 import org.jellyfin.sdk.model.api.SortOrder
+import org.jellyfin.sdk.model.api.UpdatePlaylistDto
 import org.jellyfin.sdk.model.api.request.GetInstantMixFromSongRequest
 import org.jellyfin.sdk.model.api.request.RefreshItemRequest
 import timber.log.Timber
@@ -68,7 +69,7 @@ data class MusicSong(
     val source: MusicItemSource = MusicItemSource.SERVER,
     /** 本地媒体库 id；仅本地来源有值，进入本地歌单稳定身份时必须存在。 */
     val localLibraryId: Long? = null,
-    /** 本地歌单投影附带的持久条目 id；不在歌单中的曲目为 null。 */
+    /** 歌单条目 id：本地歌单投影的持久 entryId；服务器歌单为服务端 `PlaylistItemId`（换位 / 移出必须用它）。 不在歌单中的曲目为 null。 */
     val playlistEntryId: String? = null,
     /** 本地歌单持久身份；标题 / 路径 / URI 不参与该身份。 */
     val trackRef: TrackRef? = null,
@@ -181,8 +182,12 @@ interface MusicRepository {
     /** 服务端收藏的曲目（`filters=IsFavorite` + `includeItemTypes=Audio`）。 */
     suspend fun getFavoriteSongs(): List<MusicSong>
 
-    /** W58：把曲目从服务器歌单移除（编辑歌单，非删除媒体；纯服务器写白名单）。W8-T1：结果区分权限拒绝与可重试失败。 */
-    suspend fun removeFromPlaylist(playlistId: UUID, itemId: UUID): UserDataWriteOutcome
+    /**
+     * W58/W3-T19：把曲目从服务器歌单移除（编辑歌单，非删除媒体）。
+     *
+     * [entryId] = 服务端 `PlaylistItemId`（同一曲目在歌单里出现多次时必须按条目区分），缺失时调用方回落 itemId。 W8-T1：结果区分权限拒绝与可重试失败。
+     */
+    suspend fun removeFromPlaylist(playlistId: UUID, entryId: String): UserDataWriteOutcome
 
     /**
      * W8-T4：在服务器新建音频歌单（`POST /Playlists`），[itemIds] 非空时同一次请求内一并加入。
@@ -196,6 +201,31 @@ interface MusicRepository {
 
     /** W8-T4：把曲目加入服务器歌单（`POST /Playlists/{id}/Items`）。W8-T1：结果区分权限拒绝与可重试失败。 */
     suspend fun addToPlaylist(playlistId: UUID, itemIds: List<UUID>): UserDataWriteOutcome
+
+    /**
+     * W3-T19：服务器歌单改名（`POST /Playlists/{id}`，`UpdatePlaylistDto(name = 新名)`；ids 传 null 不动曲目）。
+     *
+     * 成功后清歌单卡片快照，由调用方按服务端回读刷新列表。
+     */
+    suspend fun renameServerPlaylist(playlistId: UUID, name: String): UserDataWriteOutcome
+
+    /**
+     * W3-T19：删除服务器歌单（`DELETE /Items/{id}`，不可逆）。
+     *
+     * 复用视频域同一条删除写边界（含失败分类与本地清理失效），成功后歌单卡片快照随之失效。
+     */
+    suspend fun deleteServerPlaylist(playlistId: UUID): UserDataWriteOutcome
+
+    /**
+     * W3-T19：服务器歌单内曲目换位（`POST /Playlists/{id}/Items/{entryId}/Move/{newIndex}`）。
+     *
+     * 路径里的 item 段是服务端 `PlaylistItemId`（歌单条目 id），不是媒体 itemId。
+     */
+    suspend fun moveServerPlaylistItem(
+        playlistId: UUID,
+        entryId: String,
+        newIndex: Int,
+    ): UserDataWriteOutcome
 
     /**
      * W5-T12（MUSIC-14 Auto DJ）：以 [seedItemId] 为种子的即时混排曲目（`GET /Audio/{itemId}/instant-mix`，只读）。
@@ -409,7 +439,7 @@ constructor(
 
     override suspend fun removeFromPlaylist(
         playlistId: UUID,
-        itemId: UUID,
+        entryId: String,
     ): UserDataWriteOutcome {
         val namespace = currentNamespace()
         return withContext(Dispatchers.IO) {
@@ -417,7 +447,66 @@ constructor(
                     remote = {
                         jellyfinApi.playlistsApi.removeItemFromPlaylist(
                             playlistId = playlistId.toString(),
-                            entryIds = listOf(itemId.toString()),
+                            entryIds = listOf(entryId),
+                        )
+                    },
+                    onConfirmed = {
+                        namespace?.let { playlistCardCache.invalidate(it, PLAYLIST_CARD_CACHE_KEY) }
+                    },
+                )
+                .toUserDataWriteOutcome()
+        }
+    }
+
+    override suspend fun renameServerPlaylist(
+        playlistId: UUID,
+        name: String,
+    ): UserDataWriteOutcome {
+        val normalized = name.trim()
+        if (normalized.isEmpty()) {
+            return UserDataWriteOutcome.Failed(
+                UserDataWriteFailure.Unknown(status = null, message = "歌单名不能为空")
+            )
+        }
+        val namespace = currentNamespace()
+        return withContext(Dispatchers.IO) {
+            musicServerWrite(
+                    remote = {
+                        jellyfinApi.playlistsApi.updatePlaylist(
+                            playlistId = playlistId,
+                            UpdatePlaylistDto(name = normalized),
+                        )
+                    },
+                    onConfirmed = {
+                        namespace?.let { playlistCardCache.invalidate(it, PLAYLIST_CARD_CACHE_KEY) }
+                    },
+                )
+                .toUserDataWriteOutcome()
+        }
+    }
+
+    override suspend fun deleteServerPlaylist(playlistId: UUID): UserDataWriteOutcome {
+        val namespace = currentNamespace()
+        val outcome = jellyfinRepository.deleteItem(playlistId)
+        if (outcome == UserDataWriteOutcome.Confirmed) {
+            namespace?.let { playlistCardCache.invalidate(it, PLAYLIST_CARD_CACHE_KEY) }
+        }
+        return outcome
+    }
+
+    override suspend fun moveServerPlaylistItem(
+        playlistId: UUID,
+        entryId: String,
+        newIndex: Int,
+    ): UserDataWriteOutcome {
+        val namespace = currentNamespace()
+        return withContext(Dispatchers.IO) {
+            musicServerWrite(
+                    remote = {
+                        jellyfinApi.playlistsApi.moveItem(
+                            playlistId = playlistId.toString(),
+                            itemId = entryId,
+                            newIndex = newIndex,
                         )
                     },
                     onConfirmed = {
@@ -637,6 +726,8 @@ constructor(
             bitDepth = audioStream?.bitDepth?.takeIf { it > 0 },
             container = sourceContainer,
             dateAddedMillis = dateCreated?.toEpochMilliUtc(),
+            // W3-T19：歌单接口逐条带 PlaylistItemId；换位 / 移出必须按条目 id 而不是媒体 itemId。
+            playlistEntryId = playlistItemId?.takeIf { it.isNotBlank() },
         )
     }
 
