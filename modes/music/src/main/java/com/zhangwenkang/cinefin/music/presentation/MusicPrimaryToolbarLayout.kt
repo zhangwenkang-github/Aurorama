@@ -1,7 +1,6 @@
 package com.zhangwenkang.cinefin.music.presentation
 
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 
 internal data class MusicMeasuredBox(
@@ -14,27 +13,11 @@ internal data class MusicPlacement(
     val yPx: Int,
 )
 
-internal enum class MusicInteractionRole {
-    BUTTON
-}
-
-internal data class MusicInteractionSpec(
-    val role: MusicInteractionRole,
-    val semanticsLabel: String,
-)
-
 internal data class MusicPrimaryToolbarPlan(
     val widthPx: Int,
     val heightPx: Int,
     val tabsPlacement: MusicPlacement,
     val toolbarPlacement: MusicPlacement?,
-)
-
-internal data class MusicPlayAllPlan(
-    val widthPx: Int,
-    val heightPx: Int,
-    val contentPlacement: MusicPlacement,
-    val interaction: MusicInteractionSpec,
 )
 
 internal data class MusicBatchActionAccessibility(
@@ -61,13 +44,6 @@ internal fun musicBatchActionAccessibility(
 
 internal object MusicPrimaryToolbarLayout {
     val tabsToToolbarGap = CinefinSpacing.Space3
-    val playAllMinInteractiveHeight = 48.dp
-
-    val playAllInteraction =
-        MusicInteractionSpec(
-            role = MusicInteractionRole.BUTTON,
-            semanticsLabel = "播放全部",
-        )
 
     fun measurePrimary(
         tabs: MusicMeasuredBox,
@@ -86,23 +62,6 @@ internal object MusicPrimaryToolbarLayout {
             heightPx = toolbarTop + toolbarHeight,
             tabsPlacement = MusicPlacement(xPx = 0, yPx = 0),
             toolbarPlacement = toolbar?.let { MusicPlacement(xPx = 0, yPx = toolbarTop) },
-        )
-    }
-
-    fun measurePlayAll(content: MusicMeasuredBox, density: Density): MusicPlayAllPlan {
-        val width = content.widthPx.coerceAtLeast(0)
-        val contentHeight = content.heightPx.coerceAtLeast(0)
-        val minimumPx = with(density) { playAllMinInteractiveHeight.roundToPx() }
-        val interactiveHeight = maxOf(contentHeight, minimumPx.coerceAtLeast(0))
-        return MusicPlayAllPlan(
-            widthPx = width,
-            heightPx = interactiveHeight,
-            contentPlacement =
-                MusicPlacement(
-                    xPx = 0,
-                    yPx = (interactiveHeight - contentHeight) / 2,
-                ),
-            interaction = playAllInteraction,
         )
     }
 }

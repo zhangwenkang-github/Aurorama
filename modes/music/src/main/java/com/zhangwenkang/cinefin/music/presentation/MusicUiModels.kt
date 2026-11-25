@@ -8,11 +8,13 @@ import com.zhangwenkang.cinefin.music.data.TrackRef
 import com.zhangwenkang.cinefin.player.core.domain.models.QueueSource
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackFailure
 
-/** 曲库浏览的四个维度（MU-2）。 */
+/** 曲库浏览的五个维度（MU-2；W3-T14 对齐官方 Tab 序列：建议 / 歌曲 / 专辑 / 艺术家 / 歌单）。 */
 enum class MusicTab {
+    /** W3-T14：建议（最近添加 / 最常播放 / 收藏三段）。 */
+    SUGGESTIONS,
+    SONGS,
     ALBUMS,
     ARTISTS,
-    SONGS,
     PLAYLISTS,
 }
 

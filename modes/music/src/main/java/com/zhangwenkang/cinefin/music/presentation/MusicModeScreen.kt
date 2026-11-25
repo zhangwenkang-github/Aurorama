@@ -69,6 +69,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -123,9 +124,9 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinBackToDefaul
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinBatchBar
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonTone
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
-import com.zhangwenkang.cinefin.core.presentation.components.CinefinFilterChip
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinListRow
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
@@ -592,6 +593,10 @@ fun MusicModeScreen(
                                 visibility = toolbarVisibility,
                                 onSelectSource = viewModel::setSourceFilter,
                                 onToggleBadge = viewModel::setShowSourceBadge,
+                                onSelectSortKey = viewModel::setSongSortKey,
+                                onSetSortAscending = viewModel::setSongSortAscending,
+                                onToggleFavoritesOnly = viewModel::setSongsFavoritesOnly,
+                                onSelectPageSize = viewModel::setSongPageSize,
                                 onPlayAll = { viewModel.playAll() },
                                 onShuffleAll = { viewModel.playAll(shuffle = true) },
                                 onBatchEnter = viewModel::enterBatchSelection,
@@ -724,6 +729,7 @@ fun MusicModeScreen(
                                         }
                                     }
                                 },
+                                onSongPageChange = viewModel::setSongPage,
                             )
                     }
                 }
@@ -1346,6 +1352,8 @@ private fun MusicHeader(
                 else -> {
                     val count =
                         when (state.tab) {
+                            MusicTab.SUGGESTIONS ->
+                                state.suggestionSections.sumOf { section -> section.songs.size }
                             MusicTab.ALBUMS -> state.albums.size
                             MusicTab.ARTISTS -> state.artists.size
                             MusicTab.SONGS -> state.songs.size
@@ -1485,48 +1493,6 @@ private fun MusicPrimaryToolbarSection(
 }
 
 @Composable
-private fun MusicPlayAllHitTarget(
-    onClick: () -> Unit,
-    button: @Composable () -> Unit,
-) {
-    val density = LocalDensity.current
-    val interaction = MusicPrimaryToolbarLayout.playAllInteraction
-    val interactionRole =
-        when (interaction.role) {
-            MusicInteractionRole.BUTTON -> Role.Button
-        }
-    Layout(
-        content = button,
-        modifier =
-            Modifier.clickable(
-                    role = interactionRole,
-                    onClick = onClick,
-                )
-                .clearAndSetSemantics {
-                    role = interactionRole
-                    contentDescription = interaction.semanticsLabel
-                    semanticsOnClick(label = interaction.semanticsLabel) {
-                        onClick()
-                        true
-                    }
-                },
-    ) { measurables, constraints ->
-        val content = measurables.single().measure(constraints.copy(minHeight = 0))
-        val plan =
-            MusicPrimaryToolbarLayout.measurePlayAll(
-                content = MusicMeasuredBox(content.width, content.height),
-                density = density,
-            )
-        layout(plan.widthPx, plan.heightPx) {
-            content.placeRelative(
-                plan.contentPlacement.xPx,
-                plan.contentPlacement.yPx,
-            )
-        }
-    }
-}
-
-@Composable
 private fun MusicTabsRow(
     selected: MusicTab,
     onSelect: (MusicTab) -> Unit,
@@ -1550,9 +1516,10 @@ private fun MusicTabsRow(
             onSelect = onSelect,
             label = { tab ->
                 when (tab) {
+                    MusicTab.SUGGESTIONS -> "建议"
+                    MusicTab.SONGS -> "歌曲"
                     MusicTab.ALBUMS -> "专辑"
                     MusicTab.ARTISTS -> "艺术家"
-                    MusicTab.SONGS -> "歌曲"
                     MusicTab.PLAYLISTS -> "歌单"
                 }
             },
@@ -1572,9 +1539,10 @@ private fun MusicTabsRow(
 }
 
 /**
- * W66：音乐页工具行（一层）——左「来源▾」下拉 chip（全部 / 服务器 / 本地；来源徽标开关收进菜单项）， 右「播放全部」主键 + 「随机」图标键（仅歌曲 Tab、列表非空时）。
+ * W3-T14：音乐页工具行（一层，§4.1）——左「⋮」溢出菜单（来源筛选 / 来源徽标 / 排序 / 筛选（收藏）/ 每页数量）， 右「播放全部」一级 CTA（`CinefinButton`
+ * Aurora tone 渐变）+「随机」图标键（仅歌曲 Tab、列表非空时）。
  *
- * 批量多选态由调用方整行隐藏（批量条接管）；离线时不显示来源筛选（单一本地来源）。
+ * 批量多选态由调用方整行隐藏（批量条接管）；离线时不显示来源筛选项（单一本地来源），排序 / 每页数量仍可用。
  */
 @Composable
 private fun MusicToolbarRow(
@@ -1582,6 +1550,10 @@ private fun MusicToolbarRow(
     visibility: MusicPrimaryToolbarVisibility,
     onSelectSource: (MusicItemSourceFilter) -> Unit,
     onToggleBadge: (Boolean) -> Unit,
+    onSelectSortKey: (MusicSongSortKey) -> Unit,
+    onSetSortAscending: (Boolean) -> Unit,
+    onToggleFavoritesOnly: (Boolean) -> Unit,
+    onSelectPageSize: (Int) -> Unit,
     onPlayAll: () -> Unit,
     onShuffleAll: () -> Unit,
     onBatchEnter: () -> Unit,
@@ -1594,14 +1566,22 @@ private fun MusicToolbarRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
     ) {
-        if (visibility.showsSource) {
-            MusicSourceFilterMenuChip(
-                filter = state.sourceFilter,
-                showBadge = state.showSourceBadge,
-                onSelect = onSelectSource,
-                onToggleBadge = onToggleBadge,
-            )
-        }
+        MusicToolbarOverflowMenu(
+            sourceFilter = state.sourceFilter,
+            showSourceBadge = state.showSourceBadge,
+            showsSourceOptions = visibility.showsSource,
+            sortKey = state.songSortKey,
+            sortAscending = state.songSortAscending,
+            favoritesOnly = state.songsFavoritesOnly,
+            pageSize = state.songPageSize,
+            showsSongOptions = state.tab == MusicTab.SONGS,
+            onSelectSource = onSelectSource,
+            onToggleBadge = onToggleBadge,
+            onSelectSortKey = onSelectSortKey,
+            onSetSortAscending = onSetSortAscending,
+            onToggleFavoritesOnly = onToggleFavoritesOnly,
+            onSelectPageSize = onSelectPageSize,
+        )
         Spacer(modifier = Modifier.weight(1f))
         // W5 T1 · MUSIC-47：多选改由工具栏入口进入（长按曲目 = 上下文菜单）；仅歌曲 / 专辑 Tab 且有内容时显示
         val batchScopeAvailable =
@@ -1619,7 +1599,14 @@ private fun MusicToolbarRow(
             )
         }
         if (visibility.showsPlayAll) {
-            MusicPlayAllHitTarget(onClick = onPlayAll) { MusicPlayAllVisualButton() }
+            // W3-T14 · §4.1：一级 CTA 用 T09 批② 的 Aurora tone（极光渐变实底 + onAurora 内容 + glow）
+            CinefinButton(
+                text = "播放全部",
+                onClick = onPlayAll,
+                size = CinefinButtonSize.Small,
+                variant = CinefinButtonVariant.Filled,
+                tone = CinefinButtonTone.Aurora,
+            )
             CinefinIconButton(onClick = onShuffleAll) { tint ->
                 Icon(
                     painter = painterResource(R.drawable.ic_music_shuffle),
@@ -1632,109 +1619,209 @@ private fun MusicToolbarRow(
     }
 }
 
-@Composable
-private fun MusicPlayAllVisualButton() {
-    val media = LocalMediaColors.current
-    Box(
-        modifier =
-            Modifier.height(38.dp)
-                .clip(CinefinShapes.Xs)
-                .background(media.base)
-                .padding(horizontal = 16.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = "播放全部",
-            style = CinefinType.LabelMedium,
-            color = media.onBase,
-            maxLines = 1,
-        )
-    }
+/** W3-T14 工具行溢出菜单的分页层级（单层菜单里放不下全部条目，用子页代替嵌套菜单）。 */
+private enum class MusicToolbarMenuPage {
+    ROOT,
+    SOURCE,
+    SORT,
+    FILTER,
+    PAGE_SIZE,
 }
 
-/** W66：来源筛选下拉 chip（当前值常显 + ▾；菜单项 = 全部 / 服务器 / 本地 + 来源徽标开关）。 */
 @Composable
-private fun MusicSourceFilterMenuChip(
-    filter: MusicItemSourceFilter,
-    showBadge: Boolean,
-    onSelect: (MusicItemSourceFilter) -> Unit,
-    onToggleBadge: (Boolean) -> Unit,
+private fun MusicToolbarMenuItem(
+    text: String,
+    onClick: () -> Unit,
+    trailingText: String? = null,
+    checked: Boolean = false,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    DropdownMenuItem(
+        text = {
+            Text(
+                text = text,
+                style = CinefinType.BodyMedium,
+                color = colors.onSurface,
+            )
+        },
+        trailingIcon = {
+            when {
+                checked ->
+                    Icon(
+                        painter = painterResource(CoreR.drawable.ic_check),
+                        contentDescription = null,
+                        tint = media.bright,
+                        modifier = Modifier.size(20.dp),
+                    )
+                trailingText != null ->
+                    Text(
+                        text = trailingText,
+                        style = CinefinType.BodySmall,
+                        color = colors.onSurfaceVariant,
+                    )
+            }
+        },
+        onClick = onClick,
+    )
+}
+
+/**
+ * W3-T14：工具行左侧「⋮」溢出菜单（§4.1）。
+ *
+ * 根页 = 来源筛选 / 来源徽标 / 排序 / 筛选（收藏）/ 每页数量；子页承载各自的单选值。排序、筛选与每页数量只在歌曲 Tab 显示 （其余 Tab 列表不分页也不排序，登记
+ * LATER）。
+ */
+@Composable
+private fun MusicToolbarOverflowMenu(
+    sourceFilter: MusicItemSourceFilter,
+    showSourceBadge: Boolean,
+    showsSourceOptions: Boolean,
+    sortKey: MusicSongSortKey,
+    sortAscending: Boolean,
+    favoritesOnly: Boolean,
+    pageSize: Int,
+    showsSongOptions: Boolean,
+    onSelectSource: (MusicItemSourceFilter) -> Unit,
+    onToggleBadge: (Boolean) -> Unit,
+    onSelectSortKey: (MusicSongSortKey) -> Unit,
+    onSetSortAscending: (Boolean) -> Unit,
+    onToggleFavoritesOnly: (Boolean) -> Unit,
+    onSelectPageSize: (Int) -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    var expanded by remember { mutableStateOf(false) }
+    var page by remember { mutableStateOf(MusicToolbarMenuPage.ROOT) }
+    val closeMenu: () -> Unit = { expanded = false }
     Box {
-        CinefinFilterChip(
-            text = "来源 · ${filter.label}",
-            selected = filter != MusicItemSourceFilter.ALL,
-            compact = true,
-            onClick = { expanded = true },
-            icon = { tint ->
-                Icon(
-                    painter = painterResource(CoreR.drawable.ic_chevron_down),
-                    contentDescription = null,
-                    tint = tint,
-                    modifier = Modifier.size(16.dp),
-                )
-            },
-        )
+        CinefinIconButton(
+            onClick = {
+                page = MusicToolbarMenuPage.ROOT
+                expanded = true
+            }
+        ) { tint ->
+            Box(modifier = Modifier.clearAndSetSemantics { contentDescription = "更多选项" }) {
+                Text(text = "⋮", style = CinefinType.TitleMedium, color = tint)
+            }
+        }
         DropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
+            onDismissRequest = closeMenu,
             shape = CinefinShapes.Card,
             containerColor = colors.surfaceContainerHighest,
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
         ) {
-            MusicItemSourceFilter.entries.forEach { option ->
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = option.label,
-                            style = CinefinType.BodyMedium,
-                            color = colors.onSurface,
+            when (page) {
+                MusicToolbarMenuPage.ROOT -> {
+                    if (showsSourceOptions) {
+                        MusicToolbarMenuItem(
+                            text = "来源筛选",
+                            trailingText = sourceFilter.label,
+                            onClick = { page = MusicToolbarMenuPage.SOURCE },
                         )
-                    },
-                    trailingIcon = {
-                        if (option == filter) {
-                            Icon(
-                                painter = painterResource(CoreR.drawable.ic_check),
-                                contentDescription = null,
-                                tint = media.bright,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
-                    },
-                    onClick = {
-                        expanded = false
-                        onSelect(option)
-                    },
-                )
-            }
-            HorizontalDivider(color = colors.outline)
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        text = "来源徽标",
-                        style = CinefinType.BodyMedium,
-                        color = colors.onSurface,
-                    )
-                },
-                trailingIcon = {
-                    if (showBadge) {
-                        Icon(
-                            painter = painterResource(CoreR.drawable.ic_check),
-                            contentDescription = null,
-                            tint = media.bright,
-                            modifier = Modifier.size(20.dp),
+                        MusicToolbarMenuItem(
+                            text = "来源徽标",
+                            checked = showSourceBadge,
+                            onClick = {
+                                closeMenu()
+                                onToggleBadge(!showSourceBadge)
+                            },
                         )
                     }
-                },
-                onClick = {
-                    expanded = false
-                    onToggleBadge(!showBadge)
-                },
-            )
+                    if (showsSongOptions) {
+                        MusicToolbarMenuItem(
+                            text = "排序",
+                            trailingText =
+                                "${sortKey.label} ${musicSongSortDirectionLabel(sortAscending)}",
+                            onClick = { page = MusicToolbarMenuPage.SORT },
+                        )
+                        MusicToolbarMenuItem(
+                            text = "筛选",
+                            trailingText = if (favoritesOnly) "收藏" else null,
+                            onClick = { page = MusicToolbarMenuPage.FILTER },
+                        )
+                        MusicToolbarMenuItem(
+                            text = "每页数量",
+                            trailingText = "$pageSize",
+                            onClick = { page = MusicToolbarMenuPage.PAGE_SIZE },
+                        )
+                    }
+                }
+                MusicToolbarMenuPage.SOURCE -> {
+                    MusicToolbarMenuItem(
+                        text = "← 来源筛选",
+                        onClick = { page = MusicToolbarMenuPage.ROOT },
+                    )
+                    MusicItemSourceFilter.entries.forEach { option ->
+                        MusicToolbarMenuItem(
+                            text = option.label,
+                            checked = option == sourceFilter,
+                            onClick = {
+                                closeMenu()
+                                onSelectSource(option)
+                            },
+                        )
+                    }
+                }
+                MusicToolbarMenuPage.SORT -> {
+                    MusicToolbarMenuItem(
+                        text = "← 排序",
+                        onClick = { page = MusicToolbarMenuPage.ROOT },
+                    )
+                    MusicSongSortKey.entries.forEach { option ->
+                        MusicToolbarMenuItem(
+                            text = option.label,
+                            checked = option == sortKey,
+                            onClick = {
+                                closeMenu()
+                                onSelectSortKey(option)
+                            },
+                        )
+                    }
+                    HorizontalDivider(color = colors.outline)
+                    listOf(true, false).forEach { ascending ->
+                        MusicToolbarMenuItem(
+                            text = musicSongSortDirectionLabel(ascending),
+                            checked = ascending == sortAscending,
+                            onClick = {
+                                closeMenu()
+                                onSetSortAscending(ascending)
+                            },
+                        )
+                    }
+                }
+                MusicToolbarMenuPage.FILTER -> {
+                    MusicToolbarMenuItem(
+                        text = "← 筛选",
+                        onClick = { page = MusicToolbarMenuPage.ROOT },
+                    )
+                    MusicToolbarMenuItem(
+                        text = "仅收藏",
+                        checked = favoritesOnly,
+                        onClick = {
+                            closeMenu()
+                            onToggleFavoritesOnly(!favoritesOnly)
+                        },
+                    )
+                }
+                MusicToolbarMenuPage.PAGE_SIZE -> {
+                    MusicToolbarMenuItem(
+                        text = "← 每页数量",
+                        onClick = { page = MusicToolbarMenuPage.ROOT },
+                    )
+                    MUSIC_SONG_PAGE_SIZES.forEach { size ->
+                        MusicToolbarMenuItem(
+                            text = "$size",
+                            checked = size == pageSize,
+                            onClick = {
+                                closeMenu()
+                                onSelectPageSize(size)
+                            },
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -1763,6 +1850,7 @@ private fun LibraryPane(
     onRenameLocalPlaylist: (MusicPlaylist) -> Unit = {},
     onDeleteLocalPlaylist: (MusicPlaylist) -> Unit = {},
     onImportLocalPlaylist: () -> Unit = {},
+    onSongPageChange: (Int) -> Unit = {},
 ) {
     // W79b · #33：服务器个别曲目没有 Primary 图时，用同专辑封面兜底（只读已加载的曲库快照）。
     val albumArtwork = remember(state.albums) { albumArtworkUris(state.albums) }
@@ -1770,6 +1858,22 @@ private fun LibraryPane(
     val emptyCopy =
         musicEmptyCopy(tab = state.tab, filter = state.sourceFilter, offline = state.offline)
     when (state.tab) {
+        MusicTab.SUGGESTIONS ->
+            SuggestionPane(
+                sections = state.suggestionSections,
+                currentItemId = currentItemId,
+                albumArtwork = albumArtwork,
+                downloadState = downloadState,
+                showSourceBadge = showSourceBadge,
+                batchSelection = batchSelection,
+                onSongClick = onSongClick,
+                onPlayNext = onPlayNext,
+                onToggleFavorite = onToggleFavorite,
+                onToggleDownload = onToggleDownload,
+                onBatchToggle = onBatchToggle,
+                onSongLongPress = onSongLongPress,
+                onAddToLocalPlaylist = onAddToLocalPlaylist,
+            )
         MusicTab.ALBUMS ->
             AlbumList(
                 albums = state.albums,
@@ -1787,25 +1891,43 @@ private fun LibraryPane(
                 onArtistClick = onArtistClick,
             )
         MusicTab.SONGS ->
-            SongList(
-                songs = state.songs,
-                currentItemId = currentItemId,
-                albumArtwork = albumArtwork,
-                autoLocateCurrent = true,
-                showAlbum = true,
-                emptyTitle = emptyCopy.title,
-                emptyMessage = emptyCopy.message,
-                downloadState = downloadState,
-                showSourceBadge = showSourceBadge,
-                batchSelection = batchSelection,
-                onSongClick = onSongClick,
-                onPlayNext = onPlayNext,
-                onToggleFavorite = onToggleFavorite,
-                onToggleDownload = onToggleDownload,
-                onSongLongPress = onSongLongPress,
-                onBatchToggle = onBatchToggle,
-                onAddToLocalPlaylist = onAddToLocalPlaylist,
-            )
+            // W3-T14 · §4.1：仅歌曲 Tab 分页——底部页码栏（上一页 / 页码指示 / 下一页），每页数量按设置。
+            Column(modifier = Modifier.fillMaxSize()) {
+                Box(modifier = Modifier.weight(1f)) {
+                    // 翻页重置滚动位置：按页码重建列表状态。
+                    key(state.songPage) {
+                        SongList(
+                            songs = state.songPageSongs,
+                            currentItemId = currentItemId,
+                            albumArtwork = albumArtwork,
+                            autoLocateCurrent = true,
+                            showAlbum = true,
+                            emptyTitle =
+                                if (state.songsFavoritesOnly) "没有收藏的曲目" else emptyCopy.title,
+                            emptyMessage = emptyCopy.message,
+                            downloadState = downloadState,
+                            showSourceBadge = showSourceBadge,
+                            batchSelection = batchSelection,
+                            onSongClick = onSongClick,
+                            onPlayNext = onPlayNext,
+                            onToggleFavorite = onToggleFavorite,
+                            onToggleDownload = onToggleDownload,
+                            onSongLongPress = onSongLongPress,
+                            onBatchToggle = onBatchToggle,
+                            onAddToLocalPlaylist = onAddToLocalPlaylist,
+                        )
+                    }
+                }
+                if (state.songs.isNotEmpty() && state.songPageCount > 1) {
+                    MusicSongPageBar(
+                        indicator = musicSongPageIndicator(state.songPage, state.songPageCount),
+                        canGoPrevious = state.songPage > 0,
+                        canGoNext = state.songPage < state.songPageCount - 1,
+                        onPrevious = { onSongPageChange(state.songPage - 1) },
+                        onNext = { onSongPageChange(state.songPage + 1) },
+                    )
+                }
+            }
         MusicTab.PLAYLISTS ->
             PlaylistList(
                 playlists = state.playlists,
@@ -1817,6 +1939,116 @@ private fun LibraryPane(
                 onRenameLocalPlaylist = onRenameLocalPlaylist,
                 onDeleteLocalPlaylist = onDeleteLocalPlaylist,
             )
+    }
+}
+
+/** W3-T14 · §4.1：「建议」Tab——纵向三段（最近添加 / 最常播放 / 收藏），复用歌曲行组件，空段已在数据层隐藏。 */
+@Composable
+private fun SuggestionPane(
+    sections: List<MusicSuggestionSection>,
+    currentItemId: UUID?,
+    albumArtwork: Map<String, String>,
+    downloadState: MusicModeViewModel.SongDownloadState,
+    showSourceBadge: Boolean,
+    batchSelection: MultiSelectState,
+    onSongClick: (MusicSong) -> Unit,
+    onPlayNext: (MusicSong) -> Unit,
+    onToggleFavorite: (MusicSong) -> Unit,
+    onToggleDownload: (MusicSong) -> Unit,
+    onBatchToggle: (MusicSong) -> Unit,
+    onSongLongPress: (MusicSong) -> Unit,
+    onAddToLocalPlaylist: ((MusicSong) -> Unit)?,
+) {
+    if (sections.isEmpty()) {
+        EmptyHint(title = "还没有可推荐的内容", message = "先播放或收藏一些曲目后再回来")
+        return
+    }
+    val colors = LocalCinefinColors.current
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        sections.forEach { section ->
+            item(key = "suggestion-header-${section.title}") {
+                Text(
+                    text = section.title,
+                    style = CinefinType.TitleSmall,
+                    color = colors.onSurface,
+                    modifier =
+                        Modifier.fillMaxWidth()
+                            .padding(
+                                start = CinefinSpacing.Space4,
+                                end = CinefinSpacing.Space4,
+                                top = CinefinSpacing.Space3,
+                                bottom = CinefinSpacing.Space1,
+                            ),
+                )
+            }
+            itemsIndexed(
+                items = section.songs,
+                key = { index, song -> "${section.title}-$index-${song.itemId}" },
+            ) { index, song ->
+                SongListRow(
+                    song = song,
+                    index = index,
+                    lastIndex = section.songs.lastIndex,
+                    currentItemId = currentItemId,
+                    albumArtwork = albumArtwork,
+                    showAlbum = true,
+                    downloadState = downloadState,
+                    showSourceBadge = showSourceBadge,
+                    batchSelection = batchSelection,
+                    onSongClick = onSongClick,
+                    onPlayNext = onPlayNext,
+                    onToggleFavorite = onToggleFavorite,
+                    onToggleDownload = onToggleDownload,
+                    onBatchToggle = onBatchToggle,
+                    onSongLongPress = onSongLongPress,
+                    onAddToLocalPlaylist = onAddToLocalPlaylist,
+                    onMoveUp = null,
+                    onMoveDown = null,
+                )
+            }
+        }
+    }
+}
+
+/** W3-T14：歌曲 Tab 底部分页栏（上一页 / 页码指示 / 下一页）。 */
+@Composable
+private fun MusicSongPageBar(
+    indicator: String,
+    canGoPrevious: Boolean,
+    canGoNext: Boolean,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    Row(
+        modifier =
+            Modifier.fillMaxWidth()
+                .padding(horizontal = CinefinSpacing.Space4, vertical = CinefinSpacing.Space1),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        CinefinIconButton(onClick = onPrevious, enabled = canGoPrevious) { tint ->
+            Icon(
+                painter = painterResource(CoreR.drawable.ic_arrow_left),
+                contentDescription = "上一页",
+                tint = tint,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Text(
+            text = indicator,
+            style = CinefinType.LabelMedium,
+            color = colors.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = CinefinSpacing.Space4),
+        )
+        CinefinIconButton(onClick = onNext, enabled = canGoNext) { tint ->
+            Icon(
+                painter = painterResource(CoreR.drawable.ic_arrow_right),
+                contentDescription = "下一页",
+                tint = tint,
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }
 
@@ -2342,56 +2574,95 @@ private fun SongList(
         // 歌单允许同一首曲目出现多次，key 里带序号避免重复 key 崩溃
         itemsIndexed(items = songs, key = { index, song -> "$index-${song.itemId}" }) { index, song
             ->
-            val downloadStatus = downloadState.activeStatus(song)
-            val downloadAction =
-                songDownloadMenuAction(
-                    downloaded = downloadState.isDownloaded(song),
-                    activeStatus = downloadStatus,
-                    fromLocalLibrary = song.localUri != null,
-                )
-            SongRow(
-                index = index + 1,
+            SongListRow(
                 song = song,
-                artworkUri =
-                    resolveSongArtworkUri(
-                        imageUri = song.imageUri,
-                        albumName = song.albumName,
-                        albumArtwork = albumArtwork,
-                    ),
-                subtitle = if (showAlbum) song.albumName else null,
-                isCurrent = song.itemId == currentItemId,
-                downloadLabel = songDownloadStatusLabel(downloadAction, downloadStatus),
-                downloadMenuItem = songDownloadMenuLabel(downloadAction),
-                sourceBadge =
-                    when {
-                        song.isPlaylistPlaceholder -> "不可用"
-                        // MUSIC-36：APE / DSD 引擎解不了 → 曲目行弱提示，不静默失败
-                        song.formatUnsupported -> "不支持"
-                        showSourceBadge -> song.source.label
-                        else -> null
-                    },
-                selectionMode = batchSelection.selectionMode,
-                selected = batchSelection.isSelected(song.playlistSelectionKey()),
-                onClick = {
-                    if (batchSelection.selectionMode) onBatchToggle(song) else onSongClick(song)
-                },
-                onLongClick = {
-                    // W5 T1 · MUSIC-47：长按 = 上下文菜单；多选态内仍按切换选中处理
-                    if (batchSelection.selectionMode) onBatchToggle(song) else onSongLongPress(song)
-                },
-                onPlayNext = { onPlayNext(song) },
-                onToggleFavorite = { onToggleFavorite(song) },
-                onToggleDownload = { onToggleDownload(song) },
-                onAddToLocalPlaylist = onAddToLocalPlaylist?.let { callback -> { callback(song) } },
-                onMoveUp =
-                    onMoveUp?.takeIf { index > 0 }?.let { callback -> { callback(song, index) } },
-                onMoveDown =
-                    onMoveDown
-                        ?.takeIf { index < songs.lastIndex }
-                        ?.let { callback -> { callback(song, index) } },
+                index = index,
+                lastIndex = songs.lastIndex,
+                currentItemId = currentItemId,
+                albumArtwork = albumArtwork,
+                showAlbum = showAlbum,
+                downloadState = downloadState,
+                showSourceBadge = showSourceBadge,
+                batchSelection = batchSelection,
+                onSongClick = onSongClick,
+                onPlayNext = onPlayNext,
+                onToggleFavorite = onToggleFavorite,
+                onToggleDownload = onToggleDownload,
+                onBatchToggle = onBatchToggle,
+                onSongLongPress = onSongLongPress,
+                onAddToLocalPlaylist = onAddToLocalPlaylist,
+                onMoveUp = onMoveUp,
+                onMoveDown = onMoveDown,
             )
         }
     }
+}
+
+/** 歌曲行（W3-T14 抽出公共调用点）：歌曲 Tab 与「建议」Tab 共用同一行渲染，`SongRow` 本体不动。 */
+@Composable
+private fun SongListRow(
+    song: MusicSong,
+    index: Int,
+    lastIndex: Int,
+    currentItemId: UUID?,
+    albumArtwork: Map<String, String>,
+    showAlbum: Boolean,
+    downloadState: MusicModeViewModel.SongDownloadState,
+    showSourceBadge: Boolean,
+    batchSelection: MultiSelectState,
+    onSongClick: (MusicSong) -> Unit,
+    onPlayNext: (MusicSong) -> Unit,
+    onToggleFavorite: (MusicSong) -> Unit,
+    onToggleDownload: (MusicSong) -> Unit,
+    onBatchToggle: (MusicSong) -> Unit,
+    onSongLongPress: (MusicSong) -> Unit,
+    onAddToLocalPlaylist: ((MusicSong) -> Unit)?,
+    onMoveUp: ((MusicSong, Int) -> Unit)?,
+    onMoveDown: ((MusicSong, Int) -> Unit)?,
+) {
+    val downloadStatus = downloadState.activeStatus(song)
+    val downloadAction =
+        songDownloadMenuAction(
+            downloaded = downloadState.isDownloaded(song),
+            activeStatus = downloadStatus,
+            fromLocalLibrary = song.localUri != null,
+        )
+    SongRow(
+        index = index + 1,
+        song = song,
+        artworkUri =
+            resolveSongArtworkUri(
+                imageUri = song.imageUri,
+                albumName = song.albumName,
+                albumArtwork = albumArtwork,
+            ),
+        subtitle = if (showAlbum) song.albumName else null,
+        isCurrent = song.itemId == currentItemId,
+        downloadLabel = songDownloadStatusLabel(downloadAction, downloadStatus),
+        downloadMenuItem = songDownloadMenuLabel(downloadAction),
+        sourceBadge =
+            when {
+                song.isPlaylistPlaceholder -> "不可用"
+                // MUSIC-36：APE / DSD 引擎解不了 → 曲目行弱提示，不静默失败
+                song.formatUnsupported -> "不支持"
+                showSourceBadge -> song.source.label
+                else -> null
+            },
+        selectionMode = batchSelection.selectionMode,
+        selected = batchSelection.isSelected(song.playlistSelectionKey()),
+        onClick = { if (batchSelection.selectionMode) onBatchToggle(song) else onSongClick(song) },
+        onLongClick = {
+            // W5 T1 · MUSIC-47：长按 = 上下文菜单；多选态内仍按切换选中处理
+            if (batchSelection.selectionMode) onBatchToggle(song) else onSongLongPress(song)
+        },
+        onPlayNext = { onPlayNext(song) },
+        onToggleFavorite = { onToggleFavorite(song) },
+        onToggleDownload = { onToggleDownload(song) },
+        onAddToLocalPlaylist = onAddToLocalPlaylist?.let { callback -> { callback(song) } },
+        onMoveUp = onMoveUp?.takeIf { index > 0 }?.let { callback -> { callback(song, index) } },
+        onMoveDown =
+            onMoveDown?.takeIf { index < lastIndex }?.let { callback -> { callback(song, index) } },
+    )
 }
 
 @Composable

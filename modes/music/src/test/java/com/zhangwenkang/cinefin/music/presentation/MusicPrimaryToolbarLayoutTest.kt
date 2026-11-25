@@ -43,50 +43,6 @@ class MusicPrimaryToolbarLayoutTest {
     }
 
     @Test
-    fun `play all measure policy converts production minimum at density`() {
-        val plan =
-            MusicPrimaryToolbarLayout.measurePlayAll(
-                content = MusicMeasuredBox(widthPx = 200, heightPx = 76),
-                density = density,
-            )
-        val interactiveHeightDp = plan.heightPx.toFloat() / density.density
-
-        assertEquals(200, plan.widthPx)
-        assertEquals(96, plan.heightPx)
-        assertEquals(MusicPlacement(xPx = 0, yPx = 10), plan.contentPlacement)
-        assertEquals(48f, interactiveHeightDp, 0f)
-        assertEquals(MusicInteractionRole.BUTTON, plan.interaction.role)
-        assertEquals("播放全部", plan.interaction.semanticsLabel)
-    }
-
-    @Test
-    fun `play all measure policy preserves content taller than production minimum`() {
-        val plan =
-            MusicPrimaryToolbarLayout.measurePlayAll(
-                content = MusicMeasuredBox(widthPx = 240, heightPx = 104),
-                density = density,
-            )
-
-        assertEquals(104, plan.heightPx)
-        assertEquals(MusicPlacement(xPx = 0, yPx = 0), plan.contentPlacement)
-    }
-
-    @Test
-    fun `play all visual layer accepts no click callback`() {
-        val owner = Class.forName("com.zhangwenkang.cinefin.music.presentation.MusicModeScreenKt")
-        val visualMethods =
-            owner.declaredMethods.filter { method -> method.name == "MusicPlayAllVisualButton" }
-
-        assertTrue("visual button composable must exist", visualMethods.isNotEmpty())
-        assertFalse(
-            "visual layer must not own another click callback",
-            visualMethods
-                .flatMap { method -> method.parameterTypes.asList() }
-                .any { type -> Function0::class.java.isAssignableFrom(type) },
-        )
-    }
-
-    @Test
     fun `offline empty music omits toolbar measurable`() {
         val visibility =
             MusicPrimaryToolbarVisibility.forState(

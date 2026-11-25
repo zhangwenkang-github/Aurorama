@@ -291,6 +291,16 @@ constructor(
         val selectedMusicLibraryId: UUID? = null,
         /** W66：当前选中音乐库名（null = 全部 → 顶栏沿用「音乐」标题）。 */
         val selectedMusicLibraryName: String? = null,
+        /** W3-T14：歌曲 Tab 客户端排序键 / 方向 / 每页数量（落偏好，冷启恢复）。 */
+        val songSortKey: MusicSongSortKey = MusicSongSortKey.NAME,
+        val songSortAscending: Boolean = true,
+        val songPageSize: Int = MUSIC_SONG_DEFAULT_PAGE_SIZE,
+        /** W3-T14：歌曲 Tab 当前页（0 基）；排序 / 筛选 / 每页数量变化时复位到第 1 页。 */
+        val songPage: Int = 0,
+        /** W3-T14：筛选「仅收藏」（只作用于歌曲 Tab）。 */
+        val songsFavoritesOnly: Boolean = false,
+        /** W3-T14：播放历史时间表（itemId → 最近播放时间；播放日期排序与「建议 · 最常播放」用）。 */
+        val recentPlayedAt: Map<UUID, Long> = emptyMap(),
         /** W37：本地曲目条数（筛选行副文案用）。 */
         val localSongCount: Int = 0,
         val serverSongCount: Int = 0,
@@ -305,6 +315,18 @@ constructor(
         /** 当前详情页的曲目；无详情时为空。 */
         val detailSongs: List<MusicSong>
             get() = detail?.songs ?: emptyList()
+
+        /** W3-T14：歌曲 Tab 总页数（空列表 = 1 页）。 */
+        val songPageCount: Int
+            get() = musicSongPageCount(songs.size, songPageSize)
+
+        /** W3-T14：歌曲 Tab 当前页切片（专辑 / 艺术家 / 歌单 Tab 不分页）。 */
+        val songPageSongs: List<MusicSong>
+            get() = musicSongPageSlice(songs, songPage, songPageSize)
+
+        /** W3-T14：「建议」Tab 三段的展示数据（空段已隐藏）。 */
+        internal val suggestionSections: List<MusicSuggestionSection>
+            get() = musicSuggestionSections(songs, recentPlayedAt)
     }
 
     private val _uiState = MutableStateFlow(UiState())
@@ -627,6 +649,7 @@ constructor(
         // W5-T12：Auto DJ 进程级单例启动（幂等；离开音乐页后队列播完仍可续播）。
         autoDjController.start()
         // W37：来源筛选 / 来源徽标从偏好恢复。
+        // W3-T14：歌曲 Tab 排序键 / 方向 / 每页数量同样从偏好恢复。
         _uiState.update {
             it.copy(
                 sourceFilter =
@@ -634,6 +657,15 @@ constructor(
                         appPreferences.getValue(appPreferences.localLibraryMusicSource)
                     ),
                 showSourceBadge = appPreferences.getValue(appPreferences.localLibrarySourceBadge),
+                songSortKey =
+                    MusicSongSortKey.fromPrefValue(
+                        appPreferences.getValue(appPreferences.musicSongSortKey)
+                    ),
+                songSortAscending = appPreferences.getValue(appPreferences.musicSongSortAscending),
+                songPageSize =
+                    normalizeMusicSongPageSize(
+                        appPreferences.getValue(appPreferences.musicSongPageSize)
+                    ),
             )
         }
         refresh(forceServerPlaylistRefresh = false)
@@ -641,6 +673,7 @@ constructor(
         observeLyrics()
         restoreQueue()
         observeRecent()
+        viewModelScope.launch { refreshRecentPlayedAt() }
         observeOverlayArtists()
         observeRestoredQueueCleanup()
         observePlaybackFailures()
@@ -736,8 +769,35 @@ constructor(
                                     song.itemId == item.itemId
                                 },
                         )
+                        // W3-T14：播放历史变化 → 播放日期排序 / 建议「最常播放」段立即跟上
+                        refreshRecentPlayedAt()
                     }
                 }
+        }
+    }
+
+    /** W3-T14：重读播放历史时间表；只有「播放日期」排序需要立即重排列表。 */
+    private suspend fun refreshRecentPlayedAt() {
+        val playedAt = runCatching {
+            recentStore.loadPlayedAt()
+        }
+            .getOrElse {
+                return
+            }
+        if (playedAt == _uiState.value.recentPlayedAt) return
+        _uiState.update { state ->
+            val songs =
+                if (state.songSortKey == MusicSongSortKey.DATE_PLAYED) {
+                    sortMusicSongs(
+                        songs = state.songs,
+                        key = state.songSortKey,
+                        ascending = state.songSortAscending,
+                        playedAt = playedAt,
+                    )
+                } else {
+                    state.songs
+                }
+            state.copy(recentPlayedAt = playedAt, songs = songs)
         }
     }
 
@@ -1379,6 +1439,59 @@ constructor(
         _uiState.update { it.copy(showSourceBadge = show) }
     }
 
+    /**
+     * W3-T14 工具行「排序」：歌曲 Tab 客户端排序键。
+     *
+     * 只重排当前已加载列表（先落盘再重排），页码复位到第 1 页；不改服务端请求。
+     */
+    fun setSongSortKey(key: MusicSongSortKey) {
+        if (_uiState.value.songSortKey == key) return
+        appPreferences.setValue(appPreferences.musicSongSortKey, key.prefValue)
+        _uiState.update { it.copy(songSortKey = key, songPage = 0) }
+        publishLibraries()
+    }
+
+    /** W3-T14 工具行「排序」：升 / 降序。 */
+    fun setSongSortAscending(ascending: Boolean) {
+        if (_uiState.value.songSortAscending == ascending) return
+        appPreferences.setValue(appPreferences.musicSongSortAscending, ascending)
+        _uiState.update { it.copy(songSortAscending = ascending, songPage = 0) }
+        publishLibraries()
+    }
+
+    /** W3-T14 工具行「每页数量」：50 / 100 / 200（非法值回落默认 100）。 */
+    fun setSongPageSize(size: Int) {
+        val normalized = normalizeMusicSongPageSize(size)
+        if (_uiState.value.songPageSize == normalized) return
+        appPreferences.setValue(appPreferences.musicSongPageSize, normalized)
+        _uiState.update {
+            it.copy(
+                songPageSize = normalized,
+                songPage = 0,
+            )
+        }
+    }
+
+    /** W3-T14 工具行「筛选 · 仅收藏」（只作用于歌曲 Tab，不落盘）。 */
+    fun setSongsFavoritesOnly(enabled: Boolean) {
+        if (_uiState.value.songsFavoritesOnly == enabled) return
+        _uiState.update { it.copy(songsFavoritesOnly = enabled, songPage = 0) }
+        publishLibraries()
+    }
+
+    /** W3-T14 底部分页栏：0 基页码，越界自动收敛。 */
+    fun setSongPage(page: Int) {
+        _uiState.update { state ->
+            state.copy(
+                songPage =
+                    clampMusicSongPage(
+                        page,
+                        musicSongPageCount(state.songs.size, state.songPageSize),
+                    )
+            )
+        }
+    }
+
     /** W66：顶栏音乐库选择（null = 「全部音乐库」）。先落盘（跨页面 / 重启保留）再即时重载当前 Tab： 关闭页内详情、退出多选，然后重新请求曲库（标题语义随选中库更新）。 */
     fun selectMusicLibrary(libraryId: UUID?) {
         if (_uiState.value.selectedMusicLibraryId == libraryId) return
@@ -1396,13 +1509,27 @@ constructor(
                 MusicItemSourceFilter.SERVER -> serverLibrary.songs
                 MusicItemSourceFilter.LOCAL -> localLibrary.songs
             }
+        // W3-T14：「筛选 · 仅收藏」+ 客户端排序只作用于歌曲 Tab 列表；专辑 / 艺术家分组仍用全量曲目。
+        val state = _uiState.value
+        val visibleSongs =
+            sortMusicSongs(
+                songs = if (state.songsFavoritesOnly) songs.filter { it.isFavorite } else songs,
+                key = state.songSortKey,
+                ascending = state.songSortAscending,
+                playedAt = state.recentPlayedAt,
+            )
         _uiState.update {
             it.copy(
-                songs = songs,
+                songs = visibleSongs,
                 albums = groupAlbums(songs),
                 artists = groupArtists(songs),
                 localSongCount = localLibrary.songs.size,
                 serverSongCount = serverLibrary.songs.size,
+                songPage =
+                    clampMusicSongPage(
+                        it.songPage,
+                        musicSongPageCount(visibleSongs.size, it.songPageSize),
+                    ),
             )
         }
         val detail = _uiState.value.detail as? MusicDetail.Playlist

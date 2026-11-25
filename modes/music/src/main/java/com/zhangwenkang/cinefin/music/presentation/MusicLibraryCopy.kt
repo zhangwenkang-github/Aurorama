@@ -24,6 +24,7 @@ internal fun musicLibrarySubtitle(
             else -> ""
         }
     return when (tab) {
+        MusicTab.SUGGESTIONS -> "共 $count 条推荐"
         MusicTab.ALBUMS -> "共 $count 张${prefix}专辑"
         MusicTab.ARTISTS -> "共 $count 位${prefix}艺术家"
         MusicTab.SONGS -> "共 $count 首${prefix}歌曲"
@@ -62,6 +63,7 @@ internal fun musicEmptyCopy(
     }
     val what =
         when (tab) {
+            MusicTab.SUGGESTIONS -> "推荐曲目"
             MusicTab.ALBUMS -> "专辑"
             MusicTab.ARTISTS -> "艺术家"
             MusicTab.SONGS -> "歌曲"
