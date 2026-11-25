@@ -76,8 +76,8 @@ class CinefinNavItem(
 /**
  * 侧导航（W42 改版：折叠 72dp；W46 展开 150 → 168dp；W3-T2 换 K1 皮肤）。
  *
- * 底色取页面底 `surface`（bg1，实底、不做实时 blur）+ 右缘 1dp `glassBorder` 发丝线；分组之间用 [groupBreaks] 插入 12dp 空隙与细分隔线，
- * 末尾 [pinnedTailCount] 条（客户端设置区）用发丝线与导航区分隔。
+ * 底色取页面底 `surface`（bg1，实底）+ 右缘 1dp `glassBorder` 发丝线——2.0.1 正式决定不做实时 blur（滚动性能与 API 兼容优先，blur 列
+ * 2.0.2 评估）；分组之间用 [groupBreaks] 插入 12dp 空隙与细分隔线， 末尾 [pinnedTailCount] 条（客户端设置区）用发丝线与导航区分隔。
  */
 @Composable
 fun CinefinSideRail(
@@ -268,25 +268,17 @@ internal fun navSelectedFill(colors: CinefinColors): Color =
     colors.aurora1.copy(alpha = if (colors.surface.luminance() > 0.5f) 0.16f else 0.12f)
 
 /**
- * 浅色主题的选中图文色（K1 修正值，2026-11-18）：`aurora1` 加深派生。
+ * 选中图文色（K1 + 2.0.1 定稿 §2 批③ auroraInk）：直接读 [CinefinColors.auroraInk]。
  *
- * `aurora1`（#0C9E82）在近白底上只有 3.2:1，浅色主题的选中 pill 里读不清；本值与 [navSelectedFill] 的浅色分支配套（对页面底 #FAFAFB
- * 5.05:1）。
+ * 深色主题（aurora / amoled / lumen）= `aurora1`，浅色主题 = `#0A6B5A`（对 [navSelectedFill] 的浅色 16% 底约 5.2:1，达
+ * AA）。 明暗判定收敛在主题层 token，组件不再各自按明度分支，保证三形态容器的选中 pill 与图文永远配套。公开给 app 侧图标槽（`navIconTint`）
+ * 复用，避免出现「文字换色、图标没换」的偏差。
  */
-internal val LightNavSelectedContent = Color(0xFF0A6B5A)
+fun navSelectedContent(colors: CinefinColors): Color = colors.auroraInk
 
 /**
- * 选中图文色（K1）：深色主题（aurora / amoled / lumen）= `aurora1`，浅色主题 = [LightNavSelectedContent]。
- *
- * 判据与 [navSelectedFill] 完全一致（页面底 `surface` 的明度），保证三形态容器的选中 pill 与图文永远配套。公开给 app 侧
- * 图标槽（`navIconTint`）复用，避免出现「文字换色、图标没换」的偏差。
- */
-fun navSelectedContent(colors: CinefinColors): Color =
-    if (colors.surface.luminance() > 0.5f) LightNavSelectedContent else colors.aurora1
-
-/**
- * 底部 Tab（Compact <600dp）：K1 悬浮玻璃条——`glass` 底（半透明、不做实时 blur）+ 1dp `glassBorder` 描边 + 圆角
- * `CinefinShapes.Glass`（32dp），高 64dp。
+ * 底部 Tab（Compact <600dp）：K1 悬浮玻璃条——`glass` 底（半透明）+ 1dp `glassBorder` 描边 + 圆角
+ * `CinefinShapes.Glass`（32dp），高 64dp。2.0.1 正式决定不做实时 blur（滚动性能与 API 兼容优先，blur 列 2.0.2 评估）。
  *
  * 选中项：图标 + 文字提亮 `textPrimary`，文字下方 20×3dp 极光渐变指示小条；未选中项 `textSecondary`。条目数量与 IA 不变。
  */

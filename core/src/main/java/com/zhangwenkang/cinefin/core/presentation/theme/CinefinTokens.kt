@@ -170,7 +170,11 @@ object CinefinTokens {
     const val AuroraGlowElevationDp = 6
 
     const val AuroraGlowAlpha = 0.28f
-    /** 玻璃面板底色透明度（aurora / lumen 同值）。 */
+    /**
+     * 玻璃面板底色透明度（aurora / lumen 同值）。
+     *
+     * 2.0.1 正式决定：玻璃 = 半透明底 + `glassBorder` 描边，**不做实时 blur**（滚动性能与 API 兼容优先）；blur 列 2.0.2 评估。
+     */
     const val GlassAlpha = 0.58f
     /** 普通表面上的进度轨道透明度：白 12%。 */
     const val ProgressTrackAlpha = 0.12f
@@ -244,6 +248,11 @@ object CinefinTokens {
     const val AuroraLightGlassAlpha = 0.72f
     /** 玻璃描边：#10151F @ 8%。 */
     const val AuroraLightGlassBorderAlpha = 0.08f
+    /**
+     * 浅色主题的选中 / 强调文字墨色（2.0.1 定稿 §2 批③ 专项裁定 auroraInk）：`aurora1` 在近白底上只有 3.2:1，加深到本值后对 `aurora1` 16%
+     * 浅色选中底约 5.2:1（达 AA）。深色主题的 auroraInk 直接取 `aurora1`，不另设值。
+     */
+    val AuroraInkLight = Color(0xFF0A6B5A)
     val Aurora1Light = Color(0xFF0C9E82)
     val Aurora2Light = Color(0xFF3E6FE4)
     val Aurora3Light = Color(0xFF8B53E8)
@@ -261,6 +270,7 @@ object CinefinTokens {
     /** OLED 主题底色：纯黑，关闭像素。 */
     val ReaderOledSurface = Color(0xFF000000)
 
-    // ---- §5.3 / §6.4 画面覆盖层（唯一允许 blur 的场景）----
+    // ---- §5.3 / §6.4 画面覆盖层控件底 ----
+    /** 覆盖层控件底：黑 60%（2.0.1 正式决定不做实时 blur，见 [GlassAlpha]）。 */
     val OverlayGlass = Color(0x99000000) // 黑 60%
 }

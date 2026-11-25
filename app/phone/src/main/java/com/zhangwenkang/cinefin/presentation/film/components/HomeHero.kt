@@ -45,7 +45,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.core.presentation.theme.auroraGradient
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.models.FindroidEpisode
@@ -74,7 +73,6 @@ fun HomeHero(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     val expanded =
         currentWindowAdaptiveInfo()
             .windowSizeClass
@@ -122,7 +120,8 @@ fun HomeHero(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(media.base))
+                    // 2.0.1 定稿 §2 批③：hero 状态圆点走极光（影视域复用时不再出琥珀）
+                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(colors.aurora1))
                     Spacer(Modifier.width(CinefinSpacing.Space2))
                     Text(
                         text =
@@ -131,7 +130,8 @@ fun HomeHero(
                                 else CoreR.string.next_up
                             ),
                         style = CinefinType.LabelLarge.lumenTextShadow(LumenTextShadow.Meta),
-                        color = media.bright,
+                        // 2.0.1 定稿 §2 批③：「接下来 / 继续观看」是次级说明，回中性次级文字色
+                        color = colors.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )

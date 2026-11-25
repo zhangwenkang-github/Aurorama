@@ -4684,7 +4684,12 @@ private fun SubtitleAppearancePreview(
                 .padding(horizontal = CinefinSpacing.Space3, vertical = CinefinSpacing.Space2)
                 .height(previewHeight)
                 .clip(shape)
-                .background(Brush.verticalGradient(listOf(Color(0xFF2B2F36), Color(0xFF15171B))))
+                // 预览画布底：表面系 token 的纵深渐变（2.0.1 定稿 §2 批③ AUDIT-22，原写死 #2B2F36→#15171B）
+                .background(
+                    Brush.verticalGradient(
+                        listOf(colors.surfaceContainerHighest, colors.surfaceContainerLowest)
+                    )
+                )
                 .border(1.dp, colors.outlineVariant, shape)
     ) {
         Column(
@@ -4711,12 +4716,13 @@ private fun SubtitleAppearancePreview(
             Text(
                 text = stringResource(PlayerR.string.player_subtitle_gap_zero_hint),
                 style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFFE6E6E6),
+                // 高对比反色对：浅 / 深主题下都 ≥13:1（原写死 #E6E6E6 文字 + #66000000 底）
+                color = colors.inverseOnSurface,
                 modifier =
                     Modifier.align(Alignment.TopCenter)
                         .padding(top = CinefinSpacing.Space2)
                         .clip(CinefinShapes.Xs)
-                        .background(Color(0x66000000))
+                        .background(colors.inverseSurface)
                         .padding(horizontal = CinefinSpacing.Space2, vertical = 2.dp),
             )
         }

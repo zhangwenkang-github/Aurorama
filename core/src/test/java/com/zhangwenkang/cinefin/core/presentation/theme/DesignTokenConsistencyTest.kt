@@ -8,6 +8,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonTone
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinInteractionState
 import com.zhangwenkang.cinefin.core.presentation.components.resolveButtonColors
+import kotlin.math.pow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -380,6 +381,46 @@ class DesignTokenConsistencyTest {
         assertEquals(colors.inverseSurface, resolved.container)
         assertEquals(colors.inverseOnSurface, resolved.content)
         assertEquals(0f, resolved.border.alpha, 0.001f)
+    }
+
+    private fun relativeLuminance(color: Color): Double {
+        fun channel(value: Float): Double {
+            val c = value.toDouble()
+            return if (c <= 0.03928) c / 12.92 else ((c + 0.055) / 1.055).pow(2.4)
+        }
+        return 0.2126 * channel(color.red) +
+            0.7152 * channel(color.green) +
+            0.0722 * channel(color.blue)
+    }
+
+    private fun contrast(foreground: Color, background: Color): Double {
+        val a = relativeLuminance(foreground)
+        val b = relativeLuminance(background)
+        val (lighter, darker) = if (a >= b) a to b else b to a
+        return (lighter + 0.05) / (darker + 0.05)
+    }
+
+    @Test
+    fun `aurora ink keeps AA contrast on selected fills`() {
+        // 浅色档（2.0.1 定稿 §2 批③ 专项裁定）：#0A6B5A 对 aurora1@16% 叠 surface，须 ≥4.5:1。
+        val light = CinefinThemes.colorsFor(CinefinThemes.LIGHT, dark = false)
+        assertEquals(CinefinTokens.AuroraInkLight, light.auroraInk)
+        val lightPill = light.aurora1.copy(alpha = 0.16f).compositeOver(light.surface)
+        val lightRatio = contrast(light.auroraInk, lightPill)
+        assertTrue("浅色 auroraInk 对 16% 选中底仅 $lightRatio:1", lightRatio >= 4.5)
+
+        // 评分徽标同源：aurora1 12% 底 + auroraInk 文字，同样须 ≥4.5:1。
+        val lightBadge =
+            light.aurora1.copy(alpha = CinefinTokens.RatingBadgeAlpha).compositeOver(light.surface)
+        val badgeRatio = contrast(light.auroraInk, lightBadge)
+        assertTrue("浅色评分徽标文字对比度仅 $badgeRatio:1", badgeRatio >= 4.5)
+
+        // 深色档：auroraInk 即 aurora1，对 aurora1@12% 叠 surface 约 8.75:1。
+        val dark = CinefinThemes.colorsFor(CinefinThemes.AURORA, dark = true)
+        assertEquals(dark.aurora1, dark.auroraInk)
+        val darkPill = dark.aurora1.copy(alpha = 0.12f).compositeOver(dark.surface)
+        val darkRatio = contrast(dark.auroraInk, darkPill)
+        assertTrue("深色 auroraInk 对 12% 选中底仅 $darkRatio:1", darkRatio >= 4.5)
     }
 
     @Test

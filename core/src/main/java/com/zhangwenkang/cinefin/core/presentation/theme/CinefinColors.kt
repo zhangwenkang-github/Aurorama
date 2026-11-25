@@ -15,9 +15,9 @@ import timber.log.Timber
  * 组件层只允许引用本数据类或 [MediaColors]，禁止直接引用 [CinefinTokens] 的原始色值。 M3 槽位映射由 [cinefinColorScheme] 统一完成，保证
  * `MaterialTheme.colorScheme` 与设计系统同源。
  *
- * [aurora1] / [aurora2] / [aurora3] 是品牌极光三色（随主题走），[onAurora] 是在 [aurora1] 上阅读的内容色； [warning] /
- * [success] / [info] 是语义状态色（2.0.1 定稿 §2 批①，告警 / 成功 / 信息态一律走这三组槽位，禁手写色值）； [glass] / [glassBorder]
- * 是玻璃面板的底与描边（底含 alpha）。
+ * [aurora1] / [aurora2] / [aurora3] 是品牌极光三色（随主题走），[onAurora] 是在 [aurora1] 上阅读的内容色，[auroraInk] 是浅色档
+ * 达 AA 的选中文字墨色（深色档即 [aurora1]）； [warning] / [success] / [info] 是语义状态色（2.0.1 定稿 §2 批①，告警 / 成功 /
+ * 信息态一律走这三组槽位，禁手写色值）； [glass] / [glassBorder] 是玻璃面板的底与描边（底含 alpha）。
  */
 @Immutable
 data class CinefinColors(
@@ -59,6 +59,13 @@ data class CinefinColors(
     val aurora2: Color,
     val aurora3: Color,
     val onAurora: Color,
+    /**
+     * 选中 / 强调**文字**墨色（2.0.1 定稿 §2 批③ auroraInk）：浅色主题 = `#0A6B5A`，深色 / AMOLED / lumen = `aurora1`。
+     *
+     * 与 [aurora1] 的区别只在浅色主题：`aurora1` 在近白底上作正文只有 3.2:1，auroraInk 加深后约 5.2:1（达 AA）。填充容器仍用 [aurora1]
+     * 低透明度，不随本 token 变化。
+     */
+    val auroraInk: Color,
     val glass: Color,
     val glassBorder: Color,
 )
@@ -126,6 +133,7 @@ object CinefinThemes {
             aurora2 = CinefinTokens.Aurora2Dark,
             aurora3 = CinefinTokens.Aurora3Dark,
             onAurora = CinefinTokens.OnAuroraDark,
+            auroraInk = CinefinTokens.Aurora1Dark,
             glass = CinefinTokens.AuroraDarkNavSurface.copy(alpha = CinefinTokens.GlassAlpha),
             glassBorder = Color.White.copy(alpha = CinefinTokens.AuroraDarkGlassBorderAlpha),
         )
@@ -191,6 +199,7 @@ object CinefinThemes {
             aurora2 = CinefinTokens.Aurora2Light,
             aurora3 = CinefinTokens.Aurora3Light,
             onAurora = CinefinTokens.OnAuroraLight,
+            auroraInk = CinefinTokens.AuroraInkLight,
             glass = Color.White.copy(alpha = CinefinTokens.AuroraLightGlassAlpha),
             glassBorder =
                 CinefinTokens.AuroraLightOnSurface.copy(
@@ -239,6 +248,7 @@ object CinefinThemes {
             aurora2 = CinefinTokens.LumenAccentSecondary,
             aurora3 = CinefinTokens.LumenAccentSecondary,
             onAurora = CinefinTokens.LumenOnPrimary,
+            auroraInk = CinefinTokens.LumenAccent,
             glass = CinefinTokens.LumenBackground.copy(alpha = CinefinTokens.GlassAlpha),
             glassBorder = Color.White.copy(alpha = CinefinTokens.LumenLineAlpha),
         )

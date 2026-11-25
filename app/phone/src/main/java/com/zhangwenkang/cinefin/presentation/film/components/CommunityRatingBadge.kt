@@ -36,8 +36,9 @@ fun communityRatingBadgeText(item: FindroidItem): String? =
 /**
  * 评分徽标——设计定稿位置：海报**左下角**（进度条上方，与右上角标区不冲突）。
  *
- * 形态复用 [BaseBadge]（§8.9 的形状、留白与描边）；配色按 2.0.1 定稿 §2 批①（AUDIT-17）：极光淡色 pill = `aurora1` 12% 底 +
- * `aurora1` 文字，黄铜（TV 专用的 `ColorDark.tertiaryDark`）退出 phone。
+ * 形态复用 [BaseBadge]（§8.9 的形状、留白与描边）；配色按 2.0.1 定稿：极光淡色 pill = `aurora1` 12% 底（批①，AUDIT-17）+
+ * `auroraInk` 文字（批③ 专项裁定：浅色档 #0A6B5A 达 AA，深色档即 `aurora1`）。黄铜（TV 专用的 `ColorDark.tertiaryDark`）退出
+ * phone。
  */
 @Composable
 fun BoxScope.CommunityRatingBadge(
@@ -59,7 +60,7 @@ fun BoxScope.CommunityRatingBadge(
         Text(
             text = text,
             style = CinefinType.LabelSmall,
-            color = colors.aurora1,
+            color = colors.auroraInk,
             maxLines = 1,
             modifier = Modifier.align(Alignment.Center).padding(horizontal = 6.dp, vertical = 2.dp),
         )

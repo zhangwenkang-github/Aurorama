@@ -131,18 +131,22 @@ class CinefinThemesTest {
         assertHex(0xFF080D17, auroraDark.surface, "aurora.dark surface")
         assertHex(0xFF3DE8C2, auroraDark.aurora1, "aurora.dark aurora1")
         assertHex(0xFF04201A, auroraDark.onAurora, "aurora.dark onAurora")
+        assertHex(0xFF3DE8C2, auroraDark.auroraInk, "aurora.dark auroraInk")
 
         val light = CinefinThemes.colorsFor(CinefinThemes.LIGHT, dark = false)
         assertHex(0xFFFAFAFB, light.surface, "light surface")
         assertHex(0xFF0C9E82, light.aurora1, "light aurora1")
         assertHex(0xFF000000, light.onAurora, "light onAurora")
+        assertHex(0xFF0A6B5A, light.auroraInk, "light auroraInk")
 
         val amoled = CinefinThemes.colorsFor(CinefinThemes.AMOLED, dark = true)
         assertHex(0xFF000000, amoled.surface, "amoled.dark surface")
         assertHex(0xFF0A0F18, amoled.surfaceContainer, "amoled.dark surfaceContainer")
+        assertHex(0xFF3DE8C2, amoled.auroraInk, "amoled.dark auroraInk")
 
         val lumen = CinefinThemes.colorsFor(CinefinThemes.LUMEN, dark = true)
         assertHex(0xFF08090C, lumen.surface, "lumen.dark surface")
+        assertHex(0xFF5CE1D2, lumen.auroraInk, "lumen.dark auroraInk")
     }
 
     @Test
