@@ -304,6 +304,17 @@ class MusicLibrarySourceLoaderTest {
                 playlistCount = 1,
             ),
         )
+        // W5-T24：默认 tab 改「建议」后，首屏降级同样要落到有内容的歌单
+        assertEquals(
+            MusicTab.PLAYLISTS,
+            musicTabAfterInitialSourceLoad(
+                currentTab = MusicTab.SUGGESTIONS,
+                firstLoad = true,
+                libraryFailed = true,
+                albumCount = 0,
+                playlistCount = 1,
+            ),
+        )
         assertEquals(
             MusicTab.ALBUMS,
             musicTabAfterInitialSourceLoad(

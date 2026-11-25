@@ -2,13 +2,11 @@ package com.zhangwenkang.cinefin
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.View
 import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.core.view.updatePadding
 import com.zhangwenkang.cinefin.playback.CinefinPlaybackService
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerExitFinalizationGate
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
@@ -131,18 +129,5 @@ abstract class BasePlayerActivity : AppCompatActivity() {
 
         window.attributes.layoutInDisplayCutoutMode =
             WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-    }
-
-    protected fun configureInsets(playerControls: View) {
-        playerControls.setOnApplyWindowInsetsListener { _, windowInsets ->
-            val cutout = windowInsets.displayCutout
-            playerControls.updatePadding(
-                left = cutout?.safeInsetLeft ?: 0,
-                top = cutout?.safeInsetTop ?: 0,
-                right = cutout?.safeInsetRight ?: 0,
-                bottom = cutout?.safeInsetBottom ?: 0,
-            )
-            return@setOnApplyWindowInsetsListener windowInsets
-        }
     }
 }

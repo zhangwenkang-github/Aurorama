@@ -285,7 +285,7 @@ constructor(
         val loading: Boolean = true,
         /** W39：下拉刷新进行中（与首次加载区分：刷新保留现有列表，只转顶部指示）。 */
         val refreshing: Boolean = false,
-        val tab: MusicTab = MusicTab.ALBUMS,
+        val tab: MusicTab = MusicTab.SUGGESTIONS,
         /** W36：当前曲库来源是否为离线（离线模式只显示本机已下载曲目）。 */
         val offline: Boolean = false,
         val albums: List<MusicAlbum> = emptyList(),

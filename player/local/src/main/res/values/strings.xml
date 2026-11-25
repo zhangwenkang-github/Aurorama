@@ -329,12 +329,6 @@
     <!-- W12 播放页第四轮：进度条下 6 键（音轨/字幕/倍率/码率/解码/详细信息）+ 右上 5 键 -->
     <string name="player_controls_label_bitrate">Bitrate</string>
     <string name="player_controls_label_decode">Decoding</string>
-    <string name="player_controls_bitrate_auto">Auto</string>
-    <string name="player_controls_bitrate_auto_caption">Server decides between direct play and transcoding</string>
-    <string name="player_controls_bitrate_original">Original quality</string>
-    <string name="player_controls_bitrate_original_caption">Direct play only, the server never transcodes</string>
-    <string name="player_controls_bitrate_caption">Requests server transcoding at this bitrate (Jellyfin quality ladder)</string>
-    <string name="player_controls_bitrate_active">Server transcoding</string>
     <string name="player_controls_decode_kernel">Player core</string>
     <string name="player_controls_decode_kernel_caption">Switches in place: position and selected tracks are kept</string>
     <string name="player_controls_decode_strategy">Decoding strategy</string>

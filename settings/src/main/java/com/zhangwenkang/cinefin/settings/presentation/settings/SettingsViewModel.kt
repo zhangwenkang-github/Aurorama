@@ -1476,7 +1476,8 @@ constructor(
                                                             preference.dependencies.all {
                                                                 appPreferences.getValue(it)
                                                             },
-                                                    value = appPreferences.getPlayerStreamingBitrate(),
+                                                    value =
+                                                        appPreferences.getPlayerStreamingBitrate(),
                                                 )
                                             }
                                             is PreferenceThemeSelector -> {

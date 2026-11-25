@@ -115,7 +115,7 @@ internal fun musicTabAfterInitialSourceLoad(
             libraryFailed &&
             albumCount == 0 &&
             playlistCount > 0 &&
-            currentTab == MusicTab.ALBUMS
+            (currentTab == MusicTab.SUGGESTIONS || currentTab == MusicTab.ALBUMS)
     ) {
         MusicTab.PLAYLISTS
     } else {

@@ -277,6 +277,57 @@ class UpdateStateStoreTest {
         )
     }
 
+    @Test
+    fun legacyReleaseStateWithoutReleaseNotesLoadsWithNullNotes() {
+        // 2.0.0 写出的 release.json 没有 releaseNotes 键；2.0.1 读取时按缺省值兜底
+        val identity = release()
+        Files.write(
+            directory.resolve("release.json").toPath(),
+            releaseJson(identity).toByteArray(Charsets.UTF_8),
+        )
+
+        val loaded = UpdateStateStore(directory).loadDiscoveredRelease()
+
+        assertTrue(loaded is UpdateStateReadResult.Present)
+        assertEquals(identity, (loaded as UpdateStateReadResult.Present).value.release)
+        assertEquals(null, loaded.value.releaseNotes)
+    }
+
+    @Test
+    fun unknownReleaseStateFieldIsReportedInvalidAndNeverThrows() {
+        // 反过来：旧版本 App（DTO 无 releaseNotes、ignoreUnknownKeys=false）读新版 release.json
+        // 会走同一条 readState 的 try/catch → Invalid，调用方按「无更新」处理，不会崩溃。
+        val identity = release()
+        val futureJson = releaseJson(identity, extraFields = ",\n  \"futureField\": true")
+        Files.write(
+            directory.resolve("release.json").toPath(),
+            futureJson.toByteArray(Charsets.UTF_8),
+        )
+
+        val loaded = UpdateStateStore(directory).loadDiscoveredRelease()
+
+        assertTrue("未知字段必须降级为 Invalid 而不是抛异常", loaded is UpdateStateReadResult.Invalid)
+    }
+
+    private fun releaseJson(
+        identity: UpdateReleaseIdentity,
+        extraFields: String = "",
+    ): String =
+        """
+        {
+          "schemaVersion": 1,
+          "releaseTag": "${identity.releaseTag}",
+          "version": "${identity.version}",
+          "assetName": "${identity.assetName}",
+          "assetSize": ${identity.assetSize},
+          "assetDigest": "${identity.assetDigest}",
+          "downloadUrl": "${identity.downloadUrl}",
+          "discoveredAtEpochMs": 100,
+          "updatedAtEpochMs": 100$extraFields
+        }
+        """
+            .trimIndent()
+
     private fun release(
         version: String = "1.4.0",
         assetName: String = "Aurorama-$version-arm64-v8a.apk",

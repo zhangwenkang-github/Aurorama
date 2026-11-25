@@ -66,22 +66,36 @@
 
 ## W5 收口与发布
 
-- LATER 池裁定 → 全量回归（T9 R1–R12 + 新增用例）→ 版本 bump 2.0.1 + RELEASE_NOTES + 签名双 APK + `verifyMpvJniReleaseContract` → push/tag/Release（用户授权）。
-- T01 移交项：真机 2.0.0→2.0.1-rc 真实升级 E2E（进度可见/安装成功/更新说明渲染取证——AVAILABLE 态只有 rc 才能构造）；注意 `StoredReleaseState` 新增 `releaseNotes` 键，旧版本 App 降级读取 release.json 会失败（仅降级场景，W5 裁定是否升 schemaVersion）。
+| 卡 | 状态 | 内容 | 验收 |
+|---|---|---|---|
+| T24 | DONE | 2.0.1 清理卡（本卡单 commit）：① 删 `BasePlayerActivity.configureInsets` 死代码（连同仅它使用的 `View` / `updatePadding` 导入；全仓零调用、零 override）；② 删 `player_controls_bitrate_*` 6 条（`values` / `values-zh-rCN`，仓内无 `values-en`）+ `ic_player_bitrate.xml`，全仓零引用；③ `bottomRowWidthDp` 核对结论=T23 已按 5 键/7 间距改好（`29f3efdc` 内 `6f→5f`、`8f→7f`），估算式 ≥ 布局实际（4 个键内距 + 2×Space2），无需再改；④ 音乐 `UiState.tab` 默认 `ALBUMS→SUGGESTIONS`（tab 无持久化，不动已存选择），同步首屏曲库失败降级口径（建议/专辑→歌单）；⑤ `StoredReleaseState` 降级兜底核对=v2.0.0 `readState` try/catch→`Invalid`，UI `as? Present` 按无更新处理不崩；降级后更新检查返回 STORAGE_ERROR（功能降级，非崩溃），schemaVersion 不升；补 2 条契约单测（旧 json 缺 `releaseNotes`→Present/notes=null；未知字段→Invalid 不抛）。顺带仅修 T23 遗留 1 行 ktfmt（`SettingsViewModel.kt:1476` 纯换行） | 六模块单测 core 530 / phone 618 / data 530 / film 228 / music 496 / settings 9 全绿、ktfmtCheck + assembleLibreDebug 绿；K60：音乐页默认「共 20 条推荐」+「最近添加」段；竖屏底栏 5 键+1×+全屏键 bounds x 19..1060（1080 内）；横屏带字 5 键（音轨/字幕/倍速/解码/详细信息）+退出全屏 x≤2351（2400 内）无溢出，无「码率」节点 |
 
-## 遗留 LATER 池（2.0.0 裁定，W5 再裁）
+- LATER 池裁定（2026-11-26 已裁，见下节）→ 全量回归（T9 R1–R12 + 新增用例 + 留档验证项）→ 版本 bump 2.0.1 + RELEASE_NOTES + 签名双 APK + `verifyMpvJniReleaseContract` → push/tag/Release（用户授权）。
+- T01 移交项：真机 2.0.0→2.0.1-rc 真实升级 E2E（进度可见/安装成功/更新说明渲染取证——AVAILABLE 态只有 rc 才能构造）。
+- 「关自动旋转横置不转」：回归阶段请用户手动关自动旋转验一次（勿用 adb 改系统设置）。
 
-A4 徽标 / A5 FAILED 同步 / A6 计数 / 对账口径 /「全部继续」/ Pad 库页离线降级。
-2.0.1 W2 新增：`FavoriteBadge.kt:28` 写死白色 tint 收敛 / 图片占位无灰底（如需底色：surfaceContainerLow 且仅加载中）/ `PlayerSettingsSnapshot` 冗余字段瘦身（T13 遗留）。
-2.0.1 W3 a 组新增：建议 tab「最常播放」真实频次需播放计数表（现=最近播放序近似）/ 专辑·艺术家·歌单 tab 排序（T14 裁定只做歌曲 tab）/ 默认 tab 是否改「建议」（W5 裁）/ 建议 tab「全选」作用域=全部歌曲（W5 裁）/ 收藏 toggle 真机验证需可写测试服（W5 回归带上）/ music 模块文案全部硬编码无 res（如需三 locale 另立卡）。
-2.0.1 W3 b 组新增：主播放键（70dp）是否改极光（现保持 onSurface，W5 裁）/ K60 横屏 Compact 播放页未复测（W5 回归带上）/ 播放页背景环境光晕未实现（§1 允许未要求，2.0.2 再议）/ `MusicRecentStore` 无更新 API（最近播放条目旧封面/名称待再播放自愈）/ 元数据刷新回读 800ms 固定延迟（慢提供器可能回读旧值，未做轮询）/ 服务器歌单「移出曲目」未做独立真机 E2E（接口已改 PlaylistItemId，W5 回归带上）。
-2.0.1 W4 新增：`BasePlayerActivity.configureInsets` 死代码删除（T21 选了 Compose 方案）/ `player_controls_bitrate_*` 字符串与 `ic_player_bitrate` 图标无引用清理（T23 遗留，可合并清理卡）/ 串流码率→实际转码流联动验证（jellyfin-test 2026-11-26 拒连，恢复后 W5 补）/ 「关自动旋转横置不转」真机验证（红线未改系统设置，SCREEN_ORIENTATION_USER 契约兜底，W5 可请用户手动关自动旋转验一次）/ Pad 锁定几何与横屏左右挖孔区控件未实测（W5 回归带上）/ 播放器底栏相关 LATER 项须按新 5 键/7 间距口径复算 `bottomRowWidthDp`。
+## 遗留 LATER 池（2026-11-26 W5 已逐条裁定）
+
+**2.0.1 修（→ T24）**：`configureInsets` 死代码 / `player_controls_bitrate_*`+`ic_player_bitrate` 清理 / `bottomRowWidthDp` 复算 / 默认 tab 改「建议」 / `StoredReleaseState` 降级兜底核对（兜底在则 schemaVersion 不升）。
+
+**不修（终裁，理由）**：
+- `FavoriteBadge.kt:28` 写死白色 tint——`BaseBadge` 即 §8.9 中性徽标规范（黑 62% 底+白 12% 描边，明示不用媒体色），白图标是该规范的一部分，属媒体面例外，非偏差。
+- 图片占位无灰底——定稿未要求，占位图标可辨，加底色需新视觉验证收益低。
+- 建议 tab「全选」作用域=全部歌曲——批量条语义=当前库全量，与下载前置框一致；建议段 20 条可长按多选代替。
+- 主播放键（70dp）保持 onSurface——定稿 §4.5 未要求；播放页极光已覆盖进度/传输键/歌词高亮/当前曲目，主键保持中性作视觉锚点，避免满屏极光。
+- `MusicRecentStore` 无更新 API——最近播放旧封面/名称待再播放自愈，既有架构约束。
+- 元数据回读 800ms 固定延迟——保守只读口径已定，轮询增复杂度；慢提供器场景下一次手动刷新可纠正。
+- T02b policy 补查未节流——低频导航触发，安全语义优先。
+
+**DEFERRED 2.0.2**：A4 旧记录徽标判定（identity 命名空间并案）/ A5 FAILED 态同步（P2）/ A6 下载计数跳变（P2 未复现）/ 对账口径 /「全部继续」/ Pad 库页离线降级 / `PlayerSettingsSnapshot` 冗余字段瘦身 / 建议 tab 真实播放频次（需计数表）/ 专辑·艺术家·歌单 tab 排序 / music 模块文案三 locale / 播放页环境光晕。
+
+**W5 回归项（不留档，本次做掉）**：串流码率→实际转码流联动（jellyfin-test 2026-11-26 已恢复 302）/ 收藏 toggle 测试服验证 / 服务器歌单「移出曲目」E2E / Pad 锁定几何+横屏挖孔区控件 / K60 横屏 Compact 播放页复测 /「关自动旋转横置不转」用户手动验。
 
 ## 过程日志（只留最近 ~5 条）
 
+- 2026-11-26：**W5-T24 清理卡 DONE**（本卡单 commit）——删 `configureInsets` 死代码、码率残留资源（6 串+1 图标）、`bottomRowWidthDp` 核对已 5 键/7 间距、音乐默认 tab 改「建议」（含首屏降级分支）、`StoredReleaseState` 降级兜底核对+2 契约单测；顺带修 T23 遗留 1 行 ktfmt。六模块单测全绿，K60 取证绿。
 - 2026-11-26：**W4 全波次收官**——T21 `8d5f8213`（竖屏顶栏 safeDrawing 下移）、T22 `4b7392c4`（锁定解锁根因=容器高≠画面区中点，改实测矩形回传；旋转口径 USER）、T23 `29f3efdc`（码率迁设置页+删播放器内面板，底栏 6→5 键）。HEAD=`29f3efdc`，三卡 K60 取证绿；留档 jellyfin-test 拒连（码率联动 W5 补）等 6 项入 LATER 池。
 - 2026-11-25：**W3 全波次收官**——T17 `4e391eb5`+`8c283888`（队列追加语义+快照就近迁移+RELEASE_NOTES 首条）、T18 `6e71a8b8`（播放页单入口/隐藏底栏/封面取色撤销回极光）、T20 `f7c1e8b2`（元数据手动刷新+只读保守补取）、T19 `d29bd6b0`（服务器歌单改名/删除/换位；修 PlaylistItemId 误用 bug）。W3 七卡全 DONE，全程 K60/Pad 取证绿、测试服无残留。
 - 2026-11-25：**W3 a 组收官**——T14/T15/T16 串行 resume 派同一子代理全 DONE（`8aa7d705`+`2cd7f0cd` / `00eb1cdf`+`748d76c0` / `5efbf784`）。
 - 2026-11-25：**W2 收官**——T13 `22988cf2` + T10 `78df3ed7`；T09 批② `c9cb41c9` + 批③ `cd9d6ad0` + T11 `e3bafa2e` + T12 `ddf91d75`。W2 五卡全绿。
-- 2026-11-25：W1 收官——T01–T08 全 DONE（`a4b6ed4f`/`56202e2d`/`52d57030`/`c7e6f2ff`+`84e7b800`/`71a15850`/`0ed6cf41`/`c014f948`/`93b2697b`/`9bc5693c`）。
 - 2026-11-24：W0 全波次收官——D2 设计定稿 `docs/V201_DESIGN_FINAL.md`，D3 master 对齐 v2.0.0。
