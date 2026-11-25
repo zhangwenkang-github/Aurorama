@@ -2942,6 +2942,25 @@ constructor(
         }
     }
 
+    /**
+     * W3-T15：上下文菜单队列动作统一入口——插入位置由 [musicSongQueueInsertion] 决定，队列语义与既有方法一致 （[playNext] 插队首 /
+     * [enqueueSongAtEnd] 排队尾），本卡不改队列语义（T17 才改 playSong）。
+     */
+    fun enqueueSongForAction(song: MusicSong, action: MusicSongAction) {
+        when (musicSongQueueInsertion(action)) {
+            MusicQueueInsertion.UP_NEXT_HEAD -> playNext(song)
+            MusicQueueInsertion.UP_NEXT_TAIL -> enqueueSongAtEnd(song)
+            null -> Unit
+        }
+    }
+
+    /** W3-T15：曲目上下文菜单「查看专辑」——按当前曲库聚合定位所属专辑（找不到时静默忽略，与 [openArtistByName] 同口径）。 */
+    fun openAlbumOfSong(song: MusicSong) {
+        val state = _uiState.value
+        val album = findMusicAlbum(state.albums, state.songs, song.albumName) ?: return
+        openAlbum(album)
+    }
+
     /** W5 T1（MUSIC-47 配套）：工具栏「多选」入口——进入多选态（空选）；长按曲目改为上下文菜单，不再进多选。 */
     fun enterBatchSelection() {
         if (_batchSelectionState.value.selection.selectionMode) return

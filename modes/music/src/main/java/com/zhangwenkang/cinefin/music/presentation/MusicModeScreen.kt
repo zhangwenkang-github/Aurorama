@@ -97,6 +97,7 @@ import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -109,7 +110,6 @@ import androidx.compose.ui.semantics.onClick as semanticsOnClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -654,31 +654,13 @@ fun MusicModeScreen(
                                 showSourceBadge = state.showSourceBadge,
                                 batchSelection = batchSelection,
                                 onSongClick = viewModel::playSong,
-                                onPlayNext = viewModel::playNext,
                                 onToggleFavorite = viewModel::toggleFavorite,
-                                onToggleDownload = requestSongDownload,
                                 onSongLongPress = { song -> contextSong = song },
                                 onBatchToggle = viewModel::onBatchToggle,
                                 onDownloadAlbum = requestAlbumDownload,
                                 albumMissingCount = viewModel::albumDownloadMissingCount,
                                 onAddToLocalPlaylist = { song ->
                                     pendingPlaylistSongs = listOf(song)
-                                },
-                                onMoveLocalEntry = { song, targetPosition ->
-                                    val detail = state.detail as? MusicDetail.Playlist
-                                    val playlistId = detail?.playlist?.id
-                                    val entryId = song.playlistEntryId
-                                    if (
-                                        playlistId != null &&
-                                            detail.playlist.kind == MusicPlaylistKind.LOCAL &&
-                                            entryId != null
-                                    ) {
-                                        viewModel.moveLocalPlaylistEntry(
-                                            playlistId,
-                                            entryId,
-                                            targetPosition,
-                                        )
-                                    }
                                 },
                                 onExportLocalPlaylist = viewModel::exportLocalPlaylist,
                             )
@@ -693,9 +675,7 @@ fun MusicModeScreen(
                                 onArtistClick = viewModel::openArtist,
                                 onPlaylistClick = viewModel::openPlaylist,
                                 onSongClick = viewModel::playSong,
-                                onPlayNext = viewModel::playNext,
                                 onToggleFavorite = viewModel::toggleFavorite,
-                                onToggleDownload = requestSongDownload,
                                 onSongLongPress = { song -> contextSong = song },
                                 onBatchToggle = viewModel::onBatchToggle,
                                 onAlbumBatchLongPress = viewModel::onAlbumBatchLongPress,
@@ -942,36 +922,80 @@ fun MusicModeScreen(
         val contextSheetSong = contextSong
         if (contextSheetSong != null) {
             val contextDownloadStatus = songDownloadState.activeStatus(contextSheetSong)
+            val contextDownloadAction =
+                songDownloadMenuAction(
+                    downloaded = songDownloadState.isDownloaded(contextSheetSong),
+                    activeStatus = contextDownloadStatus,
+                    fromLocalLibrary = contextSheetSong.localUri != null,
+                )
+            // W3-T15：歌单详情（本地歌单）内追加「上移 / 下移」，位置按当前详情列表实时计算。
+            val contextPlaylist =
+                (state.detail as? MusicDetail.Playlist)?.takeIf { detail ->
+                    detail.playlist.kind == MusicPlaylistKind.LOCAL
+                }
+            val contextPlaylistIndex =
+                contextPlaylist?.songs?.indexOfFirst { song ->
+                    song.playlistSelectionKey() == contextSheetSong.playlistSelectionKey()
+                } ?: -1
+            val contextActions =
+                musicSongMenuActions(
+                    showAddToPlaylist = true,
+                    showDownload = songContextDownloadLabel(contextDownloadAction) != null,
+                    showViewAlbum =
+                        contextSheetSong.albumName.isNotBlank() &&
+                            !contextSheetSong.isPlaylistPlaceholder,
+                    showViewArtist = !contextSheetSong.artist.isNullOrBlank(),
+                    canMoveUp = contextPlaylistIndex > 0,
+                    canMoveDown =
+                        contextPlaylist != null &&
+                            contextPlaylistIndex >= 0 &&
+                            contextPlaylistIndex < contextPlaylist.songs.lastIndex,
+                    showAudioInfo = true,
+                )
             SongContextSheet(
                 song = contextSheetSong,
-                downloadAction =
-                    songDownloadMenuAction(
-                        downloaded = songDownloadState.isDownloaded(contextSheetSong),
-                        activeStatus = contextDownloadStatus,
-                        fromLocalLibrary = contextSheetSong.localUri != null,
-                    ),
+                actions = contextActions,
+                downloadAction = contextDownloadAction,
                 downloadStatus = contextDownloadStatus,
                 onDismiss = { contextSong = null },
-                onPlayNext = {
+                onAction = { action ->
                     contextSong = null
-                    viewModel.playNext(contextSheetSong)
-                },
-                onEnqueueAtEnd = {
-                    contextSong = null
-                    viewModel.enqueueSongAtEnd(contextSheetSong)
-                },
-                onAddToPlaylist = {
-                    contextSong = null
-                    pendingPlaylistSongs = listOf(contextSheetSong)
-                },
-                onDownload = {
-                    contextSong = null
-                    requestSongDownload(contextSheetSong)
-                },
-                // 音频信息（MUSIC-34）：W5-T6 起启用（设计定稿一 §1）
-                onAudioInfo = {
-                    contextSong = null
-                    audioInfo = viewModel.audioInfoFor(contextSheetSong)
+                    when (action) {
+                        MusicSongAction.PLAY -> viewModel.playSong(contextSheetSong)
+                        MusicSongAction.PLAY_NEXT,
+                        MusicSongAction.ENQUEUE ->
+                            viewModel.enqueueSongForAction(contextSheetSong, action)
+                        MusicSongAction.ADD_TO_PLAYLIST ->
+                            pendingPlaylistSongs = listOf(contextSheetSong)
+                        MusicSongAction.FAVORITE -> viewModel.toggleFavorite(contextSheetSong)
+                        MusicSongAction.DOWNLOAD -> requestSongDownload(contextSheetSong)
+                        MusicSongAction.VIEW_ALBUM -> viewModel.openAlbumOfSong(contextSheetSong)
+                        MusicSongAction.VIEW_ARTIST ->
+                            contextSheetSong.artist?.let(viewModel::openArtistByName)
+                        // T20：接入刷新元数据
+                        MusicSongAction.REFRESH_METADATA ->
+                            exchangeScope.launch { snackbarHostState.showSnackbar("该功能将在后续版本提供") }
+                        // 音频信息（MUSIC-34）：W5-T6 起启用（设计定稿一 §1）
+                        MusicSongAction.AUDIO_INFO -> {
+                            audioInfo = viewModel.audioInfoFor(contextSheetSong)
+                        }
+                        MusicSongAction.MOVE_UP,
+                        MusicSongAction.MOVE_DOWN -> {
+                            val playlistId = contextPlaylist?.playlist?.id
+                            val entryId = contextSheetSong.playlistEntryId
+                            if (
+                                playlistId != null && entryId != null && contextPlaylistIndex >= 0
+                            ) {
+                                val target =
+                                    if (action == MusicSongAction.MOVE_UP) {
+                                        contextPlaylistIndex - 1
+                                    } else {
+                                        contextPlaylistIndex + 1
+                                    }
+                                viewModel.moveLocalPlaylistEntry(playlistId, entryId, target)
+                            }
+                        }
+                    }
                 },
             )
         }
@@ -1837,9 +1861,7 @@ private fun LibraryPane(
     onArtistClick: (MusicArtist) -> Unit,
     onPlaylistClick: (MusicPlaylist) -> Unit,
     onSongClick: (MusicSong) -> Unit,
-    onPlayNext: (MusicSong) -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
-    onToggleDownload: (MusicSong) -> Unit,
     onBatchToggle: (MusicSong) -> Unit,
     onSongLongPress: (MusicSong) -> Unit = {},
     onAlbumBatchLongPress: (MusicAlbum) -> Unit = {},
@@ -1867,9 +1889,7 @@ private fun LibraryPane(
                 showSourceBadge = showSourceBadge,
                 batchSelection = batchSelection,
                 onSongClick = onSongClick,
-                onPlayNext = onPlayNext,
                 onToggleFavorite = onToggleFavorite,
-                onToggleDownload = onToggleDownload,
                 onBatchToggle = onBatchToggle,
                 onSongLongPress = onSongLongPress,
                 onAddToLocalPlaylist = onAddToLocalPlaylist,
@@ -1909,9 +1929,7 @@ private fun LibraryPane(
                             showSourceBadge = showSourceBadge,
                             batchSelection = batchSelection,
                             onSongClick = onSongClick,
-                            onPlayNext = onPlayNext,
                             onToggleFavorite = onToggleFavorite,
-                            onToggleDownload = onToggleDownload,
                             onSongLongPress = onSongLongPress,
                             onBatchToggle = onBatchToggle,
                             onAddToLocalPlaylist = onAddToLocalPlaylist,
@@ -1952,9 +1970,7 @@ private fun SuggestionPane(
     showSourceBadge: Boolean,
     batchSelection: MultiSelectState,
     onSongClick: (MusicSong) -> Unit,
-    onPlayNext: (MusicSong) -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
-    onToggleDownload: (MusicSong) -> Unit,
     onBatchToggle: (MusicSong) -> Unit,
     onSongLongPress: (MusicSong) -> Unit,
     onAddToLocalPlaylist: ((MusicSong) -> Unit)?,
@@ -1984,11 +2000,9 @@ private fun SuggestionPane(
             itemsIndexed(
                 items = section.songs,
                 key = { index, song -> "${section.title}-$index-${song.itemId}" },
-            ) { index, song ->
+            ) { _, song ->
                 SongListRow(
                     song = song,
-                    index = index,
-                    lastIndex = section.songs.lastIndex,
                     currentItemId = currentItemId,
                     albumArtwork = albumArtwork,
                     showAlbum = true,
@@ -1996,14 +2010,10 @@ private fun SuggestionPane(
                     showSourceBadge = showSourceBadge,
                     batchSelection = batchSelection,
                     onSongClick = onSongClick,
-                    onPlayNext = onPlayNext,
                     onToggleFavorite = onToggleFavorite,
-                    onToggleDownload = onToggleDownload,
                     onBatchToggle = onBatchToggle,
                     onSongLongPress = onSongLongPress,
                     onAddToLocalPlaylist = onAddToLocalPlaylist,
-                    onMoveUp = null,
-                    onMoveDown = null,
                 )
             }
         }
@@ -2060,15 +2070,12 @@ private fun DetailPane(
     showSourceBadge: Boolean,
     batchSelection: MultiSelectState,
     onSongClick: (MusicSong) -> Unit,
-    onPlayNext: (MusicSong) -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
-    onToggleDownload: (MusicSong) -> Unit,
     onBatchToggle: (MusicSong) -> Unit,
     onSongLongPress: (MusicSong) -> Unit = {},
     onDownloadAlbum: () -> Unit = {},
     albumMissingCount: () -> Int? = { null },
     onAddToLocalPlaylist: ((MusicSong) -> Unit)? = null,
-    onMoveLocalEntry: (MusicSong, Int) -> Unit = { _, _ -> },
     onExportLocalPlaylist: (UUID, PlaylistExchangeFormat) -> Unit = { _, _ -> },
 ) {
     if (
@@ -2094,24 +2101,10 @@ private fun DetailPane(
                 else -> "这里还没有可播放的曲目"
             },
         onSongClick = onSongClick,
-        onPlayNext = onPlayNext,
         onToggleFavorite = onToggleFavorite,
-        onToggleDownload = onToggleDownload,
         onBatchToggle = onBatchToggle,
         onSongLongPress = onSongLongPress,
         onAddToLocalPlaylist = onAddToLocalPlaylist,
-        onMoveUp =
-            if (detail is MusicDetail.Playlist && detail.playlist.kind == MusicPlaylistKind.LOCAL) {
-                { song, index -> onMoveLocalEntry(song, index - 1) }
-            } else {
-                null
-            },
-        onMoveDown =
-            if (detail is MusicDetail.Playlist && detail.playlist.kind == MusicPlaylistKind.LOCAL) {
-                { song, index -> onMoveLocalEntry(song, index + 1) }
-            } else {
-                null
-            },
         header =
             when {
                 detail is MusicDetail.Album -> {
@@ -2443,14 +2436,10 @@ private fun SongList(
     showSourceBadge: Boolean = true,
     batchSelection: MultiSelectState = MultiSelectState(),
     onSongClick: (MusicSong) -> Unit,
-    onPlayNext: (MusicSong) -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
-    onToggleDownload: (MusicSong) -> Unit = {},
     onBatchToggle: (MusicSong) -> Unit = {},
     onSongLongPress: (MusicSong) -> Unit = {},
     onAddToLocalPlaylist: ((MusicSong) -> Unit)? = null,
-    onMoveUp: ((MusicSong, Int) -> Unit)? = null,
-    onMoveDown: ((MusicSong, Int) -> Unit)? = null,
 ) {
     if (songs.isEmpty()) {
         EmptyHint(title = emptyTitle, message = emptyMessage)
@@ -2572,12 +2561,9 @@ private fun SongList(
             item(key = "song-list-header") { header() }
         }
         // 歌单允许同一首曲目出现多次，key 里带序号避免重复 key 崩溃
-        itemsIndexed(items = songs, key = { index, song -> "$index-${song.itemId}" }) { index, song
-            ->
+        itemsIndexed(items = songs, key = { index, song -> "$index-${song.itemId}" }) { _, song ->
             SongListRow(
                 song = song,
-                index = index,
-                lastIndex = songs.lastIndex,
                 currentItemId = currentItemId,
                 albumArtwork = albumArtwork,
                 showAlbum = showAlbum,
@@ -2585,25 +2571,19 @@ private fun SongList(
                 showSourceBadge = showSourceBadge,
                 batchSelection = batchSelection,
                 onSongClick = onSongClick,
-                onPlayNext = onPlayNext,
                 onToggleFavorite = onToggleFavorite,
-                onToggleDownload = onToggleDownload,
                 onBatchToggle = onBatchToggle,
                 onSongLongPress = onSongLongPress,
                 onAddToLocalPlaylist = onAddToLocalPlaylist,
-                onMoveUp = onMoveUp,
-                onMoveDown = onMoveDown,
             )
         }
     }
 }
 
-/** 歌曲行（W3-T14 抽出公共调用点）：歌曲 Tab 与「建议」Tab 共用同一行渲染，`SongRow` 本体不动。 */
+/** 歌曲行（W3-T14 抽出公共调用点，W3-T15 收敛为「行 + 统一上下文菜单」）：歌曲 Tab / 详情 / 「建议」Tab 共用同一行渲染。 */
 @Composable
 private fun SongListRow(
     song: MusicSong,
-    index: Int,
-    lastIndex: Int,
     currentItemId: UUID?,
     albumArtwork: Map<String, String>,
     showAlbum: Boolean,
@@ -2611,14 +2591,10 @@ private fun SongListRow(
     showSourceBadge: Boolean,
     batchSelection: MultiSelectState,
     onSongClick: (MusicSong) -> Unit,
-    onPlayNext: (MusicSong) -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
-    onToggleDownload: (MusicSong) -> Unit,
     onBatchToggle: (MusicSong) -> Unit,
     onSongLongPress: (MusicSong) -> Unit,
     onAddToLocalPlaylist: ((MusicSong) -> Unit)?,
-    onMoveUp: ((MusicSong, Int) -> Unit)?,
-    onMoveDown: ((MusicSong, Int) -> Unit)?,
 ) {
     val downloadStatus = downloadState.activeStatus(song)
     val downloadAction =
@@ -2628,7 +2604,6 @@ private fun SongListRow(
             fromLocalLibrary = song.localUri != null,
         )
     SongRow(
-        index = index + 1,
         song = song,
         artworkUri =
             resolveSongArtworkUri(
@@ -2639,7 +2614,6 @@ private fun SongListRow(
         subtitle = if (showAlbum) song.albumName else null,
         isCurrent = song.itemId == currentItemId,
         downloadLabel = songDownloadStatusLabel(downloadAction, downloadStatus),
-        downloadMenuItem = songDownloadMenuLabel(downloadAction),
         sourceBadge =
             when {
                 song.isPlaylistPlaceholder -> "不可用"
@@ -2655,43 +2629,45 @@ private fun SongListRow(
             // W5 T1 · MUSIC-47：长按 = 上下文菜单；多选态内仍按切换选中处理
             if (batchSelection.selectionMode) onBatchToggle(song) else onSongLongPress(song)
         },
-        onPlayNext = { onPlayNext(song) },
+        onOpenActions = { onSongLongPress(song) },
         onToggleFavorite = { onToggleFavorite(song) },
-        onToggleDownload = { onToggleDownload(song) },
-        onAddToLocalPlaylist = onAddToLocalPlaylist?.let { callback -> { callback(song) } },
-        onMoveUp = onMoveUp?.takeIf { index > 0 }?.let { callback -> { callback(song, index) } },
-        onMoveDown =
-            onMoveDown?.takeIf { index < lastIndex }?.let { callback -> { callback(song, index) } },
+        onAddToPlaylist = onAddToLocalPlaylist?.let { callback -> { callback(song) } },
     )
 }
 
+/**
+ * 歌曲行（W3-T15 · §4.2）。
+ *
+ * 布局：左侧只有 40dp 封面（序号列已删除）；右侧操作区按宽度档位—— compact（<600dp）= 收藏（heart）+ ⋮；≥600dp = 加歌单 / 收藏 / ⋮。 ⋮
+ * 与长按共用同一份上下文菜单（[onOpenActions] / [onLongClick] 都由调用方接到同一个 sheet），行内不再有第二份菜单。 当前曲目标题着色 =
+ * `aurora1`（[titleColor]），不再随封面取色。
+ */
 @Composable
 private fun SongRow(
-    index: Int,
     song: MusicSong,
     artworkUri: String?,
     subtitle: String?,
     isCurrent: Boolean,
     downloadLabel: String?,
-    downloadMenuItem: String?,
     sourceBadge: String?,
     selectionMode: Boolean,
     selected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    onPlayNext: () -> Unit,
+    onOpenActions: () -> Unit,
     onToggleFavorite: () -> Unit,
-    onToggleDownload: () -> Unit,
-    onAddToLocalPlaylist: (() -> Unit)?,
-    onMoveUp: (() -> Unit)?,
-    onMoveDown: (() -> Unit)?,
+    onAddToPlaylist: (() -> Unit)?,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
-    var menuOpen by remember { mutableStateOf(false) }
     val songActionsLabel = stringResource(MusicSongActionsAccessibility.contentDescriptionRes)
+    val rowActions =
+        musicSongRowActions(
+            wideLayout = musicSongRowWideLayout(LocalConfiguration.current.screenWidthDp),
+            canAddToPlaylist = onAddToPlaylist != null,
+        )
     CinefinListRow(
         title = song.name,
+        titleColor = if (isCurrent) colors.aurora1 else null,
         badge = sourceBadge,
         secondary =
             listOfNotNull(subtitle, downloadLabel, formatDuration(song.runtimeTicks))
@@ -2703,112 +2679,48 @@ private fun SongRow(
         selected = selected,
         onClick = onClick,
         onLongClick = onLongClick,
-        leading = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                ArtworkThumb(imageUri = artworkUri, title = song.name, size = 40.dp)
-                Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
-                Text(
-                    text = songRowIndexLabel(index),
-                    style = CinefinType.MonoDataSmall,
-                    color = if (isCurrent) media.bright else colors.onSurfaceFaint,
-                    modifier = Modifier.widthIn(min = 22.dp),
-                    maxLines = 1,
-                    softWrap = false,
-                    textAlign = TextAlign.End,
-                )
-            }
-        },
+        leading = { ArtworkThumb(imageUri = artworkUri, title = song.name, size = 40.dp) },
         trailing = {
-            Box {
-                CinefinIconButton(onClick = { menuOpen = true }) { tint ->
-                    Box(
-                        modifier =
-                            Modifier.clearAndSetSemantics { contentDescription = songActionsLabel }
-                    ) {
-                        Text(text = "⋮", style = CinefinType.TitleMedium, color = tint)
-                    }
-                }
-                DropdownMenu(
-                    expanded = menuOpen,
-                    onDismissRequest = { menuOpen = false },
-                    shape = CinefinShapes.Button,
-                    containerColor = colors.surfaceContainerHighest,
-                    tonalElevation = 0.dp,
-                    shadowElevation = 0.dp,
-                ) {
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = "下一首播放",
-                                style = CinefinType.BodyMedium,
-                                color = colors.onSurface,
-                            )
-                        },
-                        onClick = {
-                            menuOpen = false
-                            onPlayNext()
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = if (song.isFavorite) "取消收藏" else "收藏",
-                                style = CinefinType.BodyMedium,
-                                color = colors.onSurface,
-                            )
-                        },
-                        onClick = {
-                            menuOpen = false
-                            onToggleFavorite()
-                        },
-                    )
-                    if (onAddToLocalPlaylist != null) {
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = "加入歌单",
-                                    style = CinefinType.BodyMedium,
-                                    color = colors.onSurface,
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                rowActions.forEach { action ->
+                    when (action) {
+                        MusicSongRowAction.ADD_TO_PLAYLIST ->
+                            CinefinIconButton(onClick = { onAddToPlaylist?.invoke() }) { tint ->
+                                Icon(
+                                    painter = painterResource(CoreR.drawable.ic_plus),
+                                    contentDescription = "加入歌单",
+                                    tint = tint,
+                                    modifier = Modifier.size(20.dp),
                                 )
-                            },
-                            onClick = {
-                                menuOpen = false
-                                onAddToLocalPlaylist()
-                            },
-                        )
-                    }
-                    if (onMoveUp != null) {
-                        DropdownMenuItem(
-                            text = { Text("上移") },
-                            onClick = {
-                                menuOpen = false
-                                onMoveUp()
-                            },
-                        )
-                    }
-                    if (onMoveDown != null) {
-                        DropdownMenuItem(
-                            text = { Text("下移") },
-                            onClick = {
-                                menuOpen = false
-                                onMoveDown()
-                            },
-                        )
-                    }
-                    if (downloadMenuItem != null) {
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = downloadMenuItem,
-                                    style = CinefinType.BodyMedium,
-                                    color = colors.onSurface,
+                            }
+                        MusicSongRowAction.FAVORITE ->
+                            CinefinIconButton(onClick = onToggleFavorite) { tint ->
+                                Icon(
+                                    painter =
+                                        painterResource(
+                                            if (song.isFavorite) CoreR.drawable.ic_heart_filled
+                                            else CoreR.drawable.ic_heart
+                                        ),
+                                    contentDescription = if (song.isFavorite) "取消收藏" else "收藏",
+                                    tint = if (song.isFavorite) colors.aurora1 else tint,
+                                    modifier = Modifier.size(20.dp),
                                 )
-                            },
-                            onClick = {
-                                menuOpen = false
-                                onToggleDownload()
-                            },
-                        )
+                            }
+                        MusicSongRowAction.MORE ->
+                            CinefinIconButton(onClick = onOpenActions) { tint ->
+                                Box(
+                                    modifier =
+                                        Modifier.clearAndSetSemantics {
+                                            contentDescription = songActionsLabel
+                                        }
+                                ) {
+                                    Text(
+                                        text = "⋮",
+                                        style = CinefinType.TitleMedium,
+                                        color = tint,
+                                    )
+                                }
+                            }
                     }
                 }
             }
@@ -3371,23 +3283,20 @@ private fun MusicBatchDeleteDialog(
 }
 
 /**
- * 曲目长按上下文菜单（W5 T1 · MUSIC-47）：`ModalBottomSheet` 容器与队列面板同参数（`surfaceContainer` + 拖拽柄）。
+ * 曲目上下文菜单（W5 T1 · MUSIC-47 容器；W3-T15 收敛为**唯一一份菜单**，长按与行内 ⋮ 共用）。
  *
- * 五动作：播放下一首 / 加到队尾 / 加入播放列表 / 音频信息（W5-T6 起启用，[onAudioInfo] 传 null 时不渲染）/ 下载 ·
- * 离线。多选批量模式改由工具栏「多选」入口进入，长按不再进多选。
+ * `ModalBottomSheet` 容器与队列面板同参数（`surfaceContainer` + 拖拽柄）；动作顺序与可见性由 [musicSongMenuActions]
+ * 纯函数给出（§4.2 官方全量 + 既有音频信息 + 歌单详情上移/下移）。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SongContextSheet(
     song: MusicSong,
+    actions: List<MusicSongAction>,
     downloadAction: SongDownloadMenuAction,
     downloadStatus: DownloadTaskStatus?,
     onDismiss: () -> Unit,
-    onPlayNext: () -> Unit,
-    onEnqueueAtEnd: () -> Unit,
-    onAddToPlaylist: () -> Unit,
-    onDownload: () -> Unit,
-    onAudioInfo: (() -> Unit)? = null,
+    onAction: (MusicSongAction) -> Unit,
 ) {
     val colors = LocalCinefinColors.current
     ModalBottomSheet(
@@ -3431,41 +3340,46 @@ private fun SongContextSheet(
                 }
             }
             Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
-            SongContextAction(
-                icon = CoreR.drawable.ic_skip_forward,
-                label = "播放下一首",
-                onClick = onPlayNext,
-            )
-            SongContextAction(
-                icon = CoreR.drawable.ic_playlist,
-                label = "加到队尾",
-                onClick = onEnqueueAtEnd,
-            )
-            SongContextAction(
-                icon = CoreR.drawable.ic_plus,
-                label = "加入歌单",
-                onClick = onAddToPlaylist,
-            )
-            // 音频信息（MUSIC-34）：W5-T6 起启用
-            if (onAudioInfo != null) {
+            actions.forEach { action ->
+                val label =
+                    musicSongActionLabel(
+                        action = action,
+                        isFavorite = song.isFavorite,
+                        downloadLabel = songContextDownloadLabel(downloadAction),
+                    ) ?: return@forEach
                 SongContextAction(
-                    icon = CoreR.drawable.ic_info,
-                    label = "音频信息",
-                    onClick = onAudioInfo,
-                )
-            }
-            val contextDownloadLabel = songContextDownloadLabel(downloadAction)
-            if (contextDownloadLabel != null) {
-                SongContextAction(
-                    icon = CoreR.drawable.ic_download,
-                    label = contextDownloadLabel,
-                    trailing = songContextDownloadTrailing(downloadAction, downloadStatus),
-                    onClick = onDownload,
+                    icon = musicSongActionIcon(action, song.isFavorite),
+                    label = label,
+                    trailing =
+                        if (action == MusicSongAction.DOWNLOAD) {
+                            songContextDownloadTrailing(downloadAction, downloadStatus)
+                        } else {
+                            null
+                        },
+                    onClick = { onAction(action) },
                 )
             }
         }
     }
 }
+
+/** W3-T15：菜单动作图标（沿用 core 既有 drawable，不新增素材）。 */
+private fun musicSongActionIcon(action: MusicSongAction, isFavorite: Boolean): Int =
+    when (action) {
+        MusicSongAction.PLAY -> CoreR.drawable.ic_play
+        MusicSongAction.PLAY_NEXT -> CoreR.drawable.ic_skip_forward
+        MusicSongAction.ENQUEUE -> CoreR.drawable.ic_playlist
+        MusicSongAction.ADD_TO_PLAYLIST -> CoreR.drawable.ic_plus
+        MusicSongAction.FAVORITE ->
+            if (isFavorite) CoreR.drawable.ic_heart_filled else CoreR.drawable.ic_heart
+        MusicSongAction.DOWNLOAD -> CoreR.drawable.ic_download
+        MusicSongAction.VIEW_ALBUM -> CoreR.drawable.ic_music
+        MusicSongAction.VIEW_ARTIST -> CoreR.drawable.ic_user
+        MusicSongAction.REFRESH_METADATA -> CoreR.drawable.ic_rotate_ccw
+        MusicSongAction.AUDIO_INFO -> CoreR.drawable.ic_info
+        MusicSongAction.MOVE_UP -> CoreR.drawable.ic_chevron_up
+        MusicSongAction.MOVE_DOWN -> CoreR.drawable.ic_chevron_down
+    }
 
 @Composable
 private fun SongContextAction(

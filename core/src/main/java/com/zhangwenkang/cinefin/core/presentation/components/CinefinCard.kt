@@ -272,6 +272,12 @@ fun CinefinListRow(
     trailing: (@Composable () -> Unit)? = null,
     /** W37 在线融合：标题后的来源徽标（如「本地」）；null = 不显示。 */
     badge: String? = null,
+    /**
+     * W3-T15：标题文字色覆盖（null = [CinefinColors.onSurface]）。
+     *
+     * 目前唯一消费方 = 音乐歌曲行的「当前曲目」着色（`aurora1`，见 V201_DESIGN_FINAL §4.2）；其它调用方不传，行为不变。
+     */
+    titleColor: Color? = null,
 ) {
     val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
@@ -320,7 +326,7 @@ fun CinefinListRow(
                     Text(
                         text = title,
                         style = CinefinType.TitleMedium,
-                        color = colors.onSurface,
+                        color = titleColor ?: colors.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
