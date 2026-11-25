@@ -6,7 +6,8 @@ import androidx.compose.ui.graphics.Color
  * 极光幕配色：墨底、宣纸白、朱砂印。
  *
  * 已废弃：仅为冻结的 `app/tv` 保留（[ColorDark] / [ColorLight] / [Yellow]），phone 端零引用； 新代码请走 [CinefinThemes]
- * 注册表与 [CinefinColors]。
+ * 注册表与 [CinefinColors]。黄铜 `#C9A227`（[ColorDark.tertiaryDark] / [Yellow]）仅 TV 保留，phone 禁止引用（2.0.1 定稿
+ * §1 裁定 9）。
  *
  * 取色只有一条规则——**画面即色彩**。海报与剧照承担全部饱和度， 界面自身退进墨、纸、发丝线三种中性色；唯一的强调色朱砂只表示一件事： 接下来要看的内容（继续观看、播放、当前选中项）。
  * 因此这一层不再引入第二种彩色强调色，层级靠明度与发丝线区分。
@@ -65,7 +66,7 @@ data object ColorDark {
     val secondaryContainerDark = Color(0xFF2A2B2E)
     val onSecondaryContainerDark = Color(0xFFE8E2D9)
 
-    // 黄铜：极少量点缀（评分、徽标）
+    // 黄铜（#C9A227）：仅 TV 保留，phone 禁止引用（2.0.1 定稿 §1 裁定 9：phone 评分徽标改极光淡色 pill）
     val tertiaryDark = Color(0xFFC9A227)
     val onTertiaryDark = Color(0xFF2A2100)
     val tertiaryContainerDark = Color(0xFF3D3210)
@@ -98,4 +99,5 @@ data object ColorDark {
     val surfaceContainerHighestDark = Color(0xFF23262A)
 }
 
+/** 黄铜：仅 TV 保留，phone 禁止引用（2.0.1 定稿 §1 裁定 9）。 */
 val Yellow = Color(0xFFC9A227)

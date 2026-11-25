@@ -6,12 +6,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
-import com.zhangwenkang.cinefin.core.presentation.theme.ColorDark
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
@@ -36,9 +36,8 @@ fun communityRatingBadgeText(item: FindroidItem): String? =
 /**
  * 评分徽标——设计定稿位置：海报**左下角**（进度条上方，与右上角标区不冲突）。
  *
- * 形态复用 [BaseBadge]（§8.9 中性黑底 + 白 12% 描边）；文字色为设计指定的评分/徽标黄铜 token （`Color.kt:68` 的
- * `ColorDark.tertiaryDark`）。phone 的 [CinefinColors] 未暴露该槽位（M3 `tertiary` 是内容域媒体色）， 因此按定稿直接引用该既有
- * token，不新增任何色值；徽标底恒为黑，暗色黄铜在明暗主题下都成立。
+ * 形态复用 [BaseBadge]（§8.9 的形状、留白与描边）；配色按 2.0.1 定稿 §2 批①（AUDIT-17）：极光淡色 pill = `aurora1` 12% 底 +
+ * `aurora1` 文字，黄铜（TV 专用的 `ColorDark.tertiaryDark`）退出 phone。
  */
 @Composable
 fun BoxScope.CommunityRatingBadge(
@@ -49,26 +48,20 @@ fun BoxScope.CommunityRatingBadge(
     bottomInset: Dp = 0.dp,
 ) {
     val text = communityRatingBadgeText(item) ?: return
+    val colors = LocalCinefinColors.current
     BaseBadge(
         modifier =
             modifier
                 .align(Alignment.BottomStart)
-                .padding(start = cornerPadding, bottom = cornerPadding + bottomInset)
+                .padding(start = cornerPadding, bottom = cornerPadding + bottomInset),
+        container = colors.aurora1.copy(alpha = CinefinTokens.RatingBadgeAlpha),
     ) {
         Text(
             text = text,
             style = CinefinType.LabelSmall,
-            color = RATING_BRASS,
+            color = colors.aurora1,
             maxLines = 1,
             modifier = Modifier.align(Alignment.Center).padding(horizontal = 6.dp, vertical = 2.dp),
         )
     }
 }
-
-/**
- * 黄铜 token（`Color.kt:68`）：设计定稿指定「评分、徽标」用途。
- *
- * 注释依据：该 token 目前只被冻结的 TV 主题引用；phone 色板没有同名槽位。为保证四个卡面（海报墙 / 横版 / 网格 / 单集） 同一枚颜色、且不新增色值，这里直接引用该既有
- * token。
- */
-private val RATING_BRASS: Color = ColorDark.tertiaryDark
