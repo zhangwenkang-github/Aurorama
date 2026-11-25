@@ -117,6 +117,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
+import com.zhangwenkang.cinefin.core.presentation.theme.auroraGradient
 import com.zhangwenkang.cinefin.language.LanguageMatcher
 import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER
@@ -2747,29 +2748,6 @@ internal fun PlayerCompactToolKeys(
 }
 
 /**
- * 已播段渐变的色标（0..1，W11 反馈④）：极光青铺满前 90%，最后 10% 才过渡到辅光蓝。
- *
- * A 稿里辅光蓝是**渐变辅助色**、用量必须 <10%（`docs/design/s1-direction-a/README.md` §2）； 抽成纯函数 + 单测，免得日后被改成"半条蓝条"。
- */
-internal fun playerProgressGradientStops(): List<Float> = listOf(0f, PLAYER_PROGRESS_ACCENT_END, 1f)
-
-/** 辅光蓝起点：0.9 = 只在末端 10% 出现第二种颜色。 */
-internal const val PLAYER_PROGRESS_ACCENT_END = 0.9f
-
-/** 已播段流光渐变（W11 反馈④）：极光青 → 末端辅光蓝；缓冲层 / 章节刻度 / 拖拽钮 / 内高光保持不变。 */
-internal fun playerProgressBrush(accent: Color, accentSecondary: Color): Brush {
-    val stops = playerProgressGradientStops()
-    return Brush.horizontalGradient(
-        colorStops =
-            arrayOf(
-                stops[0] to accent,
-                stops[1] to accent,
-                stops[2] to accentSecondary,
-            )
-    )
-}
-
-/**
  * 进度条（画面覆盖层 §8.7）：6dp 轨道白 16% + 已缓冲白 24% + 流光渐变的已播段 + 章节刻度 + Trickplay 预览。 视觉细、命中区 34dp——「可点目标不小于
  * 48dp」由轨道两端的工具行外扩消化。
  */
@@ -2805,10 +2783,8 @@ internal fun PlayerSeekBar(
     var tapSnapTicket by remember { mutableIntStateOf(0) }
     val haptics = LocalHapticFeedback.current
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
-    // 已播段流光渐变的两端色（W11 反馈④）：取当前域媒体色（base 打底、bright 收尾）
-    val accent = media.base
-    val accentSecondary = media.bright
+    // 进度强调色（2.0.1 定稿 §2 批②）：已播段走极光 100° 渐变（见 fill），拖拽钮柔光与吸附刻度取 aurora1。
+    val accent = colors.aurora1
     // 章节吸附落位瞬间的 knob 微弹（VIDEO-31）：0.9→1，只动缩放，不改落点
     val knobScale = remember { Animatable(1f) }
     val snapScope = rememberCoroutineScope()
@@ -3063,18 +3039,18 @@ internal fun PlayerSeekBar(
                         .clip(shape)
                         .background(colors.onSurface.copy(alpha = 0.24f))
             )
-            // 已播：流光渐变（W11 反馈④）——极光青为主，末端 <10% 过渡到辅光蓝，不再是单色
+            // 已播：极光 100° 渐变（2.0.1 定稿 §2 批②：与 CTA / 导航指示同一套 `auroraGradient`）
             Box(
                 modifier =
                     Modifier.fillMaxWidth(playedValue)
                         .height(if (scrubbing) 8.dp else trackHeight)
                         .clip(shape)
-                        .background(playerProgressBrush(accent, accentSecondary))
+                        .auroraGradient(colors)
             )
             /*
              * 拖动手柄（W67b：与音乐播放器同款圆形语言）。
              *
-             * 9dp 白圆点 + 同色柔光（`media.base` 径向渐变，取 [CinefinProgressVisuals] 的**收敛档**参数：
+             * 9dp 白圆点 + 同色柔光（`aurora1` 径向渐变，取 [CinefinProgressVisuals] 的**收敛档**参数：
              * 半径与透明度都比音乐页小）；旧样式的「拖动放大到 20dp + 2dp 极光青描边圈」下线——那圈描边正是用户说的
              * "光晕"。拖动时不再放大，仍能靠吸附刻度 / 气泡 / 触觉表达状态。
              */
@@ -3099,7 +3075,7 @@ internal fun PlayerSeekBar(
                                         Brush.radialGradient(
                                             colors =
                                                 listOf(
-                                                    media.base.copy(
+                                                    accent.copy(
                                                         alpha =
                                                             CinefinProgressVisuals.VideoGlowAlpha
                                                     ),

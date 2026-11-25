@@ -44,7 +44,8 @@ fun PlayButton(
         modifier = modifier,
         variant = CinefinButtonVariant.Filled,
         size = CinefinButtonSize.Large,
-        tone = CinefinButtonTone.Media,
+        // 2.0.1 定稿 §2 批②：一级 CTA 换极光渐变 tone（域色只做身份，交互强调归极光）
+        tone = CinefinButtonTone.Aurora,
         enabled = enabled,
         icon = { tint ->
             Icon(

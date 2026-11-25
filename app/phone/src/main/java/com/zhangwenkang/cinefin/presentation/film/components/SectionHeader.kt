@@ -20,7 +20,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 
 /**
  * 区块标题（Lumen）：大标题 23sp/600 + 右侧文字操作，**不画发丝线**。
@@ -35,9 +34,8 @@ fun SectionHeader(
     onActionClick: (() -> Unit)? = null,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
-    // A 稿 `.shelf-head .more` 是三级文字灰；App 主题下保持媒体色文字操作
-    val actionColor = media.bright
+    // 2.0.1 定稿 §2 批②（AUDIT-08）：「全部 >」回次级灰，交互文字不再取域媒体色
+    val actionColor = colors.onSurfaceVariant
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,

@@ -163,6 +163,13 @@ object CinefinTokens {
     val LumenScrim = Color(0xFF06070A)
 
     // ---- K1 Aurora Cinema（2026-11-18 设计定稿）----
+    /**
+     * `auroraGlow` 投影（`docs/V2_DESIGN.md` §3：`0 6px 28px rgba(61,232,194,.28)`）的 Compose 等效参数：
+     * `Modifier.shadow(elevation = 6.dp, ambientColor = spotColor = aurora1 @ 28%)`。一级 CTA 专用。
+     */
+    const val AuroraGlowElevationDp = 6
+
+    const val AuroraGlowAlpha = 0.28f
     /** 玻璃面板底色透明度（aurora / lumen 同值）。 */
     const val GlassAlpha = 0.58f
     /** 普通表面上的进度轨道透明度：白 12%。 */

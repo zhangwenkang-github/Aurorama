@@ -6,6 +6,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
@@ -29,7 +30,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.unit.LayoutDirection
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import kotlin.math.roundToInt
 
 /**
@@ -48,18 +48,18 @@ data class CinefinSliderColors(
 object CinefinSliderDefaults {
 
     /**
-     * 默认配色：轨道 = `progress-track` 白 12%（暗）/ 黑 12%（浅），已填充段 = 当前域媒体色，拇指 = `onSurface`
-     * 圆点，外圈极轻同色柔光——与播放页自绘进度条（W23 D38）同一视觉语言。
+     * 默认配色：轨道 = `progress-track` 白 12%（暗）/ 黑 12%（浅），已填充段 = M3 `primary`（2.0.1 定稿 §2 批②：批①后即极光，
+     * 交互强调不再取域媒体色、也不随 dynamic 主题混色），拇指 = `onSurface` 圆点，外圈极轻同色柔光——与播放页自绘进度条同一视觉语言。
      */
     @Composable
     fun colors(): CinefinSliderColors {
         val colors = LocalCinefinColors.current
-        val media = LocalMediaColors.current
+        val primary = MaterialTheme.colorScheme.primary
         return CinefinSliderColors(
-            activeTrackColor = media.base,
+            activeTrackColor = primary,
             inactiveTrackColor = colors.progressTrack,
             thumbColor = colors.onSurface,
-            glowColor = media.base.copy(alpha = CinefinProgressVisuals.GlowAlpha),
+            glowColor = primary.copy(alpha = CinefinProgressVisuals.GlowAlpha),
         )
     }
 }

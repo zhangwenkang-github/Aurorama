@@ -28,9 +28,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 
 /** 分段控件容器高度（§8.2）。 */
 private val SegmentedHeight = 44.dp
@@ -41,9 +41,9 @@ private val SegmentedItemCorner = 14.dp
 /**
  * 分段控件（§8.2）：高 44dp、底 `SurfaceContainerHigh`、1dp `Outline`、圆角取 `CinefinShapes.Button`（16dp）。
  *
- * 选中段用 `Media.Container` 底 + `Media.Bright` 600 文字 + 1dp `Media.Outline` 内描边； 未选中段透明底 +
- * `OnSurfaceVariant`；按下用 `Media.ContainerPressed`（未选中段用白 8% 状态层）；聚焦画 2dp `Media.Base@60%` 内环（容器
- * `clip` 会裁掉外环）；禁用统一 38%。
+ * 选中段用全 App 统一选中语言（[navSelectedFill] 极光淡色底 + [navSelectedContent] 600 文字 + 1dp `aurora1` 内描边，2.0.1
+ * 定稿 §2 批②）；未选中段透明底 + `OnSurfaceVariant`；按下在选中底上叠 `aurora1` 24%（未选中段用白 8% 状态层）；聚焦画 2dp
+ * `aurora1@60%` 内环（容器 `clip` 会裁掉外环）；禁用统一 38%。
  */
 @Composable
 fun <T> CinefinSegmentedControl(
@@ -86,7 +86,6 @@ private fun CinefinSegment(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
@@ -96,22 +95,23 @@ private fun CinefinSegment(
     val targetContainer =
         when {
             !enabled -> Color.Transparent
-            pressed -> if (selected) media.containerPressed else colors.stateHover
-            selected -> media.container
+            pressed && selected ->
+                colors.aurora1.copy(alpha = CinefinTokens.MediaContainerPressedAlpha)
+            pressed -> colors.stateHover
+            selected -> navSelectedFill(colors)
             hovered -> colors.stateHover
             else -> Color.Transparent
         }
     val targetBorder =
         when {
             !enabled -> Color.Transparent
-            selected -> media.outline
-            pressed -> media.base
+            selected -> colors.aurora1
             else -> Color.Transparent
         }
     val targetContent =
         when {
             !enabled -> colors.onSurfaceFaint.copy(alpha = colors.disabledAlpha)
-            selected -> media.bright
+            selected -> navSelectedContent(colors)
             else -> colors.onSurfaceVariant
         }
     val spec = tween<Color>(durationMillis = CinefinMotion.Fast, easing = CinefinMotion.Standard)
@@ -133,7 +133,7 @@ private fun CinefinSegment(
             animationSpec = spec,
             label = "segmentText",
         )
-    val focusRing = if (focused && enabled) media.base.copy(alpha = 0.6f) else Color.Transparent
+    val focusRing = if (focused && enabled) colors.aurora1.copy(alpha = 0.6f) else Color.Transparent
     val itemShape = RoundedCornerShape(SegmentedItemCorner)
 
     Box(

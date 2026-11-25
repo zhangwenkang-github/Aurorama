@@ -8,10 +8,12 @@ import org.junit.Test
 /**
  * 播放页控件分布与流光进度条的回归测试（W11 反馈③④⑧ + W12 终版布局）。
  *
- * 三条约束容易在后续会话里被改回去，所以钉成断言：
+ * 两条约束容易在后续会话里被改回去，所以钉成断言：
  * 1. 进度条下方 6 键与右上角 5 键的**顺序**是用户多轮确认的终版布局（改顺序即回归）；
- * 2. 底栏一行（6 键 + 全屏键）在窄窗里放不下时必须能靠横向滚动兜底，键尺寸不能比 W12 更大；
- * 3. 已播段渐变里辅光蓝的占比必须 <10%（A 稿：辅光蓝只做渐变辅助）。
+ * 2. 底栏一行（6 键 + 全屏键）在窄窗里放不下时必须能靠横向滚动兜底，键尺寸不能比 W12 更大。
+ *
+ * 2.0.1 定稿 §2 批② 起已播段改用 theme 层 `auroraGradient`（3 色等距，旧的「辅光蓝 <10%」双色渐变退役，对应断言随之删除， 渐变角度几何改由 `core`
+ * 的 `AuroraGradientTest` 钉住）。
  */
 class PlayerControlLayoutTest {
 
@@ -188,23 +190,6 @@ class PlayerControlLayoutTest {
             "加文字必须真的变宽（否则说明键框没加宽）",
             spec.bottomRowWidthDp(showLabels = true) > spec.bottomRowWidthDp(showLabels = false),
         )
-    }
-
-    @Test
-    fun progressGradient_keepsAccentSecondaryUnderTenPercent() {
-        val stops = playerProgressGradientStops()
-
-        assertEquals("色标从 0 开始", 0f, stops.first(), 0.0001f)
-        assertEquals("色标到 1 结束", 1f, stops.last(), 0.0001f)
-        assertStopsSorted(stops)
-        // 浮点减法会带误差（1f - 0.9f = 0.100000024），所以直接卡起点位置
-        val secondaryStart = stops[stops.size - 2]
-        assertTrue("辅光蓝起点必须 ≥0.9（占比 <10%），实际 $secondaryStart", secondaryStart >= 0.9f - 1e-4f)
-        assertEquals(PLAYER_PROGRESS_ACCENT_END, secondaryStart, 0.0001f)
-    }
-
-    private fun assertStopsSorted(stops: List<Float>) {
-        stops.zipWithNext { left, right -> assertTrue("色标必须单调递增：$left -> $right", left < right) }
     }
 
     @Test

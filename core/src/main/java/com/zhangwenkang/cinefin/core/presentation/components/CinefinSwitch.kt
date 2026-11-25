@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.core.presentation.components
 
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchColors
 import androidx.compose.material3.SwitchDefaults
@@ -7,15 +8,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 
 /**
  * Cinefin 统一开关（W44）：全 App 的 `Switch` 一律经这里取色，页面不再各写一份 [SwitchDefaults.colors]。
  *
  * 关闭态拇指用 `onSurfaceVariant` 提亮——M3 默认取 `outline`，在暗底上几乎看不见（用户实测：音乐音效「开启均衡器」关闭态小圆点不明显）； 轨道用
- * `surfaceContainerHigh` 填充 + `onSurfaceFaint` 描边提高轮廓对比；开启态保持当前域强调色；禁用态降透明度但仍可辨。
+ * `surfaceContainerHigh` 填充 + `onSurfaceFaint` 描边提高轮廓对比；开启态读 M3 `primary`（2.0.1 定稿 §2
+ * 批②：批①后即极光，交互强调不再取域媒体色）， 拇指取 `onPrimary`（dynamic 主题下随系统 onPrimary，与 primary 一对保证对比度）；禁用态降透明度但仍可辨。
  *
- * 配色全部来自 [LocalCinefinColors] / [LocalMediaColors]，随主题与域自动切换，**不新增任何色值**。
+ * 配色全部来自 [LocalCinefinColors] 与 M3 `ColorScheme`，随主题与域自动切换，**不新增任何色值**。
  *
  * @param colors 仅限自带底色的特殊面板覆盖（如阅读器纸色面板），普通页面保持默认。
  */
@@ -40,17 +41,17 @@ fun CinefinSwitch(
 @Composable
 fun cinefinSwitchColors(): SwitchColors {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
+    val scheme = MaterialTheme.colorScheme
     val disabledAlpha = colors.disabledAlpha
     return SwitchDefaults.colors(
-        checkedThumbColor = media.onBase,
-        checkedTrackColor = media.base,
+        checkedThumbColor = scheme.onPrimary,
+        checkedTrackColor = scheme.primary,
         checkedBorderColor = Color.Transparent,
         uncheckedThumbColor = colors.onSurfaceVariant,
         uncheckedTrackColor = colors.surfaceContainerHigh,
         uncheckedBorderColor = colors.onSurfaceFaint,
         disabledCheckedThumbColor = colors.onSurfaceFaint,
-        disabledCheckedTrackColor = media.base.copy(alpha = disabledAlpha),
+        disabledCheckedTrackColor = scheme.primary.copy(alpha = disabledAlpha),
         disabledCheckedBorderColor = Color.Transparent,
         disabledUncheckedThumbColor = colors.onSurfaceFaint,
         disabledUncheckedTrackColor = colors.surfaceContainerHigh,

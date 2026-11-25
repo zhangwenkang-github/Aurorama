@@ -381,4 +381,43 @@ class DesignTokenConsistencyTest {
         assertEquals(colors.inverseOnSurface, resolved.content)
         assertEquals(0f, resolved.border.alpha, 0.001f)
     }
+
+    @Test
+    fun `aurora button tone resolves to aurora fill with onAurora content`() {
+        val colors = CinefinThemes.colorsFor(CinefinThemes.AURORA, dark = true)
+        val resolved =
+            resolveButtonColors(
+                variant = CinefinButtonVariant.Filled,
+                state = CinefinInteractionState.Default,
+                media = mediaColorsFor(ContentDomain.Movie, colors),
+                colors = colors,
+                tone = CinefinButtonTone.Aurora,
+            )
+        assertEquals(colors.aurora1, resolved.container)
+        assertEquals(colors.onAurora, resolved.content)
+        assertEquals(0f, resolved.border.alpha, 0.001f)
+    }
+
+    @Test
+    fun `aurora button tone falls back to media behavior on non filled variants`() {
+        val colors = CinefinThemes.colorsFor(CinefinThemes.AURORA, dark = true)
+        val media = mediaColorsFor(ContentDomain.Movie, colors)
+        val aurora =
+            resolveButtonColors(
+                variant = CinefinButtonVariant.Outlined,
+                state = CinefinInteractionState.Default,
+                media = media,
+                colors = colors,
+                tone = CinefinButtonTone.Aurora,
+            )
+        val fallback =
+            resolveButtonColors(
+                variant = CinefinButtonVariant.Outlined,
+                state = CinefinInteractionState.Default,
+                media = media,
+                colors = colors,
+                tone = CinefinButtonTone.Media,
+            )
+        assertEquals(fallback, aurora)
+    }
 }

@@ -28,16 +28,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 
 /**
  * 筛选 Chip（§8.3）：标准高 40dp / 紧凑 32dp，圆角 12dp，文字 LabelMedium。
  *
- * 未选中 = 中性色（`SurfaceContainer` + `Outline`）；选中 = 当前域媒体色融入本体（`Media.Container` + `Media.Outline` +
- * `Media.Bright`）；按下用 `Media.ContainerPressed` + `Media.Base` 描边；禁用统一 38%。 可选前置 16dp 图标，**不带任何色点 /
- * 小色块**。
+ * 未选中 = 中性色（`SurfaceContainer` + `Outline`）；选中 = 全 App 统一选中语言（[navSelectedFill] 极光淡色容器 + `aurora1`
+ * 描边 + [navSelectedContent] 内容，2.0.1 定稿 §2 批②）；按下在选中底上叠 `aurora1` 24%，焦点环 `aurora1`；禁用统一 38%。 可选前置
+ * 16dp 图标，**不带任何色点 / 小色块**。
  */
 @Composable
 fun CinefinFilterChip(
@@ -49,7 +49,6 @@ fun CinefinFilterChip(
     compact: Boolean = false,
     icon: (@Composable (tint: Color) -> Unit)? = null,
 ) {
-    val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
@@ -57,25 +56,26 @@ fun CinefinFilterChip(
     val pressed by interactionSource.collectIsPressedAsState()
 
     val disabledAlpha = colors.disabledAlpha
+    val selectedFill = navSelectedFill(colors)
     val targetContainer =
         when {
-            !enabled -> if (selected) media.container else colors.surfaceContainer
-            pressed -> media.containerPressed
-            selected -> media.container
+            !enabled -> if (selected) selectedFill else colors.surfaceContainer
+            pressed && selected ->
+                colors.aurora1.copy(alpha = CinefinTokens.MediaContainerPressedAlpha)
+            pressed -> colors.stateHover
+            selected -> selectedFill
             hovered -> colors.stateHover
             else -> colors.surfaceContainer
         }
     val targetBorder =
         when {
-            !enabled -> if (selected) media.outline else colors.outline
-            pressed -> media.base
-            selected -> media.outline
+            selected -> colors.aurora1
             else -> colors.outline
         }
     val targetContent =
         when {
             !enabled -> colors.onSurfaceVariant.copy(alpha = disabledAlpha)
-            selected -> media.bright
+            selected -> navSelectedContent(colors)
             else -> colors.onSurfaceVariant
         }
     val spec = tween<Color>(durationMillis = CinefinMotion.Fast, easing = CinefinMotion.Standard)
@@ -85,7 +85,7 @@ fun CinefinFilterChip(
         animateColorAsState(targetValue = targetBorder, animationSpec = spec, label = "chipBorder")
     val contentColor by
         animateColorAsState(targetValue = targetContent, animationSpec = spec, label = "chipText")
-    val focusRing = if (focused && enabled) media.base.copy(alpha = 0.6f) else Color.Transparent
+    val focusRing = if (focused && enabled) colors.aurora1.copy(alpha = 0.6f) else Color.Transparent
 
     // 视觉高度 32/40dp，触控热区外扩到 48dp（§8.3 的最小触控高）
     Box(

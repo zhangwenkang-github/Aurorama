@@ -13,7 +13,7 @@ import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
+import com.zhangwenkang.cinefin.core.presentation.theme.auroraGradient
 import com.zhangwenkang.cinefin.models.FindroidItem
 
 /**
@@ -27,7 +27,6 @@ fun ProgressBar(
     modifier: Modifier = Modifier,
     fractionOverride: Float? = null,
 ) {
-    val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
     val fraction =
         fractionOverride
@@ -53,7 +52,7 @@ fun ProgressBar(
                 Modifier.fillMaxWidth(fraction)
                     .height(3.dp)
                     .clip(CinefinShapes.TwoXs)
-                    .background(media.base)
+                    .auroraGradient(colors)
         )
     }
 }

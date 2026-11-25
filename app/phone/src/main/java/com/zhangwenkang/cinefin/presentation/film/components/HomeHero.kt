@@ -23,7 +23,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -47,6 +46,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
+import com.zhangwenkang.cinefin.core.presentation.theme.auroraGradient
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
@@ -193,7 +193,8 @@ fun HomeHero(
                         onClick = { onClick(item) },
                         variant = CinefinButtonVariant.Filled,
                         size = CinefinButtonSize.Medium,
-                        tone = CinefinButtonTone.Inverse,
+                        // 2.0.1 定稿 §2 批②：首页 hero 播放键 = 一级 CTA，改极光渐变 tone
+                        tone = CinefinButtonTone.Aurora,
                         icon = { tint: Color ->
                             Icon(
                                 painter = painterResource(CoreR.drawable.ic_play),
@@ -234,7 +235,7 @@ fun HomeHero(
                         modifier =
                             Modifier.fillMaxWidth(resumeFraction)
                                 .height(3.dp)
-                                .background(SolidColor(media.base))
+                                .auroraGradient(colors)
                     )
                 }
             }

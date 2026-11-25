@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -40,6 +41,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.core.presentation.theme.MediaColors
+import com.zhangwenkang.cinefin.core.presentation.theme.auroraGradient
 
 /** 按钮四种变形（§8.1）：媒体色融入底 / 描边 / 文字 / 图标，不做独立色块。 */
 enum class CinefinButtonVariant {
@@ -57,13 +59,19 @@ enum class CinefinButtonSize {
 }
 
 /**
- * 按钮色调（§8.1 本轮扩展）：[Media] = 当前域媒体色（默认）；[Inverse] = 反色高对比面。
+ * 按钮色调（§8.1 + 2.0.1 定稿 §2 批②）：
+ * - [Aurora]：**一级 CTA 唯一色调**——100° 极光渐变实底 + `onAurora` 内容 + `auroraGlow` 投影（播放 / 继续播放 / 播放全部 /
+ *   传输主键）；
+ * - [Media]：当前域媒体色（默认）。2.0.1 起收缩为仅「域身份」场景可用（域徽标等极小面积），**交互 CTA 一律用 [Aurora]**；
+ * - [Inverse]：反色高对比面，月白底 + 深色内容（A 稿 `.btn.primary`），其余状态、描边、禁用逻辑与 [Media] 一致。
  *
- * [Inverse] 是反色高对比面：月白底 + 深色内容（A 稿 `.btn.primary`）， 其余状态、描边、禁用逻辑与 [Media] 一致。
+ * [Aurora] 只在 [CinefinButtonVariant.Filled] 下生效；与 Outlined / Text / Icon 组合时回退为 [Media]
+ * 行为（渐变实底不适合这些小面积形态）。
  */
 enum class CinefinButtonTone {
     Media,
     Inverse,
+    Aurora,
 }
 
 private val CinefinButtonSize.height: Dp
@@ -149,6 +157,12 @@ internal fun resolveButtonColors(
         return CinefinButtonColors(container, colors.inverseOnSurface, Color.Transparent)
     }
 
+    if (tone == CinefinButtonTone.Aurora && variant == CinefinButtonVariant.Filled) {
+        // 一级 CTA：极光渐变实底由组件按 drawBehind 绘制（见 CinefinButton），这里只给代表色 + onAurora 内容；
+        // 按下 / 悬停由组件在渐变上叠 `statePressed` / `stateHover` 状态层。
+        return CinefinButtonColors(colors.aurora1, colors.onAurora, Color.Transparent)
+    }
+
     return when (variant) {
         CinefinButtonVariant.Filled -> {
             val base = if (state == CinefinInteractionState.Pressed) media.dim else media.base
@@ -198,11 +212,14 @@ internal fun resolveButtonColors(
 }
 
 /**
- * Cinefin 基础按钮（§8.1）。
+ * Cinefin 基础按钮（§8.1 + 2.0.1 定稿 §2 批②）。
  *
- * 媒体色直接进入按钮本体：Filled 用 `Media.Base` 底 + `Media.OnBase` 内容，Outlined 用 `Media.Outline` 描边 +
- * `Media.Bright` 内容，Text / Icon 用 `Media.Bright` 着色； 按下用 `Media.Dim` / `Media.Container`，聚焦为 2dp
- * 外环，禁用统一 38% 不透明度。 全组件无投影、无独立色块。
+ * 默认（[CinefinButtonTone.Media]）媒体色直接进入按钮本体：Filled 用 `Media.Base` 底 + `Media.OnBase` 内容，Outlined 用
+ * `Media.Outline` 描边 + `Media.Bright` 内容，Text / Icon 用 `Media.Bright` 着色；按下用 `Media.Dim` /
+ * `Media.Container`，聚焦为 2dp 外环，禁用统一 38% 不透明度。
+ *
+ * 一级 CTA 走 [CinefinButtonTone.Aurora]（仅 Filled）：100° 极光渐变实底 + `onAurora` 内容 + `auroraGlow`
+ * 投影（6dp、aurora1 28%），按下 / 悬停直接在渐变上叠状态层；除该投影外组件无其它投影、无独立色块。
  */
 @Composable
 fun CinefinButton(
@@ -234,6 +251,24 @@ fun CinefinButton(
     val shape = CinefinShapes.Button
     val target = resolveButtonColors(variant, state, media, colors, tone)
     val spec = tween<Color>(durationMillis = CinefinMotion.Fast, easing = CinefinMotion.Standard)
+    // 极光渐变实底只用于「Aurora + Filled + 可用」；禁用态仍走中性禁用色板（resolveButtonColors 的 Disabled 分支）。
+    val auroraFill =
+        tone == CinefinButtonTone.Aurora &&
+            variant == CinefinButtonVariant.Filled &&
+            state != CinefinInteractionState.Disabled
+    val auroraStateTarget =
+        when {
+            !auroraFill -> Color.Transparent
+            state == CinefinInteractionState.Pressed -> colors.statePressed
+            state == CinefinInteractionState.Hover -> colors.stateHover
+            else -> Color.Transparent
+        }
+    val auroraStateColor by
+        animateColorAsState(
+            targetValue = auroraStateTarget,
+            animationSpec = spec,
+            label = "buttonStateLayer",
+        )
     val containerColor by
         animateColorAsState(
             targetValue = target.container,
@@ -254,7 +289,9 @@ fun CinefinButton(
         )
     val focusRing =
         if (state == CinefinInteractionState.Focused) {
-            media.base.copy(alpha = CinefinTokens.FocusRingAlpha)
+            // 交互强调（含焦点环）归极光：Aurora tone 用 `aurora1`，其余色调沿用域媒体色。
+            val focusBase = if (tone == CinefinButtonTone.Aurora) colors.aurora1 else media.base
+            focusBase.copy(alpha = CinefinTokens.FocusRingAlpha)
         } else {
             Color.Transparent
         }
@@ -270,12 +307,34 @@ fun CinefinButton(
                         if (isIconOnly) Modifier.defaultMinSize(minWidth = CinefinIconButtonSize)
                         else Modifier
                     )
+                    .then(
+                        if (auroraFill) {
+                            // clip = false：投影层不裁掉画在边界外的 2dp 焦点环（圆角仍由下面的 clip(shape) 负责）。
+                            Modifier.shadow(
+                                elevation = CinefinTokens.AuroraGlowElevationDp.dp,
+                                shape = shape,
+                                clip = false,
+                                ambientColor =
+                                    colors.aurora1.copy(alpha = CinefinTokens.AuroraGlowAlpha),
+                                spotColor =
+                                    colors.aurora1.copy(alpha = CinefinTokens.AuroraGlowAlpha),
+                            )
+                        } else {
+                            Modifier
+                        }
+                    )
                     .cinefinFocusRing(
                         color = focusRing,
                         cornerRadius = CinefinButtonCorner,
                     )
                     .clip(shape)
-                    .background(containerColor)
+                    .then(
+                        if (auroraFill) {
+                            Modifier.auroraGradient(colors).background(auroraStateColor)
+                        } else {
+                            Modifier.background(containerColor)
+                        }
+                    )
                     .border(1.dp, borderColor, shape)
                     .clickable(
                         interactionSource = interactionSource,

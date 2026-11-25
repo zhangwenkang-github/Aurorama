@@ -29,10 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
@@ -47,10 +45,8 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.core.presentation.theme.MediaColors
+import com.zhangwenkang.cinefin.core.presentation.theme.auroraGradient
 import com.zhangwenkang.cinefin.utils.DownloadControlPlaneRules
-import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.sin
 
 /**
  * 导航条目（§8.6 + K1）。
@@ -263,6 +259,10 @@ private fun Modifier.selectionOutline(
  * 选中 pill 填充（K1 定稿）：`aurora1` 12%。
  *
  * 浅色主题下 12% 在近白底上几乎不可辨，按 W3-T2 任务卡授权只把浅色底提到 16%（判定依据 = 页面底 `surface` 的明度）。
+ *
+ * 2.0.1 定稿 §2 批② 起这是**全 App 唯一一套选中语言**：`CinefinFilterChip` / `CinefinSegmentedControl` /
+ * `CinefinCard` 的选中态都复用它（容器 = 本函数，描边 = `aurora1`，内容 = [navSelectedContent]），单测在
+ * `CinefinNavigationSelectionTest`。
  */
 internal fun navSelectedFill(colors: CinefinColors): Color =
     colors.aurora1.copy(alpha = if (colors.surface.luminance() > 0.5f) 0.16f else 0.12f)
@@ -283,31 +283,6 @@ internal val LightNavSelectedContent = Color(0xFF0A6B5A)
  */
 fun navSelectedContent(colors: CinefinColors): Color =
     if (colors.surface.luminance() > 0.5f) LightNavSelectedContent else colors.aurora1
-
-/**
- * 底栏选中指示小条（K1 `auroraGradient`）：100° 线性 `au1→au2→au3`。
- *
- * 角度按 CSS `linear-gradient(100deg)` 的渐变线定义（0° 朝上、90° 朝右）：方向向量 `(sin θ, -cos θ)`，渐变线长度取 `|w·sin θ| +
- * |h·cos θ|`，起止点以构件中心对称。指示条的尺寸与圆角由调用方 modifier 给出。
- */
-private fun Modifier.auroraGradientIndicator(colors: CinefinColors, visible: Boolean): Modifier =
-    drawBehind {
-        if (!visible) return@drawBehind
-        val radians = Math.toRadians(100.0)
-        val dirX = sin(radians).toFloat()
-        val dirY = -cos(radians).toFloat()
-        val length = abs(size.width * dirX) + abs(size.height * dirY)
-        val center = Offset(size.width / 2f, size.height / 2f)
-        drawRoundRect(
-            brush =
-                Brush.linearGradient(
-                    colors = listOf(colors.aurora1, colors.aurora2, colors.aurora3),
-                    start = Offset(center.x - dirX * length / 2f, center.y - dirY * length / 2f),
-                    end = Offset(center.x + dirX * length / 2f, center.y + dirY * length / 2f),
-                ),
-            cornerRadius = CornerRadius(size.height / 2f, size.height / 2f),
-        )
-    }
 
 /**
  * 底部 Tab（Compact <600dp）：K1 悬浮玻璃条——`glass` 底（半透明、不做实时 blur）+ 1dp `glassBorder` 描边 + 圆角
@@ -356,7 +331,12 @@ fun CinefinBottomTab(
                     modifier =
                         Modifier.width(20.dp)
                             .height(3.dp)
-                            .auroraGradientIndicator(colors = colors, visible = selected)
+                            // 底栏选中指示小条（K1 `auroraGradient`）：100° `au1→au2→au3`，3dp 高全圆角。
+                            .auroraGradient(
+                                colors = colors,
+                                cornerRadius = 1.5.dp,
+                                visible = selected,
+                            )
                 )
             }
         }

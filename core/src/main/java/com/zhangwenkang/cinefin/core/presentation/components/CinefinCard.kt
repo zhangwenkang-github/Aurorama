@@ -45,6 +45,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.core.presentation.theme.MediaColors
+import com.zhangwenkang.cinefin.core.presentation.theme.auroraGradient
 
 internal data class CinefinCardColors(
     val container: Color,
@@ -58,10 +59,15 @@ internal fun resolveCardColors(
     colors: CinefinColors,
 ): CinefinCardColors {
     val container =
-        if (state == CinefinInteractionState.Pressed) media.container else colors.surfaceContainer
+        when {
+            // 2.0.1 定稿 §2 批②：选中 = 全 App 统一选中语言（极光淡色容器），不再取域媒体色。
+            selected -> navSelectedFill(colors)
+            state == CinefinInteractionState.Pressed -> media.container
+            else -> colors.surfaceContainer
+        }
     val border =
         when {
-            selected -> media.outline
+            selected -> colors.aurora1
             state == CinefinInteractionState.Hover ||
                 state == CinefinInteractionState.Focused ||
                 state == CinefinInteractionState.Pressed -> media.outline
@@ -73,7 +79,8 @@ internal fun resolveCardColors(
 /**
  * Cinefin 基础卡片（§8.4）：1dp 描边 + 顶部内高光，圆角 16dp，`elevation = 0`。
  *
- * 卡片本身不铺媒体色底；选中 / 悬停只改变描边，按下用 `Media.Container` 状态层。
+ * 卡片本身不铺媒体色底；选中 = 极光淡色容器（[navSelectedFill]）+ `aurora1` 描边（全 App 单套选中语义），悬停只改变描边，按下用
+ * `Media.Container` 状态层。
  */
 @Composable
 fun CinefinCard(
@@ -164,7 +171,7 @@ fun CinefinPosterCard(
         Text(
             text = title,
             style = CinefinType.TitleSmall,
-            color = colors.onSurface,
+            color = if (selected) navSelectedContent(colors) else colors.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -190,7 +197,6 @@ fun CinefinWideCard(
     onClick: (() -> Unit)? = null,
     image: @Composable () -> Unit,
 ) {
-    val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
     Box(
         modifier =
@@ -240,7 +246,7 @@ fun CinefinWideCard(
                             Modifier.fillMaxWidth(progress.coerceIn(0f, 1f))
                                 .height(3.dp)
                                 .clip(CinefinShapes.TwoXs)
-                                .background(media.base)
+                                .auroraGradient(colors)
                     )
                 }
             }

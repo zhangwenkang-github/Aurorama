@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -50,9 +51,11 @@ import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
+import com.zhangwenkang.cinefin.core.presentation.theme.auroraGradient
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadState
 import com.zhangwenkang.cinefin.models.FindroidEpisode
@@ -536,8 +539,8 @@ private fun DetailHeroActionButtons(
 }
 
 /**
- * hero 键（图标上 / 文字下，64dp）：[emphasized] = 播放键月白高亮；其余三键 = 1dp 描边 Outlined， 选中（已播放 / 收藏 / 已下载）走当前域容器 +
- * 强调色。
+ * hero 键（图标上 / 文字下，64dp）：[emphasized] = 播放键（一级 CTA）极光渐变实底 + `onAurora` 内容 + `auroraGlow` 投影（2.0.1
+ * 定稿 §2 批②；禁用时回落中性实底）；其余三键 = 1dp 描边 Outlined，选中（已播放 / 收藏 / 已下载）走当前域容器 + 强调色。
  */
 @Composable
 private fun HeroActionKey(
@@ -551,16 +554,18 @@ private fun HeroActionKey(
 ) {
     val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
+    // 一级 CTA（播放）= 极光渐变实底 + onAurora 内容 + auroraGlow 投影；禁用时回落中性实底。
+    val gradientFill = emphasized && enabled
     val contentColor =
         when {
             !enabled -> colors.onSurfaceFaint.copy(alpha = colors.disabledAlpha)
-            emphasized -> colors.surface
+            emphasized -> colors.onAurora
             selected -> media.bright
             else -> colors.onSurfaceVariant
         }
     val containerColor =
         when {
-            emphasized -> colors.onSurface
+            emphasized -> if (enabled) Color.Transparent else colors.onSurface
             selected && enabled -> media.container
             else -> Color.Transparent
         }
@@ -574,8 +579,28 @@ private fun HeroActionKey(
         modifier =
             modifier
                 .height(64.dp)
+                .then(
+                    if (gradientFill) {
+                        Modifier.shadow(
+                            elevation = CinefinTokens.AuroraGlowElevationDp.dp,
+                            shape = CinefinShapes.Button,
+                            clip = false,
+                            ambientColor =
+                                colors.aurora1.copy(alpha = CinefinTokens.AuroraGlowAlpha),
+                            spotColor = colors.aurora1.copy(alpha = CinefinTokens.AuroraGlowAlpha),
+                        )
+                    } else {
+                        Modifier
+                    }
+                )
                 .clip(CinefinShapes.Button)
-                .background(containerColor)
+                .then(
+                    if (gradientFill) {
+                        Modifier.auroraGradient(colors)
+                    } else {
+                        Modifier.background(containerColor)
+                    }
+                )
                 .border(1.dp, borderColor, CinefinShapes.Button)
                 .cinefinClickable(enabled = enabled, onClick = onClick)
                 .padding(vertical = CinefinSpacing.Space2),
