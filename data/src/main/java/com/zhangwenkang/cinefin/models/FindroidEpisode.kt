@@ -98,6 +98,17 @@ suspend fun BaseItemDto.toFindroidEpisode(
 internal fun resolveEpisodeSeasonId(serverSeasonId: UUID?, requestedSeasonId: UUID?): UUID? =
     serverSeasonId ?: requestedSeasonId
 
+/**
+ * 跨季防护（#21）：服务器给的季与请求季不一致时该集不属于本次请求，调用方应丢弃。
+ *
+ * 只在双方都有季 ID 时判否：服务端没给季（W73 未知季）要保留回落语义，请求季缺失时也没有判别依据。
+ */
+internal fun episodeMatchesRequestedSeason(
+    serverSeasonId: UUID?,
+    requestedSeasonId: UUID?,
+): Boolean =
+    serverSeasonId == null || requestedSeasonId == null || serverSeasonId == requestedSeasonId
+
 suspend fun FindroidEpisodeDto.toFindroidEpisode(
     database: ServerDatabaseDao,
     userId: UUID?,

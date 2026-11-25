@@ -140,6 +140,38 @@ class JellyfinEpisodeMappingTest {
     }
 
     @Test
+    fun `cross season dto is dropped while missing season id keeps fallback`() = runBlocking {
+        val otherSeasonId = UUID.fromString("66666666-6666-4666-8666-666666666666")
+        val sameSeason = episodeDto(index = 0)
+        val otherSeason = episodeDto(index = 1).copy(seasonId = otherSeasonId)
+        val missingSeason = episodeDto(index = 2).copy(seasonId = null)
+        val repository =
+            repository(
+                api =
+                    jellyfinApi(
+                        episodesApi { _, _ ->
+                            episodeResponse(listOf(sameSeason, otherSeason, missingSeason))
+                        }
+                    ),
+                database = database(),
+            )
+
+        val episodes =
+            repository.getEpisodes(
+                seriesId = SERIES_ID,
+                seasonId = SEASON_ID,
+                fields = EPISODE_FIELDS,
+                startItemId = null,
+                limit = null,
+                offline = false,
+            )
+
+        assertEquals(listOf(EPISODE_ID, missingSeason.id), episodes.map { it.id })
+        assertFalse(episodes.any { it.id == otherSeason.id })
+        assertEquals(listOf(SEASON_ID, SEASON_ID), episodes.map { it.seasonId })
+    }
+
+    @Test
     fun `online episodes empty response remains an empty target list`() = runBlocking {
         withSeededEpisodeSnapshot(EPISODE_FIELDS) { store, _, _ ->
             val response = episodeResponse(emptyList())

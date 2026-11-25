@@ -27,6 +27,7 @@ import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.models.FindroidTag
 import com.zhangwenkang.cinefin.models.SortBy
 import com.zhangwenkang.cinefin.models.SortOrder
+import com.zhangwenkang.cinefin.models.episodeMatchesRequestedSeason
 import com.zhangwenkang.cinefin.models.isAvailableForSourceSelection
 import com.zhangwenkang.cinefin.models.toFindroidCollection
 import com.zhangwenkang.cinefin.models.toFindroidEpisode
@@ -1774,9 +1775,21 @@ class JellyfinRepositoryImpl(
         val materializeOnlineEpisodes: suspend (List<BaseItemDto>) -> List<FindroidEpisode> =
             { dtos ->
                 withContext(Dispatchers.IO) {
-                    dtos.mapNotNull {
+                    dtos.mapNotNull { dto ->
+                        // W1-T07（#21）：服务器按 ParentIndexNumber 归季，个别集的 SeasonId 指向别的季
+                        // （真机：《学生会的一己之见》S01 请求里混进一条 SeasonId=S02 的 Lv.2 09），
+                        // 直接用会以本季卡面混进列表与下载候选，这里按服务器给的季做一致性过滤。
+                        if (!episodeMatchesRequestedSeason(dto.seasonId, seasonId)) {
+                            Timber.d(
+                                "跳过跨季集 id=%s seasonId=%s 请求季=%s",
+                                dto.id,
+                                dto.seasonId,
+                                seasonId,
+                            )
+                            return@mapNotNull null
+                        }
                         // W73（#10）：未知季的集不带 SeasonId，用请求用的 seasonId 回落，别让整条被丢掉。
-                        it.toFindroidEpisode(
+                        dto.toFindroidEpisode(
                             this@JellyfinRepositoryImpl,
                             database,
                             fallbackSeasonId = seasonId,
