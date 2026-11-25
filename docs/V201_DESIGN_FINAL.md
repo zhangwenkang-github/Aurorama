@@ -38,6 +38,13 @@
 3. **语义 token 补齐（AUDIT-21）**：`CinefinTokens`/`CinefinColors` 新增 `warning = #E0B84F`、`success = #45D483`、`info = #6FA0FF`（Aurora2 兼任），含各自 `onX`；后续告警/成功/信息态一律走 token，禁手写。
 4. **评分徽标（AUDIT-17）**：`CommunityRatingBadge.kt:74` 黄铜 → 极光淡色 pill（aurora1 alpha 12% 底 + aurora1 文字）；顺手修正 `Color.kt` 注释为「仅 TV 引用，phone 禁止引用」。
 
+### 批① 验收裁定（2026-11-25，Kimi；批①已落地 `0d3aa49a`+`b17eaa24`）
+
+- **批准定稿未给的派生值**：`onPrimaryContainer=onSurface`；`secondary=tertiary=onSurfaceVariant`、`onSecondary/onTertiary=surface`、`onSecondaryContainer/onTertiaryContainer=onSurface`；`onWarning/onSuccess/onInfo` 取同族深墨（实测 8.46/8.97/7.27:1）。均符合 M3 角色语义，转正式。
+- **浅色主题「aurora1 文字 + aurora1 12% 底」≈2.5–2.7:1**（评分徽标与批② chip 选中同源问题；深色主题 8.75:1 达标）：批①/批②仍按定稿原值实现，**浅色档对比度修复整体列批③**，批③开工前由 Kimi 出专项裁定（候选：引入 `auroraInk` 深色文字 token）。
+- **`inversePrimary` 2.73:1**：phone 全仓无消费点，不处理。
+- **dynamic 主题下 `Neutral` 媒体色保持固定 #3DE8C2**：域色=身份不随系统色，转正式。
+
 ### 批② 组件换肤（覆盖 AUDIT-04/05/06/07/08）
 
 5. **`CinefinButton` 新增 `Aurora` tone**：`auroraGradient`（100° au1→au2→au3）实底 + `onAurora` 文字 + `auroraGlow` 投影；`Media` tone 收缩为仅「域身份」场景可用（在 KDoc 注明）。`PlayButton.kt:53`、`ItemButtonsBar` 主 CTA、首页 hero 播放键换 `Aurora` tone。

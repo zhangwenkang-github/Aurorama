@@ -2,7 +2,7 @@
 
 > **新会话第一步读这里**，再读所在波次/线文档的顶部状态块，最后查记忆库 `MEMORY.md`。
 > 本文件只放项目级事实与各线一句话状态；过程日志与历史细节在 `docs/archive/`（按需读取，不主动加载）。
-> 最后更新：2026-11-24　分支 `codex/v2.0.1`
+> 最后更新：2026-11-25　分支 `codex/v2.0.1`
 
 ## 1. 项目是什么
 
@@ -38,15 +38,16 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
 | 连接层 | 🟢 W31 完成；遗留 `fix/w31-trust-session-reuse` 分支待合并 | `docs/ARCHITECTURE.md` §5.4 |
 | 投屏/同步观看 | ⛔ 投屏未开始（LATER）；SyncPlay 为 SHOULD（W4 评估） | `docs/V2_REQUIREMENTS.md` §9.5 |
-| 维护/缺陷修复 → 2.0.1 | 🟡 **W1 修复快线近收官**（2026-11-25）：分支 `codex/v2.0.1`；W0 收官（设计定稿 `docs/V201_DESIGN_FINAL.md`：域色=身份、极光=行动）；T01–T06、T08 已 DONE，余 T02b/T05/T07 | `docs/V201_TASKS.md` |
+| 维护/缺陷修复 → 2.0.1 | 🟡 **W1 已收官、W2 开工**（2026-11-25）：分支 `codex/v2.0.1`；T01–T08 全 DONE；T09 批① 角色收口 DONE（`0d3aa49a`+`b17eaa24`）；设计定稿 `docs/V201_DESIGN_FINAL.md`（含批①验收裁定） | `docs/V201_TASKS.md` |
 
-## 4. 当前焦点（2026-11-24）
+## 4. 当前焦点（2026-11-25）
 
 1. **2.0.1 开工（分支 `codex/v2.0.1`）**：计划经用户两轮审批通过——21 项需求/bug + 2.0.0 遗留，波次 W0→W5（修复快线→设计基础→音乐重塑→播放器收尾→回归发布），台账 `docs/V201_TASKS.md`（22 卡全登记）。工作流七条已制度化进 `AGENTS.md`。
 2. **W0 已收官（2026-11-24）**：✅ 分支+台账+AGENTS.md；✅ W0-D1 设计审计（22 条偏差）；✅ W0-D2 设计定稿（`docs/V201_DESIGN_FINAL.md`，9 条裁定：域色=身份、极光=行动；琥珀退出交互强调；封面取色只留背景光晕；玻璃无 blur 为正式决定；主题选择器加跟随系统）；✅ W0-D3 master 已对齐 v2.0.0（`312209a6`，远端推送待授权）。
-3. **W1 修复快线近收官（2026-11-25）**：✅ T03 logo（`52d57030`）、✅ T04 缓存无限制（`c7e6f2ff`+`84e7b800`）、✅ T01 更新链路（`a4b6ed4f`；真实升级 E2E 移 W5）、✅ T02 管理员入口（`56202e2d`）、✅ T06 季页多选下移（`0ed6cf41`：hero 补稳定 key，K60 两场景坐标零偏移）、✅ T08 搜索音乐结果导航（`93b2697b`：根因=导航白名单漏登 MusicItemRoute + id 硬塞 initialSongId；专辑/艺术家/歌单进对应详情层，歌曲起播后开所属专辑详情，K60 取证导航保留+返回回搜索页）；余 T02b（T02 遗留）/T05（静默刷新）/T07（跨季误下载，先只读取证）可并发派卡。T08 留档：服务器音乐搜索只请求 AUDIO，非歌曲链路暂只单测覆盖；详情层左上返回键语义列 W3 再议。
-4. **主题特别要求（用户拍板）**：#9 按 W0-D2 定稿还原——T09 依 `V201_DESIGN_FINAL.md` §2 三批执行。
-5. **环境事实**：多设备在线装机用 `assembleLibreDebug` + `adb -s <id> install -r`；全模块单测注意 `:core`/`:app:phone` 是 `testLibreDebugUnitTest`、`:data` 是 `testDebugUnitTest`；ktfmt 修正任务名是 `ktfmtFormat`（无 `ktfmtApply`）；发布门须显式加跑 `verifyMpvJniReleaseContract`；GitHub 上传双资产偶发 502 拆「先建 Release 再分次传」可解。
+3. **W1 修复快线已收官（2026-11-25）**：T01–T08 全 DONE。本批三卡：✅ T02b 管理员入口首次查询缺口（`9bc5693c`：缓存无当前账号记录视同换账号补查；留档：补查未节流）、✅ T05 静默刷新（`71a15850`：同剧刷新保留明细、失败沿用旧值，K60 滚动偏移仅 31px；留档：已看勾选无语义图标不可文本取证）、✅ T07 跨季误下载（`c014f948`：根因=服务器按 ParentIndexNumber 归季返回跨季 dto，加 `episodeMatchesRequestedSeason` 一致性过滤；K60 实测 S01 12 集、S02 仍 11 集）。
+4. **W2 开工（2026-11-25）**：✅ T09 批① 角色收口（`0d3aa49a`+`b17eaa24`：Neutral→MediaAurora、M3 解耦域色+dynamic 映射、warning/success/info 语义 token、评分徽标极光淡色 pill、黄铜退出 phone）；批①验收裁定已落 `V201_DESIGN_FINAL.md` §2（派生值转正、浅色档对比度列批③专项、inversePrimary 无消费点不处理、dynamic 下 Neutral 固定极光）。下一批：T09 批② 组件换肤（token 已就位）+ T11/T12 手势误触可并发。
+5. **主题特别要求（用户拍板）**：#9 按 W0-D2 定稿还原——T09 依 `V201_DESIGN_FINAL.md` §2 三批执行，批① 已核销。
+6. **环境事实**：多设备在线装机用 `assembleLibreDebug` + `adb -s <id> install -r`；全模块单测注意 `:core`/`:app:phone` 是 `testLibreDebugUnitTest`、`:data`/`:modes:film` 是 `testDebugUnitTest`；ktfmt 修正任务名是 `ktfmtFormat`（无 `ktfmtApply`）；发布门须显式加跑 `verifyMpvJniReleaseContract`；GitHub 上传双资产偶发 502 拆「先建 Release 再分次传」可解；**并发子代理共用工作区会互踩 Gradle 增量编译缓存**（Kotlin 内部错误/class-attributes.tab 冲突），并发卡尽量错开构建或接受失败后重跑。
 
 ### 下会话开工提示词
 
@@ -55,13 +56,13 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
    工作区：F:/Develop/code_data/work_tree/Aurorama/v2-merge-141（分支 codex/v2.0.1）。
 2. 开工读序（固定）：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V201_TASKS.md 状态块
    → 记忆库 MEMORY.md（读序外文件按需，不通读）。
-3. 现状（≤4 行）：HEAD 以 git log 为准；W1 近收官，T01–T06、T08 已 DONE（a4b6ed4f/56202e2d/52d57030/c7e6f2ff+84e7b800/0ed6cf41/93b2697b）；
-   master=312209a6（远端推送待授权）；设计定稿=docs/V201_DESIGN_FINAL.md。
-4. 本会话任务（1–2 卡）：W1 修复快线收官——T05（静默刷新）/T07（跨季误下载，先只读取证）/T02b（小缺口）
-   任选两张并发派子代理；W1 清零后可开 W2-T09 批①（角色收口，纯 token 层）。
+3. 现状（≤4 行）：HEAD 以 git log 为准；W1 已收官（T01–T08 全 DONE），W2 开工——T09 批① DONE（0d3aa49a+b17eaa24）；
+   master=312209a6（远端推送待授权）；设计定稿=docs/V201_DESIGN_FINAL.md（§2 含批①验收裁定）。
+4. 本会话任务（1–2 卡）：W2-T09 批②（组件换肤：Aurora tone/进度/选中/开关滑杆/SectionHeader，批① token 已就位）
+   + T11/T12（抽屉/滑杆手势误触，独立于 token）可并发派子代理；批③ 开工前需 Kimi 先出浅色档对比度专项裁定（候选 auroraInk）。
 5. 设计分权（固定一行）：设计以 docs/V201_DESIGN_FINAL.md + docs/V2_DESIGN.md §3 为准，deepseek 零设计权。
 6. 门禁与纪律（固定引用）：见 AGENTS.md 质量门/红线；adb 取证派子代理，负责人复核证据关键行。
-   【T07 取证限定只读《学生会的一己之见》下载清单成因，不做服务器写】
+   【并发卡共用工作区会互踩 Gradle 增量编译缓存，派卡时声明构建错开或接受重跑】
 7. 交接（固定一行）：收口按 AGENTS.md 五件事，提示词按统一标准填槽更新。
 ```
 
