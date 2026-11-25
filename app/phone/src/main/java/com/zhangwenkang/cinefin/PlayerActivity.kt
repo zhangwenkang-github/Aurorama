@@ -92,6 +92,7 @@ import com.zhangwenkang.cinefin.presentation.player.resolveSyncPlayEpisodeAction
 import com.zhangwenkang.cinefin.presentation.player.syncPlayErrorReasonRes
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.catalog.CatalogReadPort
+import com.zhangwenkang.cinefin.settings.R as SettingsR
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.utils.AmbientColors
 import com.zhangwenkang.cinefin.utils.PlayerGestureHelper
@@ -524,13 +525,8 @@ class PlayerActivity : BasePlayerActivity() {
                     onSelectResizeMode = { mode -> selectResizeMode(mode) },
                     settingsController = settingsController,
                     videoTransform = videoTransform.value,
-                    onSelectBackend = { backend ->
-                        requestBackendSwitch(
-                            backend,
-                            reason = "manual-settings",
-                            clearDecodeFallbackStage = true,
-                        )
-                    },
+                    // W2-T13（需求 #2）：面板只留播放会话高频项，全量设置回设置页（播放组）。
+                    onOpenAllSettings = ::openAllPlayerSettings,
                     // VIDEO-50：本地库文件被移动 / 授权失效时的错误卡动作
                     onRescanLocalLibrary = ::rescanLocalLibrary,
                     onSelectMpvHwdec = { hwDec -> applyMpvHwDec(hwDec) },
@@ -1760,6 +1756,22 @@ class PlayerActivity : BasePlayerActivity() {
                 transition.startTransition(AMBIENT_FADE_DURATION)
             }
         }
+    }
+
+    /**
+     * W2-T13（需求 #2）：播放设置面板顶部「全部播放设置 →」——回主界面并落到设置页播放组 （`settings_category_player`
+     * 子页）。播放页按既有生命周期收尾（暂停 / 收服务），不走额外旁路。
+     */
+    private fun openAllPlayerSettings() {
+        startActivity(
+            Intent(this, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                putExtra(
+                    EXTRA_OPEN_SETTINGS_CATEGORY,
+                    SettingsR.string.settings_category_player,
+                )
+            }
+        )
     }
 
     private fun finishPlayback() {

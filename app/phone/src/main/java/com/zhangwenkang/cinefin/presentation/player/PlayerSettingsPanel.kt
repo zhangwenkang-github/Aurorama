@@ -103,14 +103,6 @@ data class PlayerSettingsSnapshot(
     val autoFallback: Boolean,
 )
 
-/** 语言优先级预设（W12：并入「音轨」面板）：写进既有 `pref_audio_languages`（逗号分隔的全量列表） */
-internal val AudioLanguagePresets =
-    listOf(
-        "zh-Hans,zh-Hant,zh,en" to PlayerR.string.player_settings_language_zh,
-        "ja,zh-Hans,zh-Hant,zh,en" to PlayerR.string.player_settings_language_ja,
-        "en,zh-Hans,zh-Hant,zh" to PlayerR.string.player_settings_language_en,
-    )
-
 /**
  * W20（§6.1）：跳过提示条显示时长的可选项（秒）。
  *
@@ -340,10 +332,18 @@ private enum class PlayerSettingsTab(@StringRes val labelRes: Int) {
 internal fun PlayerSettingsPanel(
     controller: PlayerSettingsController,
     onOpenPanel: (PlayerPanel) -> Unit,
+    /** W2-T13（需求 #2）：跳设置页播放组——面板只留播放会话高频项，长期配置统一回设置页。 */
+    onOpenAllSettings: () -> Unit,
 ) {
     var tab by remember { mutableStateOf(PlayerSettingsTab.Playback) }
     val settings = controller.state
     Column(modifier = Modifier.fillMaxSize()) {
+        // W2-T13（需求 #2）：面板顶部唯一出海口，全量设置只在设置页维护。
+        PanelRow(
+            label = stringResource(PlayerR.string.player_settings_all_settings_entry),
+            selected = false,
+            onClick = onOpenAllSettings,
+        )
         SettingsGroupRow(
             labels = PlayerSettingsTab.entries.map { it.labelRes },
             selectedIndex = tab.ordinal,
@@ -353,29 +353,28 @@ internal fun PlayerSettingsPanel(
             when (tab) {
                 PlayerSettingsTab.Playback -> {
                     /*
-                     * W17（用户确认）：W13 加的「码率 / 解码」两行兜底入口**移除**，不留兜底入口。
-                     * W4-T9 例外：手机竖屏宽度预算会省略底栏「解码」键，因此在列表末尾补一条「解码与能力」入口
+                     * W2-T13（需求 #2）：面板收敛为「播放会话高频项」——后台音频 / 片段跳过按钮 / 片段自动跳过 /
+                     * 章节标记等「配置一次长期有效」项全部回设置页（设置页是唯一全量事实源）。
+                     * W4-T9 例外保留：手机竖屏宽度预算会省略底栏「解码」键，因此在列表末尾补一条「解码与能力」入口
                      * （跳到既有解码面板）；「码率」仍只走底栏键。
                      */
-                    PanelSwitchRow(
-                        label = stringResource(PlayerR.string.player_settings_background_audio),
-                        caption =
-                            stringResource(PlayerR.string.player_settings_background_audio_caption),
-                        checked = settings.backgroundAudio,
-                        onCheckedChange = { controller.setBackgroundAudio(it) },
-                    )
-                    PanelSwitchRow(
-                        label = stringResource(PlayerR.string.player_settings_segments_button),
-                        checked = settings.segmentsSkipButton,
-                        onCheckedChange = { controller.setSegmentsSkipButton(it) },
-                    )
-                    PanelSwitchRow(
-                        label = stringResource(PlayerR.string.player_settings_segments_auto),
-                        checked = settings.segmentsAutoSkip,
-                        onCheckedChange = { controller.setSegmentsAutoSkip(it) },
+                    /*
+                     * W67 补充：时间格式（跟随系统 / 24 小时 / 12 小时）——「预计结束时刻」等时钟显示共用同一
+                     * 解析与格式化；与「显示 / 时间」相关的行就近放置（章节刻度之后）。
+                     */
+                    PanelTitle(stringResource(AppR.string.player_settings_clock_format))
+                    PanelChipRow(
+                        options =
+                            ClockFormatLabelRes.mapIndexed { index, labelRes ->
+                                stringResource(labelRes) to
+                                    (settings.clockFormat == PlayerClockFormats[index])
+                            },
+                        onSelect = { index ->
+                            controller.setClockFormat(PlayerClockFormats[index])
+                        },
                     )
                     /*
-                     * W20（§6.1 阈值补齐）：提示条显示时长的页内入口。
+                     * W20（§6.1 阈值补齐）：提示条显示时长的页内入口（T13 定稿保留项——播放中会调）。
                      * 与全局设置页共用同一个偏好键（秒）；改完下一秒的片段轮询即生效。
                      */
                     if (settings.segmentsSkipButton) {
@@ -397,26 +396,6 @@ internal fun PlayerSettingsPanel(
                             },
                         )
                     }
-                    PanelSwitchRow(
-                        label = stringResource(PlayerR.string.player_settings_chapter_markers),
-                        checked = settings.chapterMarkers,
-                        onCheckedChange = { controller.setChapterMarkers(it) },
-                    )
-                    /*
-                     * W67 补充：时间格式（跟随系统 / 24 小时 / 12 小时）——「预计结束时刻」等时钟显示共用同一
-                     * 解析与格式化；与「显示 / 时间」相关的行就近放置（章节刻度之后）。
-                     */
-                    PanelTitle(stringResource(AppR.string.player_settings_clock_format))
-                    PanelChipRow(
-                        options =
-                            ClockFormatLabelRes.mapIndexed { index, labelRes ->
-                                stringResource(labelRes) to
-                                    (settings.clockFormat == PlayerClockFormats[index])
-                            },
-                        onSelect = { index ->
-                            controller.setClockFormat(PlayerClockFormats[index])
-                        },
-                    )
                     /*
                      * W27 播放结束行为：旧的「播完暂停」拆成两个更直白的开关
                      * （自动下一集 / 停在结束帧）；旧键在 ViewModel 初始化时迁到新键。
@@ -746,7 +725,6 @@ internal fun VideoTransformControls(
 internal fun PlayerDecodePanel(
     controller: PlayerSettingsController,
     deviceCapabilities: DevicePlaybackCapabilities,
-    onSelectBackend: (String) -> Unit,
     onSelectDecodeMode: (String) -> Unit,
     onSelectToneMapping: (String) -> Unit,
     onAutoFallbackChange: (Boolean) -> Unit,
@@ -757,21 +735,7 @@ internal fun PlayerDecodePanel(
     val colors = LocalCinefinColors.current
     Column(modifier = Modifier.fillMaxSize()) {
         PanelList {
-            PanelTitle(stringResource(PlayerR.string.player_controls_decode_kernel))
-            PanelRow(
-                label = stringResource(PlayerR.string.player_settings_backend_exoplayer),
-                caption = stringResource(PlayerR.string.player_controls_decode_kernel_caption),
-                selected = settings.backend == PlayerViewModel.PLAYER_BACKEND_EXOPLAYER,
-                // W4-T3a-2：偏好由原地切换管线在**成功之后**写入（PlayerActivity.requestBackendSwitch →
-                // PlayerViewModel.switchBackendInPlace），面板只发意图，不直接改偏好
-                onClick = { onSelectBackend(PlayerViewModel.PLAYER_BACKEND_EXOPLAYER) },
-            )
-            PanelRow(
-                label = stringResource(PlayerR.string.player_settings_backend_mpv),
-                caption = stringResource(PlayerR.string.player_settings_backend_caption),
-                selected = settings.backend == PlayerViewModel.PLAYER_BACKEND_MPV,
-                onClick = { onSelectBackend(PlayerViewModel.PLAYER_BACKEND_MPV) },
-            )
+            // W2-T13（需求 #2）：内核切换 / mpv hwdec 只保留在设置页（配置一次长期有效），面板不再重复入口。
             PanelTitle(stringResource(PlayerR.string.player_controls_decode_strategy))
             PanelRow(
                 label = stringResource(PlayerR.string.player_controls_decode_hardware),
@@ -841,12 +805,6 @@ internal fun PlayerDecodePanel(
             HdrCapabilityRow(
                 labelRes = PlayerR.string.player_controls_decode_hlg,
                 supported = deviceCapabilities.hlg,
-            )
-            PanelRow(
-                label = stringResource(PlayerR.string.player_controls_decode_hwdec),
-                caption = hwdecCaption(settings.mpvHwdec),
-                selected = false,
-                onClick = {},
             )
             PanelTitle(stringResource(PlayerR.string.player_controls_decode_fallback))
             PanelSwitchRow(
@@ -927,17 +885,6 @@ private fun HdrCapabilityRow(
         onClick = {},
     )
 }
-
-/** 当前 mpv hwdec 档的说明文案（W4-T3b）：`mediacodec` / `no` 加语义注解，未知值原样显示。 */
-@Composable
-private fun hwdecCaption(mpvHwdec: String): String =
-    when (mpvHwdec) {
-        PlayerDecodeMode.HWDEC_MEDIACODEC ->
-            stringResource(PlayerR.string.player_controls_decode_hwdec_hardware)
-        PlayerDecodeMode.HWDEC_NONE ->
-            stringResource(PlayerR.string.player_controls_decode_hwdec_software)
-        else -> mpvHwdec
-    }
 
 /**
  * 码率面板：**自动 / 原始画质 / 官方快照档位**。

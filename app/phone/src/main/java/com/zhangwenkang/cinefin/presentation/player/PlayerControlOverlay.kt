@@ -750,10 +750,10 @@ fun PlayerControlOverlay(
     onSelectResizeMode: (Int) -> Unit,
     /** 播放页设置面板（§1.9）：六组设置的读写器由 Activity 持有 */
     settingsController: PlayerSettingsController,
+    /** W2-T13（需求 #2）：设置面板顶部「全部播放设置 →」，跳设置页播放组 */
+    onOpenAllSettings: () -> Unit = {},
     /** 画面调整（§1.6）当前状态：旋转 / 镜像 / 裁剪 / 去黑边 */
     videoTransform: PlayerVideoTransform,
-    /** 切播放内核（ExoPlayer ⇄ mpv）：由 Activity 走「重启播放页 + 续播」的既有路径 */
-    onSelectBackend: (String) -> Unit,
     /** 解码策略（硬解优先 / 仅软解）：由 Activity 落偏好并重启播放页让两个内核重新创建实例（W12 反馈 B） */
     onSelectDecodeMode: (String) -> Unit = {},
     /** 失败自动回退开关（W19）：开 = 既有回退链；关 = 强制所选内核，失败只提示错误 */
@@ -1595,8 +1595,6 @@ fun PlayerControlOverlay(
                             onSelectTrack = onSelectAudioTrack,
                             onAdjustDelay = onAdjustAudioDelay,
                             onResetDelay = onResetAudioDelay,
-                            // W12 反馈 B：音轨语言优先级并入主音轨面板，唯一入口
-                            controller = settingsController,
                         )
                     PlayerPanel.Aspect ->
                         AspectPanel(
@@ -1612,12 +1610,12 @@ fun PlayerControlOverlay(
                         PlayerSettingsPanel(
                             controller = settingsController,
                             onOpenPanel = { target -> navigatePanel(target) },
+                            onOpenAllSettings = onOpenAllSettings,
                         )
                     PlayerPanel.Decode ->
                         PlayerDecodePanel(
                             controller = settingsController,
                             deviceCapabilities = deviceCapabilities,
-                            onSelectBackend = onSelectBackend,
                             onSelectDecodeMode = onSelectDecodeMode,
                             onSelectToneMapping = onSelectToneMapping,
                             onAutoFallbackChange = onAutoFallbackChange,
@@ -4116,33 +4114,7 @@ private fun SubtitleTrackOptions(
             onSubtitleModeChanged(value)
         },
     )
-    PanelSwitchRow(
-        label = stringResource(PlayerR.string.player_settings_remember_track),
-        checked = controller.state.rememberTrackSelection,
-        onCheckedChange = { controller.setRememberTrackSelection(it) },
-    )
-    /*
-     * W27 字幕语言优先级：与音轨面板同一套预设与交互（同一组 chip、同样是「下一次选轨生效」），
-     * 写进既有 `pref_subtitle_languages`。
-     */
-    PanelTitle(stringResource(PlayerR.string.player_subtitle_language))
-    PanelChipRow(
-        options =
-            AudioLanguagePresets.map { (value, labelRes) ->
-                stringResource(labelRes) to (controller.state.subtitleLanguagePreset == value)
-            },
-        onSelect = { index -> controller.setSubtitleLanguage(AudioLanguagePresets[index].first) },
-    )
-    Text(
-        text = stringResource(PlayerR.string.player_subtitle_language_caption),
-        style = MaterialTheme.typography.bodySmall,
-        color = colors.onSurfaceVariant,
-        modifier =
-            Modifier.padding(
-                horizontal = CinefinSpacing.Space5,
-                vertical = CinefinSpacing.Space1,
-            ),
-    )
+    // W2-T13（需求 #2）：记住轨道选择 / 首选字幕语言属「配置一次长期有效」，只保留在设置页（语言与字幕子页）。
     // W27 侧载字幕：文件选择器导入，只保存在本机（轨道行尾可直接移除）
     PanelTitle(stringResource(PlayerR.string.player_subtitle_sideload))
     PanelRow(
@@ -5245,33 +5217,11 @@ private fun AudioPanel(
     onSelectTrack: (Int) -> Unit,
     onAdjustDelay: (Long) -> Unit,
     onResetDelay: () -> Unit,
-    /** W12 反馈 B：音轨语言优先级并入本面板（唯一音轨入口） */
-    controller: PlayerSettingsController,
 ) {
     val colors = LocalCinefinColors.current
     Column(modifier = Modifier.fillMaxSize()) {
         PanelList {
-            // 语言优先级（从播放设置并入）：决定自动选轨时优先挑哪条音轨
-            PanelTitle(stringResource(PlayerR.string.player_settings_audio_language))
-            PanelChipRow(
-                options =
-                    AudioLanguagePresets.map { (value, labelRes) ->
-                        stringResource(labelRes) to (controller.state.audioLanguagePreset == value)
-                    },
-                onSelect = { index ->
-                    controller.setAudioLanguage(AudioLanguagePresets[index].first)
-                },
-            )
-            Text(
-                text = stringResource(PlayerR.string.player_settings_audio_language_caption),
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.onSurfaceVariant,
-                modifier =
-                    Modifier.padding(
-                        horizontal = CinefinSpacing.Space5,
-                        vertical = CinefinSpacing.Space1,
-                    ),
-            )
+            // W2-T13（需求 #2）：首选音轨语言属「配置一次长期有效」，只保留在设置页（语言与字幕子页）。
             // 延迟放最上面：和字幕面板一致，最高频的调节项不该被列表挤到下面
             PanelTitle(stringResource(PlayerR.string.player_audio_delay))
             AudioDelayRow(

@@ -56,6 +56,7 @@
     <string name="player_settings_auto_next_caption">When this episode ends, play the next one automatically</string>
     <string name="player_settings_stay_at_end">Stay on the last frame</string>
     <string name="player_settings_stay_at_end_caption">When the queue ends, keep the player open on the last frame instead of closing it</string>
+    <string name="player_settings_all_settings_entry">All playback settings →</string>
     <string name="player_settings_repeat_entry">Repeat mode</string>
     <string name="player_settings_repeat_entry_caption">Order / repeat all / repeat one / shuffle</string>
     <string name="player_settings_decode_entry">Decode &amp; capabilities</string>

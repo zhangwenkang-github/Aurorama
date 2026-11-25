@@ -360,6 +360,12 @@ internal fun localLibraryQaSemantics(
 
 @Serializable data class SettingsRoute(val indexes: IntArray)
 
+/**
+ * MainActivity extra（W2-T13 / 需求 #2）：从播放页「全部播放设置 →」跳到设置页时携带的分类路径首项 （设置页分类的 `nameStringResource`）；0
+ * / 缺省表示无请求。
+ */
+const val EXTRA_OPEN_SETTINGS_CATEGORY = "com.zhangwenkang.cinefin.extra.OPEN_SETTINGS_CATEGORY"
+
 @Serializable data class SettingsFileEditRoute(val filePath: String)
 
 @Serializable data object AboutRoute

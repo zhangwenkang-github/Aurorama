@@ -80,6 +80,9 @@ class MainActivity : AppCompatActivity() {
     /** W68：锁屏 / 通知点击音乐条目的「打开音乐播放界面」请求（同上）。 */
     private var openMusicNowPlayingRequest by mutableStateOf(false)
 
+    /** W2-T13（需求 #2）：播放页「全部播放设置 →」请求——落到设置页的指定分类子页。 */
+    private var openSettingsCategory by mutableStateOf<Int?>(null)
+
     /** W7-T5（需求 27）：完成通知点击解析后的最终落点。 */
     private var downloadCompletionLaunch by mutableStateOf<DownloadCompletionLaunch?>(null)
 
@@ -88,6 +91,7 @@ class MainActivity : AppCompatActivity() {
 
         openDownloadsRequest = consumeOpenDownloadsRequest(intent)
         openMusicNowPlayingRequest = consumeOpenMusicNowPlayingRequest(intent)
+        openSettingsCategory = consumeOpenSettingsRequest(intent)
         consumeDownloadCompletionRequest(intent)?.let(::resolveDownloadCompletionRequest)
         requestDownloadNotificationPermission()
 
@@ -155,6 +159,8 @@ class MainActivity : AppCompatActivity() {
                             onOpenMusicNowPlayingHandled = { openMusicNowPlayingRequest = false },
                             downloadCompletionLaunch = downloadCompletionLaunch,
                             onDownloadCompletionHandled = { downloadCompletionLaunch = null },
+                            openSettingsCategory = openSettingsCategory,
+                            onOpenSettingsHandled = { openSettingsCategory = null },
                         )
                     }
                 }
@@ -169,6 +175,7 @@ class MainActivity : AppCompatActivity() {
         if (consumeOpenMusicNowPlayingRequest(intent)) {
             openMusicNowPlayingRequest = true
         }
+        consumeOpenSettingsRequest(intent)?.let { openSettingsCategory = it }
         consumeDownloadCompletionRequest(intent)?.let(::resolveDownloadCompletionRequest)
     }
 
@@ -191,6 +198,14 @@ class MainActivity : AppCompatActivity() {
         val requested = intent?.getBooleanExtra(EXTRA_OPEN_MUSIC_NOW_PLAYING, false) == true
         if (requested) intent.removeExtra(EXTRA_OPEN_MUSIC_NOW_PLAYING)
         return requested
+    }
+
+    /** W2-T13（需求 #2）：读取并消费「跳到设置页指定分类」的标记（播放页「全部播放设置 →」）。 */
+    private fun consumeOpenSettingsRequest(intent: Intent?): Int? {
+        val category = intent?.getIntExtra(EXTRA_OPEN_SETTINGS_CATEGORY, 0) ?: 0
+        if (category == 0) return null
+        intent?.removeExtra(EXTRA_OPEN_SETTINGS_CATEGORY)
+        return category
     }
 
     /** W7-T5：读取并消费完成通知的「直达条目」标记。 */
@@ -272,6 +287,9 @@ private fun MainContent(
     onOpenMusicNowPlayingHandled: () -> Unit,
     downloadCompletionLaunch: DownloadCompletionLaunch?,
     onDownloadCompletionHandled: () -> Unit,
+    /** W2-T13（需求 #2）：跳到设置页指定分类子页；null = 无请求。 */
+    openSettingsCategory: Int?,
+    onOpenSettingsHandled: () -> Unit,
 ) {
     CompositionLocalProvider(LocalOfflineMode provides state.isOfflineMode) {
         NavigationRoot(
@@ -293,6 +311,15 @@ private fun MainContent(
             launchSingleTop = true
         }
         onOpenDownloadsHandled()
+    }
+    // W2-T13（需求 #2）：播放页「全部播放设置 →」——等 NavHost 就绪后落到设置页对应分类子页。
+    LaunchedEffect(openSettingsCategory) {
+        val category = openSettingsCategory ?: return@LaunchedEffect
+        snapshotFlow { navController.currentBackStackEntry }.filterNotNull().first()
+        navController.navigate(SettingsRoute(indexes = intArrayOf(category))) {
+            launchSingleTop = true
+        }
+        onOpenSettingsHandled()
     }
     val context = LocalContext.current
     LaunchedEffect(downloadCompletionLaunch) {
