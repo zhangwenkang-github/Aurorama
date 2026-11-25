@@ -59,6 +59,14 @@
 11. **玻璃（AUDIT-11）**：`CinefinTokens.kt`/`CinefinNavigation.kt` 注释更新为正式决定（无 blur，见 §1 裁定 6）。
 12. **`PlayerControlOverlay.kt:4711/4738/4744`（AUDIT-22）**：字幕预览面板写死色移入表面系 token（低优先，可最后做）。
 
+### 批③ 专项裁定：浅色档对比度（2026-11-25，Kimi；批①验收裁定的遗留项）
+
+- **问题**：浅色主题「aurora1(#0C9E82) 文字 + aurora1 12–16% 底」实测仅 2.5–2.7:1，不达 AA（4.5:1）；评分徽标与批② chip/segmented/card 选中同源。
+- **裁定 1（新增 token）**：`CinefinColors` 新增 `auroraInk`——浅色主题 = `#0A6B5A`（现 `LightNavSelectedContent` 转正为正式 token，单一来源）；深色/AMOLED 主题 = `aurora1`。消费方统一读 `auroraInk`，禁止各组件自判明度。
+- **裁定 2（对比度复核）**：#0A6B5A 对「aurora1@16% 叠 #FAFAFB」容器 ≈ 5.2:1（对 12% 底 ≥5.1:1），达 AA；深色档 aurora1 对 12% 底 8.75:1 维持不变。`DesignTokenConsistencyTest` 同步钉死。
+- **裁定 3（适用槽位）**：评分徽标文字、chip/segmented/card 选中内容色、导航选中内容色（`navSelectedContent` 改读 token）。容器填充值不动（浅 16% / 深 12%）。
+- **裁定 4（执行时点）**：批② 仍按定稿原值落地，不返工；auroraInk 替换列批③第 13 条执行。
+
 验收：每批过后跑 `CinefinThemesTest` / `DesignTokenConsistencyTest`（对比度钉死）+ `CinefinComponentPreviews` 目视 + 真机抽查（首页/详情/设置/下载无黄橙违和色）。
 
 ---
@@ -122,5 +130,31 @@
 
 ## 6. 不在本卡范围（登记去向）
 
-- **设置页 5 组重排布局稿**（AUDIT-20/T13）：T13 开工时由负责人单独出稿，作为 T13 前置输入。
+- **设置页 5 组重排布局稿**（AUDIT-20/T13）：已出稿，见 §7（2026-11-25）。
 - 全站字阶迁移、玻璃 blur、Nocturne 主题：LATER（2.0.2 再裁）。
+
+---
+
+## 7. T13 设置页布局稿（2026-11-25，Kimi；需求 #2；去重方向为本稿裁定，用户可否决）
+
+### 7.1 前置勘察结论
+
+- 设置页树（`SettingsViewModel.kt`）**无同键重复条目**（全量 `nameStringResource` 唯一）；5 组骨架（`SettingsGroupLayout.kt`：账号与服务器/媒体/播放/界面/其他）为 W42 用户确认版，**骨架不动**。
+- 「播放设置重复」实指：**播放器内「播放设置」面板**（`PlayerSettingsPanel.kt`，987 行）与全局设置页共享约 20 个偏好键——playerBackend、playerMpvHwdec、mediaSegments×3、chapterMarkers、subtitleMode、rememberTrackSelection、preferredAudio/SubtitleLanguages、playerGestures 全家 ×10、streamingBitrate、decodeMode、autoFallback、backgroundAudio。
+
+### 7.2 布局裁定
+
+1. **设置页 = 唯一全量事实源，一项不删**；5 组骨架与组内归属维持现状（播放组 = 播放器大类 → 桌面歌词 → 恢复播放队列，现状已符合）。
+2. **去重方向**：播放器内「播放设置」面板收敛为「播放会话高频项」，与设置页重复的「配置一次长期有效」项移出面板：
+   - **面板保留**：解码模式/自动回退、手势总开关及直接子项、长按倍速档、画面变换（旋转/镜像/裁切）、字幕模式、时钟格式、提示条显示时长。
+   - **面板移除（仅设置页保留）**：播放器后端、mpv hwdec/vo/ao、片段跳过按钮/自动跳过、章节标记、记住轨道选择、首选音轨/字幕语言、后台音频、串流码率。
+   - **勘误（2026-11-25，T13 执行时发现的稿内矛盾）**：「提示条显示时长」与「片段跳过时长」是同一偏好键——按保留清单执行，时长 chips 留面板。「串流码率」在设置页无宿主，照稿删除=功能消失，裁定**暂留码率面板**，后续卡先在设置→播放器补码率行再删面板（登记台账）。
+   - 面板顶部加「**全部播放设置 →**」入口，跳转设置页播放组（`settings_category_player`）。
+   - 实现时子代理先枚举面板现状项清单，按上表分类出对照表进证据；表外项按「播放中会不会调」原则归类并列出。
+3. **设置页渲染**：`SettingsScreen.kt:246` 已按组渲染 `SettingsGroupCard`；T13 只需核对 5 组卡片的分组头样式（小号次级灰）与组间距一致，不重写渲染管线。
+
+### 7.3 验收口径
+
+- 设置页 5 组结构与条目数不减少（前后 uiautomator 对照）。
+- 面板不再含 §7.2 移除清单各项，顶部有「全部播放设置」入口且可跳转。
+- 面板保留项与设置页同键联动（改一边另一边回显一致——同键天然满足，抽查 2 项即可）。

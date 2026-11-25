@@ -1,8 +1,8 @@
 # 2.0.1 任务卡台账
 
 <!-- V201_STATUS_BEGIN -->
-> **当前状态（2026-11-25）**：W0 已收官；**W1 修复快线已收官**——T01–T08 全 DONE（T01 `a4b6ed4f`、T02 `56202e2d`、T02b `9bc5693c`、T03 `52d57030`、T04 `c7e6f2ff`+`84e7b800`、T05 `71a15850`、T06 `0ed6cf41`、T07 `c014f948`、T08 `93b2697b`）。**W2 开工**：T09 批① 角色收口 DONE（`0d3aa49a`+`b17eaa24`，验收裁定落 `V201_DESIGN_FINAL.md` §2）。分支 `codex/v2.0.1`；master 已对齐 v2.0.0（`312209a6`）；设计定稿 `docs/V201_DESIGN_FINAL.md`（域色=身份、极光=行动）。
-> **下一卡**：W2-T09 批② 组件换肤（Aurora tone/进度/选中/开关滑杆/SectionHeader，依赖批① token 已就位）+ T11/T12（手势误触，独立于 token）可并发；T10/T13 随后。批③ 开工前需 Kimi 先出浅色档对比度专项裁定。
+> **当前状态（2026-11-25）**：W0/W1 收官；**W2 设计基础已收官**——T09 三批全 DONE（`0d3aa49a`+`b17eaa24` / `c9cb41c9` / `cd9d6ad0`）、T10 `78df3ed7`、T11 `e3bafa2e`、T12 `ddf91d75`、T13 `22988cf2`。分支 `codex/v2.0.1`；master=`312209a6`（远端推送待授权）；设计定稿 `docs/V201_DESIGN_FINAL.md`（§2 含批③ auroraInk 专项裁定、§7 T13 布局稿含勘误）。
+> **下一卡**：W3 音乐模块重塑开工——T14 工具行重构 / T15 歌曲行 / T16 多选 / T17 队列语义（依赖 W2 token 已就位；交互稿=定稿 §4）。T23（串流码率设置页宿主补偿）登记 W4。
 > **工作流（2026-11-24 用户拍板）**：① 下载类任务分散到功能波次，不设独立下载波次；② adb 取证与简单修复下放子代理，负责人只审证据；③ 负责人任务量按上下文消耗弹性排，不固定卡数；④ 负责人只做规划/复杂排错/设计定稿/证据终审；⑤ 波次按依赖与风险排，不照搬需求编号；⑥ 所有主题必须落卡，收口逐卡核销；⑦ 新需求按内容归属插入最合适波次（可插队任意未开始波次），每波次预留 ~20% 缓冲。
 > **红线**：生产服 `jellyfins.zhangwenkang.com` 永久只读；服务器写只在测试服验证；push/tag/Release 需用户授权。
 <!-- V201_STATUS_END -->
@@ -38,11 +38,11 @@
 
 | 卡 | 需求# | 状态 | 内容 | 验收 |
 |---|---|---|---|---|
-| T09 | #9 | DOING | 主题还原：按 `docs/V201_DESIGN_FINAL.md` §2 三批执行。**批① 角色收口 DONE**（`0d3aa49a`+`b17eaa24`：Neutral→MediaAurora 新色板、M3 解耦域色+dynamic 映射、warning/success/info 语义 token、评分徽标极光淡色 pill、黄铜退出 phone）；验收裁定已落定稿文档（派生值转正、浅色档对比度列批③专项、inversePrimary 无消费点不处理、dynamic 下 Neutral 固定极光）。余批② 组件换肤、批③ 细节 | 批①：core 516/616 单测绿、grep 无 `Neutral->MediaFilm`/`C9A227` 残留、K60 首页+详情页无黄橙违和 ✅；批②③待派 |
-| T10 | #18 | TODO | 图标规范：去页面自绘方框磁贴底，抽公共扁平图标组件；图标/文字窄描边（或阴影）token | 复杂背景下图标文字可读；无方框底 |
-| T11 | #12 | TODO | 抽屉误触：`CinefinDrawer.kt` 整屏 anchoredDraggable → 加边缘触发区（左缘 ~24–32dp）或提高阈值 | 真机上下滑动不误触，左缘仍可呼出 |
-| T12 | #13 | TODO | 滑杆防误触：`CinefinSlider` 加垂直手势优先判定 | 真机垂直滚动不改滑杆值 |
-| T13 | #2 | TODO | 设置页重布局：页内已有的播放设置去重，重排 5 组；按 W0-D2 稿 | 无重复设置项；结构按定稿 |
+| T09 | #9 | DONE | 主题还原三批全收官：**批① 角色收口 DONE**（`0d3aa49a`+`b17eaa24`）。**批② 组件换肤 DONE**（`c9cb41c9`：CinefinBrushes 100° 公共渐变+单测、CinefinButton Aurora tone（渐变实底+onAurora+6dp/28% 投影、非 Filled 回退 Media）、ProgressBar/HomeHero/CinefinWideCard/PlayerControlOverlay 已播段改极光渐变（旧 playerProgressBrush 与 <10% 断言退役）、chip/segmented/card 选中=navSelectedFill+aurora1 描边+navSelectedContent、Switch/Slider 读 M3 primary（thumb=onPrimary，dynamic 下保对比度）、SectionHeader 动作回灰；规格外一处：ItemButtonsBar 竖屏 hero 自绘 CTA 按一级 CTA 口径换渐变）。**批③ 细节 DONE**（`cd9d6ad0`：`auroraInk` token 转正（浅 #0A6B5A/深 aurora1/lumen #5CE1D2，navSelectedContent 改读 token、LightNavSelectedContent 删除、评分徽标文字换 auroraInk）、PageMetrics Compact 20→16/gutter 16→12、玻璃注释正式决定口径、字幕预览面板写死色 token 化（渐变→surfaceContainer 高低档、提示 chip→inverse 反色对，理由=scrim 浅色档仅 1.9:1）、HomeHero:124/134 media.* 归零）。留档：进度条批③未做新像素取证（以共用 helper+AuroraGradientTest+批②留档作证） | 批②③：core 529/phone 615 单测绿、ktfmt+assemble 绿、K60 浅色徽标 #0A6B5A+深色 #3DE8C2 像素对照、批③独立 worktree 冷构建自证 ✅ |
+| T10 | #18 | DONE | 图标规范（`78df3ed7`）：去方框磁贴底实改 8 处（定稿 7 处+同模式补漏 2 处：LibraryEntryCard 无封面占位、LocalLibraryScreens 头部封面）；图标着色默认 onSurfaceVariant/强调=navSelectedContent（含 auroraInk）；新增 `scrimBehindControl`（黑 32%）与 `mediaContentShadow`（0 1px 4px 60%）token + `CinefinMediaSurface.kt` 三 helper（HomeHero 圆点示范接入）；vector 清理 4 个 UI 图标 fillColor→`?attr/colorControlNormal`，通知/启动图标 7 个保持纯白（RemoteViews 剪影资产，刻意保留），18 处 `?attr/colorOnBackground` 复核=全在 TV 专用 ic_banner 无需改。留档：图片无封面时占位无灰底（如需底色改 surfaceContainerLow 且仅加载中显示）；`FavoriteBadge.kt:28 tint=Color.White` 范围外写死色 | core 530/phone 615 单测绿、ktfmt+assemble 绿；K60 媒体库/下载页截图目视：磁贴底消失、亮暗封面图标可辨 ✅ |
+| T11 | #12 | DONE | 抽屉误触（`e3bafa2e`）：整屏 anchoredDraggable → 左缘 28dp 热区（`DrawerEdgeSwipeWidth`）且整体内移到系统返回手势保留区（≥24dp，`DrawerSystemEdgeReserve`）之后——MIUI 实测 x<62px 应用收不到 down 事件，纯 x≈8 物理不可行（裁定：接受内移，不改系统设置）；Initial pass 方向仲裁（横向过 slop 且 \|dx\|>\|dy\| 接管，纵向让出），热区内纵向滑动照常滚动页面；打开后仍全屏可拖关闭；收尾动画自算目标+animateTo（尊重 Reduce Motion，少 decay 续滚） | 单测 528/528（新增 7 条手势门控）；K60 六组滑动取证：中部纵向/中部横向/右侧横向/热区内纵向均不开抽屉，左缘热区右滑开出（日志 claim+抽屉节点），面板左滑/遮罩点击可关 ✅ |
+| T12 | #13 | DONE | 滑杆防误触（`ddf91d75`）：`cinefinSliderShouldClaimDrag` 纯函数（\|dx\|>touchSlop 且 \|dx\|>\|dy\| 才接管；45° 斜向放行父级滚动）；行为变化=按下不再即时落位（水平接管时落位/点按抬手落位），已写 KDoc；三个调用点排查全是水平滑杆无需方向分支 | 单测 528/528（新增 8 断言）；K60 字幕外观面板从滑杆上垂直滑→面板滚 197px 且字号不变（滚动正证）、水平拖改值、点按定位可用 ✅ |
+| T13 | #2 | DONE | 设置页重布局（`22988cf2`）：设置页 5 组骨架/条目/渲染零改动（核对组头样式与间距已一致）；播放设置面板 12→6 项（留：时间格式/提示条时长 chips/自动下一集/停在结束帧/循环/解码与能力+手势 tab 全留；移除：后台音频/片段跳过按钮/自动跳过/章节标记），同步收敛解码面板（去内核选择+hwdec 行）、字幕面板（去记住轨道/首选字幕语言）、音轨面板（去首选音轨语言）；面板顶部「全部播放设置 →」经 MainActivity extra 直达播放组子页；三 locale 字符串补齐。**勘误落 §7**：提示条时长=片段时长同键按保留执行；串流码率设置页无宿主暂留面板（后续卡：设置→播放器补码率行再删面板）。留档：PlayerSettingsSnapshot 冗余字段瘦身另开卡 | 单测 615/615+settings 绿、ktfmt（快照隔离格式化未碰他卡文件）、assemble 绿；K60：5 组头齐、面板移除项节点不存在、入口直达播放组子页、手势开关/倍速档双端同键联动 ✅ |
 
 ## W3 音乐模块重塑（依赖 W2 token；可拆 a=T14–T17 / b=T18–T20）
 
@@ -62,6 +62,7 @@
 |---|---|---|---|---|
 | T21 | #19 | TODO | 竖屏控件下移：接通 `BasePlayerActivity.configureInsets()`（死代码 `:136-147`）或 Compose safeDrawing | 真机竖屏控件不被状态栏/摄像头干扰 |
 | T22 | #20 | TODO | 竖屏锁定无法解锁（排查右缘 140×160dp 触摸区 `PlayerOverlayContainer.kt:99-107` 与手势拦截链）；统一锁/解锁键位尺寸；旋转 FULL_SENSOR→SCREEN_ORIENTATION_USER（manifest 同步） | 真机：竖屏可解锁；系统关自动旋转时手机横置不转 |
+| T23 | T13 遗留 | TODO | 串流码率设置页宿主补偿：设置→播放器子页新增「串流码率」行（接 `setPlayerStreamingBitrate` 既有键），落地后删除播放器内码率面板（T13 因设置页无宿主暂留） | 设置页可调码率且面板不再重复；真机联动回显一致 |
 
 ## W5 收口与发布
 
@@ -71,9 +72,12 @@
 ## 遗留 LATER 池（2.0.0 裁定，W5 再裁）
 
 A4 徽标 / A5 FAILED 同步 / A6 计数 / 对账口径 /「全部继续」/ Pad 库页离线降级。
+2.0.1 W2 新增：`FavoriteBadge.kt:28` 写死白色 tint 收敛 / 图片占位无灰底（如需底色：surfaceContainerLow 且仅加载中）/ `PlayerSettingsSnapshot` 冗余字段瘦身（T13 遗留）。
 
 ## 过程日志（只留最近 ~5 条）
 
+- 2026-11-25：**W2 收官**——T13 DONE（`22988cf2`：播放设置面板 12→6 项+「全部播放设置」直达播放组子页；串流码率无宿主暂留→登记 T23；§7 勘误）+ T10 DONE（`78df3ed7`：去磁贴底 8 处+图标着色+scrim/shadow token+vector 清理）。W2 五卡全绿，HEAD=`78df3ed7`。
+- 2026-11-25：W2-T09 批② DONE（`c9cb41c9`）+ 批③ DONE（`cd9d6ad0`：auroraInk 转正/PageMetrics/玻璃注释/字幕预览 token 化）+ T11 DONE（`e3bafa2e`：抽屉左缘热区，MIUI x<62px 物理不可达裁定接受）+ T12 DONE（`ddf91d75`：滑杆垂直手势优先）。负责人产出：批③浅色档专项裁定、T13 布局稿（§7）。
 - 2026-11-25：W1 收官 + W2 开工——T02b/T05/T07 三卡并发 DONE（`9bc5693c`/`71a15850`/`c014f948`；T07 根因=服务器按 ParentIndexNumber 归季返回跨季 dto；T05 留档：已看勾选无语义不可文本取证；T02b 留档：补查未节流）。T09 批① 角色收口 DONE（`0d3aa49a`+`b17eaa24`），验收裁定落定稿 §2（浅色档对比度列批③专项）。
 - 2026-11-25：W1-T06/T08 并发派卡均 DONE——T06 季页多选下移（`0ed6cf41`，hero 补稳定 key，K60 两场景坐标零偏移）；T08 搜索音乐结果导航（`93b2697b`，根因=导航白名单漏登 MusicItemRoute+id 硬塞 initialSongId，三类结果各进对应详情层；留档：服务器音乐搜索只产歌曲、详情层左上返回键语义列 W3 再议）。
 - 2026-11-25：W1-T01/T02 并发派卡均 DONE——T01 更新链路（`a4b6ed4f`）；T02 管理员入口（`56202e2d`；遗留首次查询失败无缓存场景落 T02b，已收官）。
