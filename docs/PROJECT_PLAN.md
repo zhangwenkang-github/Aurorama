@@ -38,7 +38,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
 | 连接层 | 🟢 W31 完成；遗留 `fix/w31-trust-session-reuse` 分支待合并 | `docs/ARCHITECTURE.md` §5.4 |
 | 投屏/同步观看 | ⛔ 投屏未开始（LATER）；SyncPlay 为 SHOULD（W4 评估） | `docs/V2_REQUIREMENTS.md` §9.5 |
-| 维护/缺陷修复 → 2.0.1 | 🟡 **W3 a 组已收官**（2026-11-25）：分支 `codex/v2.0.1`；W1 T01–T08 + W2 T09–T13 + W3 T14/T15/T16 全 DONE（HEAD=`5efbf784`）；设计定稿 `docs/V201_DESIGN_FINAL.md`；W3 余 T17（队列语义）+ b 组 T18/T19/T20；T23 串流码率补偿登记 W4 | `docs/V201_TASKS.md` |
+| 维护/缺陷修复 → 2.0.1 | 🟡 **W3 音乐重塑已收官**（2026-11-25）：分支 `codex/v2.0.1`；W1 T01–T08 + W2 T09–T13 + W3 T14–T20 全 DONE（HEAD=`d29bd6b0`）；RELEASE_NOTES_v2.0.1 首条已立；余 W4（T21/T22/T23）→ W5 回归发布 | `docs/V201_TASKS.md` |
 
 ## 4. 当前焦点（2026-11-25）
 
@@ -46,8 +46,8 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 2. **W0 已收官（2026-11-24）**：分支+台账+AGENTS.md；W0-D1 设计审计（22 条偏差）；W0-D2 设计定稿；W0-D3 master 对齐 v2.0.0（`312209a6`，远端推送待授权）。
 3. **W1 修复快线已收官（2026-11-25）**：T01–T08 全 DONE（更新链路/管理员入口×2/logo/图片缓存/静默刷新/多选下移/跨季误下载/搜索音乐导航）。
 4. **W2 设计基础已收官（2026-11-25）**：T09 主题还原三批全 DONE（批① `0d3aa49a`+`b17eaa24`；批② `c9cb41c9`；批③ `cd9d6ad0`）；T10 图标规范 `78df3ed7`；T11 抽屉左缘热区 `e3bafa2e`；T12 滑杆垂直手势优先 `ddf91d75`；T13 设置面板去重 `22988cf2`（串流码率无宿主暂留→T23）。
-5. **W3 音乐重塑 a 组已收官（2026-11-25）**：T14 工具行重构 `8aa7d705`+`2cd7f0cd`（建议 tab 首位/⋮ 收纳菜单/歌曲排序+分页持久化/Aurora 播放全部；根因修复 `DATE_CREATED`）、T15 歌曲行 `00eb1cdf`+`748d76c0`（去序号/右置操作区/⋮与长按共用全量菜单/当前曲目 aurora1）、T16 去多选按钮 `5efbf784`（统一长按进多选/死代码清扫/模块外零残留）；串行 resume 同一子代理，K60+Pad 取证全绿（`F:/Develop/code_data/qa/w3-t14|15|16/`）。
-6. **环境事实**：多设备在线装机用 `assembleLibreDebug` + `adb -s <id> install -r`；全模块单测注意 `:core`/`:app:phone` 是 `testLibreDebugUnitTest`、`:data`/`:modes:film`/`:modes:music`/`:settings` 是 `testDebugUnitTest`；ktfmt 修正任务名是 `ktfmtFormat`（全仓任务，并发卡用「快照→格式化→只保留自己文件」隔离法）；发布门须显式加跑 `verifyMpvJniReleaseContract`；GitHub 上传双资产偶发 502 拆「先建 Release 再分次传」可解；**并发子代理共用工作区会互踩 Gradle 增量编译缓存**（Kotlin 内部错误/class-attributes.tab/results.bin EOF，等他方构建结束重跑即恢复）；**MIUI 手势导航下屏幕最外侧 ~24dp 应用收不到触摸事件**（系统返回保留区，边缘手势热区须内移，`systemGestureExclusion` 不完全可信）；**Jellyfin 查询缺字段不报错只返回 null**（W3-T14：`querySongs` 漏 `DATE_CREATED` 致添加日期恒空，排序/分组依赖字段必须先核对 fields 参数）。
+5. **W3 音乐重塑全波次已收官（2026-11-25）**：a 组 T14 `8aa7d705`+`2cd7f0cd`（建议 tab/⋮ 收纳菜单/歌曲排序+分页持久化；根因修复 `DATE_CREATED`）、T15 `00eb1cdf`+`748d76c0`（歌曲行去序号/⋮与长按共用全量菜单）、T16 `5efbf784`（统一长按进多选/模块外零残留）；T17 `4e391eb5`+`8c283888`（点单曲=追加队尾并起播、快照逐项剔除+就近迁移、RELEASE_NOTES_v2.0.1 首条）；b 组 T18 `6e71a8b8`（播放页单入口/隐藏底栏/封面取色整体撤销回极光、palette 依赖删除）、T20 `f7c1e8b2`（手动刷新+只读保守补取）、T19 `d29bd6b0`（服务器歌单改名/删除/换位；修 PlaylistItemId 误用 bug）；全程串行 resume 同一子代理，K60/Pad 取证全绿（`F:/Develop/code_data/qa/w3-t14..t20/`），测试服写验证后无残留。留档裁定项见台账 LATER 池（主播放键极光化、横屏 Compact 复测等 W5 带上）。
+6. **环境事实**：多设备在线装机用 `assembleLibreDebug` + `adb -s <id> install -r`；全模块单测注意 `:core`/`:app:phone` 是 `testLibreDebugUnitTest`、`:data`/`:modes:film`/`:modes:music`/`:settings` 是 `testDebugUnitTest`；ktfmt 修正任务名是 `ktfmtFormat`（全仓任务，并发卡用「快照→格式化→只保留自己文件」隔离法）；发布门须显式加跑 `verifyMpvJniReleaseContract`；GitHub 上传双资产偶发 502 拆「先建 Release 再分次传」可解；**并发子代理共用工作区会互踩 Gradle 增量编译缓存**（Kotlin 内部错误/class-attributes.tab/results.bin EOF，等他方构建结束重跑即恢复）；**MIUI 手势导航下屏幕最外侧 ~24dp 应用收不到触摸事件**（系统返回保留区，边缘手势热区须内移，`systemGestureExclusion` 不完全可信）；**Jellyfin 查询缺字段不报错只返回 null**（W3-T14：`querySongs` 漏 `DATE_CREATED` 致添加日期恒空，排序/分组依赖字段必须先核对 fields 参数）；**Jellyfin 歌单条目操作必须用 PlaylistItemId 而非媒体 itemId**（W3-T19：误用时 API 返回 204 但不生效）；设备当前登录 jellyfin-test 可写测试服（生产服写验证一律先 dump 抽屉确认服务器）。
 
 ### 下会话开工提示词
 
@@ -56,17 +56,17 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
    工作区：F:/Develop/code_data/work_tree/Aurorama/v2-merge-141（分支 codex/v2.0.1）。
 2. 开工读序（固定）：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V201_TASKS.md 状态块
    → 记忆库 MEMORY.md（读序外文件按需，不通读）。
-3. 现状（≤4 行）：HEAD 以 git log 为准；W0/W1/W2 + W3 a 组（T14/T15/T16）已收官
-   （HEAD=5efbf784）；master=312209a6（远端推送待授权）；W3 留档裁定项见台账 LATER 池；
-   设计定稿=docs/V201_DESIGN_FINAL.md（§4.4 队列、§4.5 播放页为下文依据）。
-4. 本会话任务（1–2 卡）：W3——T17 队列语义（playSong=追加队尾并起播、仅全部播放整列加载、
-   快照失效仅剔确认过时项；主战场 MusicModeViewModel.kt，与 a 组同文件须串行，resume 上一
-   子代理最佳；RELEASE_NOTES 须明示行为变化）→ T18 播放页布局（MusicNowPlayingScreen.kt，
-   与 T17 文件不重叠但同模块，建议串行 resume；交互稿=定稿 §4.5）。T19 需可写测试服凭据、
-   T20 接 T15 已落 stub，排下一会话。
+3. 现状（≤4 行）：HEAD 以 git log 为准；W0–W3 全收官（W3 七卡 T14–T20 全 DONE，
+   HEAD=d29bd6b0+docs 收口提交）；master=312209a6（远端推送待授权）；
+   RELEASE_NOTES_v2.0.1.md 已有 T17 首条；W3 留档裁定项见台账 LATER 池。
+4. 本会话任务（1–2 卡）：W4 播放器收尾——T21 竖屏控件下移（接通 configureInsets 死代码
+   或 Compose safeDrawing）→ T22 竖屏锁定无法解锁+锁键尺寸统一+旋转 FULL_SENSOR→
+   SCREEN_ORIENTATION_USER（manifest 同步）【两卡同在播放器层，先查文件重叠再定串/并，
+   重叠则串行 resume】；T23 串流码率设置页宿主补偿（设置→播放器子页加行+删播放器内
+   码率面板）排其后。播放器链路文档 docs/V2_W4_TASKS.md 顶部状态块按需。
 5. 设计分权（固定一行）：设计以 docs/V201_DESIGN_FINAL.md + docs/V2_DESIGN.md §3 为准，deepseek 零设计权。
 6. 门禁与纪律（固定引用）：见 AGENTS.md 质量门/红线；adb 取证派子代理，负责人复核证据关键行。
-   【T17 真机取证要点：点单曲后队列=原队列+该曲队尾起播、全部播放=整列加载；生产服只读】
+   【T21/T22 真机取证用 K60 竖屏播放视频；发布门相关改动注意 verifyMpvJniReleaseContract】
 7. 交接（固定一行）：收口按 AGENTS.md 五件事，提示词按统一标准填槽更新。
 ```
 

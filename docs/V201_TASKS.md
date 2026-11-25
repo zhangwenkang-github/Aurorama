@@ -1,8 +1,8 @@
 # 2.0.1 任务卡台账
 
 <!-- V201_STATUS_BEGIN -->
-> **当前状态（2026-11-25）**：W0/W1/W2 收官；**W3 a 组（T14/T15/T16）全 DONE**——T14 工具行重构 `8aa7d705`+`2cd7f0cd`、T15 歌曲行 `00eb1cdf`+`748d76c0`、T16 去多选按钮 `5efbf784`。分支 `codex/v2.0.1` HEAD=`5efbf784`；master=`312209a6`（远端推送待授权）；设计定稿 `docs/V201_DESIGN_FINAL.md`。
-> **下一卡**：W3——T17 队列语义（文件重叠已确认：主战场 `MusicModeViewModel.kt` playSong/队列快照，与 a 组同文件，串行 resume 派）→ b 组 T18 播放页（`MusicNowPlayingScreen.kt`，与 T17 文件不重叠）/ T19 歌单写操作（需可写测试服）/ T20 元数据刷新（T15 已落菜单 stub）。T23 登记 W4。
+> **当前状态（2026-11-25）**：**W3 音乐模块重塑全波次收官**——a 组 T14 `8aa7d705`+`2cd7f0cd` / T15 `00eb1cdf`+`748d76c0` / T16 `5efbf784`；T17 队列语义 `4e391eb5`+`8c283888`（含 `docs/RELEASE_NOTES_v2.0.1.md` 首条）；b 组 T18 播放页 `6e71a8b8`、T20 元数据 `f7c1e8b2`、T19 歌单写操作 `d29bd6b0`。分支 `codex/v2.0.1` HEAD=`d29bd6b0`；master=`312209a6`（远端推送待授权）；设计定稿 `docs/V201_DESIGN_FINAL.md`。
+> **下一卡**：W4 播放器收尾——T21 竖屏控件下移 / T22 竖屏锁定解锁+旋转口径 / T23 串流码率设置页宿主补偿（删播放器内码率面板）。之后 W5：LATER 池裁定 → 全量回归 → 2.0.1 发布。
 > **工作流（2026-11-24 用户拍板）**：① 下载类任务分散到功能波次，不设独立下载波次；② adb 取证与简单修复下放子代理，负责人只审证据；③ 负责人任务量按上下文消耗弹性排，不固定卡数；④ 负责人只做规划/复杂排错/设计定稿/证据终审；⑤ 波次按依赖与风险排，不照搬需求编号；⑥ 所有主题必须落卡，收口逐卡核销；⑦ 新需求按内容归属插入最合适波次（可插队任意未开始波次），每波次预留 ~20% 缓冲。
 > **红线**：生产服 `jellyfins.zhangwenkang.com` 永久只读；服务器写只在测试服验证；push/tag/Release 需用户授权。
 <!-- V201_STATUS_END -->
@@ -51,10 +51,10 @@
 | T14 | #7 | DONE | 工具行重构（`8aa7d705`+`2cd7f0cd`）：Tab 序列=建议/歌曲/专辑/艺术家/歌单（建议=最近添加/最常播放/收藏三段各 ≤10、空段隐藏，复用 MusicRecentStore）；工具行左 ⋮ 收纳菜单（来源筛选+徽标开关+排序 6 键升降序持久化+收藏筛选+每页数量 50/100/200 默认 100 持久化），右 Aurora「播放全部」+随机键；歌曲 tab 客户端分页+底部页码栏；根因修复 `querySongs` 补 `DATE_CREATED`；排序/分页/建议段纯函数+17 条新单测。留档：最常播放=最近播放序近似（无计数表，LATER）；排序仅歌曲 tab（其余 tab LATER）；默认 tab 仍「专辑」（是否改「建议」W5 裁）；筛选（收藏）不持久化 | 单测 7/5/5 新+全模块绿、ktfmt+assemble 绿；K60：5 tab/⋮菜单全项/排序改序/每页 50→1/7 页/翻页/force-stop 持久化/建议段可起播 ✅（`F:/Develop/code_data/qa/w3-t14/`） |
 | T15 | #8 | DONE | 歌曲行（`00eb1cdf`+`748d76c0`）：去序号 leading 只留 40dp 封面；右侧 compact=收藏+⋮、≥600dp=加歌单/收藏/⋮（Pad 取证）；⋮ 与长按共用同一份 bottom sheet 菜单=播放/下一首播放/加入队列/加入歌单/收藏/下载/查看专辑/查看艺术家/刷新元数据（stub snackbar，T20 接）+既有「音频信息」保留；歌单上下文上移/下移保留；当前曲目标题 aurora1（core `CinefinListRow` 加可选 `titleColor`）；VM 加 `enqueueSongForAction`/`openAlbumOfSong`（playSong 语义未动，归 T17）。留档：收藏 toggle 真机未验（生产服只读，测试服补，W5）；下载项文案沿用既有三态；整行高亮未改（仅标题着色，如需再裁） | 单测 11 新+全模块绿、ktfmt+assemble 绿；K60：无序号/菜单 10 项/播放/查看专辑/下载前置框/队列插入位置/歌单上移下移；Pad：三图标 ✅（`qa/w3-t15/`） |
 | T16 | #6 | DONE | 去多选按钮（`5efbf784`）：删工具行+详情顶栏两处「多选」入口与死代码 `enterBatchSelection()`；所有歌曲行（歌曲/建议/详情层）统一长按进多选并选中该曲，⋮ 成上下文菜单唯一入口；批量态顶栏/批量条/W59 专辑卡长按保留。全局排查：VideoScreen/LibraryScreen/SeasonScreen/FavoritesScreen/DownloadRows 均已是长按进多选无入口按钮，模块外零残留。留档：建议 tab「全选」作用域=全部歌曲而非建议 20 条（W5 裁） | 单测 454 全绿、ktfmt+assemble 绿；K60：工具行/详情无多选、长按进多选已选 1→2 项、批量下载前置框、× 退出、⋮ 菜单回归、建议 tab 长按 ✅（`qa/w3-t16/`） |
-| T17 | #14 | TODO | 队列语义：`playSong`（VM `:2480`）点单曲=追加队尾并起播；仅「全部播放」整列加载；队列快照失效策略=仅剔确认过时项 | 真机行为符合；RELEASE_NOTES 明示变化 |
-| T18 | #11 | TODO | 播放页布局：修文字重叠（`MusicNowPlayingScreen.kt:1220-1265` 无权重 Row；`:550/:566` 不可滚动）；队列/音效入口去重；隐藏底栏；底部按钮不被遮 | 真机三布局无重叠、单入口、无遮挡 |
-| T19 | #5 | TODO | 服务器歌单补改名/删除：封装 updatePlaylist/deletePlaylist，PlaylistList ⋮ 对服务器歌单开放；清理 `PlaylistServerExchangePort` 陈旧注释 | 测试服真机：建/改名/删/加曲/移曲全通 |
-| T20 | #15 | TODO | 元数据：封装 `/Items/{id}/Refresh`；无封面曲目主动补取机制 + 单曲 ⋮「刷新元数据」（接 T15 菜单） | 真机：无图曲目刷新后出现封面 |
+| T17 | #14 | DONE | 队列语义（`4e391eb5`+`8c283888`）：`playSong` 改纯函数 `musicPlaySongPlan` 分派——点单曲=追加队尾并起播，已在队列只跳位不重复追加；详情层（专辑/艺术家/歌单/收藏/最近播放）点歌=追加该曲并起播+后台把「该曲→列表尾」追加队尾（不重建）；搜索/通知路由单曲同追加语义；整列加载只留「全部播放/随机/多选播放/下载页多选播放」；队列快照=逐项剔除确认不可用项+保存的当前曲目被剔除时就近迁移（原 clamp 可能续播无关曲目，隐性修复）；`docs/RELEASE_NOTES_v2.0.1.md` 首条行为变化。留档：详情层尾段不与已有条目去重（保连续播放）；快照恢复偏好 `pref_music_resume_queue` 默认 false（验证时已复原）；14 首服务端解析失败跳过为既有容错 | 单测 6+5 新+全模块绿、ktfmt+assemble 绿；K60：点 A→B 队尾追加起播、再点 A 计数不变跳位、全部播放后台补齐至 335、快照恢复 65 条续上、详情层尾段 65→69 ✅（`qa/w3-t17/`） |
+| T18 | #11 | DONE | 播放页布局（`6e71a8b8`）：非 compact 艺术家·专辑 Row 修重叠（weight+Ellipsis）；Regular/Wide 左栏=顶栏固定+内容区 verticalScroll+底部辅助行固定（短屏降级）；单入口=底部 音效/歌词/队列（顶部 ⋮ 收敛播放模式/收藏/桌面歌词/睡眠定时，Wide 右栏队列 Tab 移除、封面点击/歌词预览点击/左滑手势入口全删，Compact 补 ⋮）；全屏播放页隐藏底栏（NavigationRoot host 槽位重构，防 NavHost 重建）；safeDrawing 安全区；封面取色整体撤销——`MusicCoverPalette`+`androidx.palette` 依赖删除，波形/传输键/歌词高亮/迷你条进度线全回极光。留档：主播放键（70dp）保持 onSurface 中性（原不随封面色，是否改极光 W5 裁）；K60 横屏 Compact 档未复测；环境光晕未实现（§1 允许未要求） | 单测 4 新+全模块绿、ktfmt+assemble 绿；K60：三键单入口/底栏隐藏恢复/安全区坐标/长文本不重叠/极光像素取样；Pad：侧轨隐藏/右栏仅歌词/三键安全区 ✅（`qa/w3-t18/`） |
+| T19 | #5 | DONE | 服务器歌单写操作（`d29bd6b0`）：SDK 复用封装——改名 `PlaylistsApi.updatePlaylist`（只动 Name）、删除 `LibraryApi.deleteItem`（复用视频域写边界）、换位 `PlaylistsApi.moveItem`；服务器歌单 ⋮ 开放重命名/删除（删除确认框明示「同时删除服务器上的歌单且无法撤销」）、详情内上移/下移解封；**顺带修真 bug**：移曲/换位原误用媒体 itemId（Jellyfin 要求 PlaylistItemId，实测 204 但顺序不变），改映射 `playlistEntryId` 后生效；`PlaylistServerExchangePort` 陈旧注释更新（整份导入仍 writeEnabled=false）；本地歌单零变化 | 契约 6+菜单 2 新单测、data+music 单测绿、ktfmt+assemble 绿；K60 测试服 E2E：建→改名→加曲×2→换位（顺序实变）→删除全通，本地歌单回归，测试服无残留 ✅（`qa/w3-t19/`） |
+| T20 | #15 | DONE | 元数据（`f7c1e8b2`）：封装 `itemRefreshApi`（POST Refresh，Default/Default+双 replace=false，契约测试钉死防改覆盖式）+ `userLibraryApi` 单条 GET；歌曲 ⋮「刷新元数据」接真调用（刷新→800ms→回读→`mergedWithFresh` 合并→snackbar），T15 stub 退役；无封面补取=保守只读口径（列表加载后对无封面曲目发 GET 回读，延迟 2s/每轮≤20/并发 4/会话内只试一次，**永不自动 POST**，生产服红线安全）。留档：自动补取只 GET（服务端列表缺图单条有图场景自愈）；`MusicRecentStore` 无更新 API（最近播放旧封面待再播放刷新）；800ms 固定延迟未做轮询 | 契约 4+合并 4+补取 6+详情更新 4 新单测全绿、ktfmt+assemble 绿；K60 测试服：手动刷新 snackbar「已刷新元数据」+logcat POST/GET 回读已更新；补取节流计数（候选 20 已试 20→40 不重复）✅（`qa/w3-t20/`） |
 
 ## W4 播放器收尾
 
@@ -74,11 +74,12 @@
 A4 徽标 / A5 FAILED 同步 / A6 计数 / 对账口径 /「全部继续」/ Pad 库页离线降级。
 2.0.1 W2 新增：`FavoriteBadge.kt:28` 写死白色 tint 收敛 / 图片占位无灰底（如需底色：surfaceContainerLow 且仅加载中）/ `PlayerSettingsSnapshot` 冗余字段瘦身（T13 遗留）。
 2.0.1 W3 a 组新增：建议 tab「最常播放」真实频次需播放计数表（现=最近播放序近似）/ 专辑·艺术家·歌单 tab 排序（T14 裁定只做歌曲 tab）/ 默认 tab 是否改「建议」（W5 裁）/ 建议 tab「全选」作用域=全部歌曲（W5 裁）/ 收藏 toggle 真机验证需可写测试服（W5 回归带上）/ music 模块文案全部硬编码无 res（如需三 locale 另立卡）。
+2.0.1 W3 b 组新增：主播放键（70dp）是否改极光（现保持 onSurface，W5 裁）/ K60 横屏 Compact 播放页未复测（W5 回归带上）/ 播放页背景环境光晕未实现（§1 允许未要求，2.0.2 再议）/ `MusicRecentStore` 无更新 API（最近播放条目旧封面/名称待再播放自愈）/ 元数据刷新回读 800ms 固定延迟（慢提供器可能回读旧值，未做轮询）/ 服务器歌单「移出曲目」未做独立真机 E2E（接口已改 PlaylistItemId，W5 回归带上）。
 
 ## 过程日志（只留最近 ~5 条）
 
-- 2026-11-25：**W3 a 组收官**——T14/T15/T16 串行 resume 派同一子代理全 DONE（`8aa7d705`+`2cd7f0cd` / `00eb1cdf`+`748d76c0` / `5efbf784`），HEAD=`5efbf784`；门禁全绿+K60/Pad 真机取证（`qa/w3-t14|15|16/`）。负责人裁定：建议 tab 三段结构、排序仅歌曲 tab、刷新元数据菜单落 stub、建议 tab 长按同样进多选。
-- 2026-11-25：**W2 收官**——T13 DONE（`22988cf2`）+ T10 DONE（`78df3ed7`）。W2 五卡全绿。
-- 2026-11-25：W2-T09 批② `c9cb41c9` + 批③ `cd9d6ad0` + T11 `e3bafa2e`（MIUI x<62px 物理不可达裁定）+ T12 `ddf91d75` DONE。
-- 2026-11-25：W1 收官 + W2 开工——T02b/T05/T07 并发 DONE；T09 批① `0d3aa49a`+`b17eaa24`。
-- 2026-11-25：W1-T06 `0ed6cf41` / T08 `93b2697b` 并发 DONE；T01 `a4b6ed4f` / T02 `56202e2d` DONE。
+- 2026-11-25：**W3 全波次收官**——T17 `4e391eb5`+`8c283888`（队列追加语义+快照就近迁移+RELEASE_NOTES 首条）、T18 `6e71a8b8`（播放页单入口/隐藏底栏/封面取色撤销回极光）、T20 `f7c1e8b2`（元数据手动刷新+只读保守补取）、T19 `d29bd6b0`（服务器歌单改名/删除/换位；修 PlaylistItemId 误用 bug）。W3 七卡全 DONE，HEAD=`d29bd6b0`，全程 K60/Pad 取证绿、测试服无残留。
+- 2026-11-25：**W3 a 组收官**——T14/T15/T16 串行 resume 派同一子代理全 DONE（`8aa7d705`+`2cd7f0cd` / `00eb1cdf`+`748d76c0` / `5efbf784`）。
+- 2026-11-25：**W2 收官**——T13 `22988cf2` + T10 `78df3ed7`；T09 批② `c9cb41c9` + 批③ `cd9d6ad0` + T11 `e3bafa2e` + T12 `ddf91d75`。W2 五卡全绿。
+- 2026-11-25：W1 收官——T01–T08 全 DONE（`a4b6ed4f`/`56202e2d`/`52d57030`/`c7e6f2ff`+`84e7b800`/`71a15850`/`0ed6cf41`/`c014f948`/`93b2697b`/`9bc5693c`）。
+- 2026-11-24：W0 全波次收官——D2 设计定稿 `docs/V201_DESIGN_FINAL.md`，D3 master 对齐 v2.0.0。
