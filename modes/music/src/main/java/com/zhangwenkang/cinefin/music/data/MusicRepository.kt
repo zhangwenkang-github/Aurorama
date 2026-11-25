@@ -25,8 +25,11 @@ import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.MediaStreamType
 import org.jellyfin.sdk.model.api.MediaType
+import org.jellyfin.sdk.model.api.MetadataRefreshMode
 import org.jellyfin.sdk.model.api.SortOrder
 import org.jellyfin.sdk.model.api.request.GetInstantMixFromSongRequest
+import org.jellyfin.sdk.model.api.request.RefreshItemRequest
+import timber.log.Timber
 
 /** W37 曲目来源（在线融合：全部 / 服务器 / 本地）。 */
 enum class MusicItemSource(val label: String) {
@@ -200,7 +203,39 @@ interface MusicRepository {
      * [limit] 为期望条数；服务器可能返回更少。网络 / API 失败直接抛异常，由调用方决定静默跳过。
      */
     suspend fun getInstantMix(seedItemId: UUID, limit: Int): List<MusicSong>
+
+    /**
+     * W3-T20：手动刷新单曲元数据（`POST /Items/{id}/Refresh`）。
+     *
+     * 参数口径：`MetadataRefreshMode.Default` + `ImageRefreshMode.Default`，且 `replaceAllMetadata =
+     * false` / `replaceAllImages = false`——只补齐缺失元数据 / 图片，不覆盖用户已编辑的字段。
+     */
+    suspend fun refreshSongMetadata(itemId: UUID): SongMetadataRefreshResult
+
+    /**
+     * W3-T20：按 id 读取单条曲目（`GET /Users/{userId}/Items/{itemId}`，只读）。
+     *
+     * 用于刷新后回读，以及「无封面曲目补取」：自动补取只发 GET，不发 Refresh。
+     */
+    suspend fun getSong(itemId: UUID): MusicSong?
 }
+
+/** W3-T20：单曲元数据刷新结果。 */
+sealed interface SongMetadataRefreshResult {
+    data object Refreshed : SongMetadataRefreshResult
+
+    data class Failed(val message: String?) : SongMetadataRefreshResult
+}
+
+/** W3-T20：手动刷新的请求形状（单测钉死参数口径，防止有人改成 `FullRefresh` / 覆盖式刷新）。 */
+internal fun songMetadataRefreshRequest(itemId: UUID): RefreshItemRequest =
+    RefreshItemRequest(
+        itemId = itemId,
+        metadataRefreshMode = MetadataRefreshMode.DEFAULT,
+        imageRefreshMode = MetadataRefreshMode.DEFAULT,
+        replaceAllMetadata = false,
+        replaceAllImages = false,
+    )
 
 /**
  * InstantMix 请求形状（W5-T12）。
@@ -514,6 +549,35 @@ constructor(
                 .content
                 .items
                 .mapNotNull { item -> item.toMusicSong(baseUrl, namespace) }
+        }
+
+    override suspend fun refreshSongMetadata(itemId: UUID): SongMetadataRefreshResult =
+        withContext(Dispatchers.IO) {
+            if (jellyfinApi.userId == null) {
+                return@withContext SongMetadataRefreshResult.Failed("尚未登录服务器")
+            }
+            try {
+                jellyfinApi.itemRefreshApi.refreshItem(songMetadataRefreshRequest(itemId))
+                SongMetadataRefreshResult.Refreshed
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                SongMetadataRefreshResult.Failed(error.message)
+            }
+        }
+
+    override suspend fun getSong(itemId: UUID): MusicSong? =
+        withContext(Dispatchers.IO) {
+            val userId = jellyfinApi.userId ?: return@withContext null
+            val baseUrl = jellyfinRepository.getBaseUrl().trimEnd('/')
+            runCatching {
+                jellyfinApi.userLibraryApi
+                    .getItem(itemId, userId)
+                    .content
+                    .toMusicSong(baseUrl, currentNamespace())
+            }
+                .onFailure { error -> Timber.w(error, "读取单曲失败：%s", itemId) }
+                .getOrNull()
         }
 
     private suspend fun querySongs(libraryId: UUID?): List<MusicSong> {

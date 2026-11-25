@@ -363,6 +363,13 @@ fun MusicModeScreen(
         }
     }
 
+    // W3-T20：手动刷新元数据反馈（「已刷新元数据」/「刷新失败」）。
+    LaunchedEffect(viewModel) {
+        viewModel.metadataRefreshFeedback.collect { message ->
+            snackbarHostState.showSnackbar(message)
+        }
+    }
+
     // W5-T12（MUSIC-14 Auto DJ）：连续自动续播 3 批后的刹车提示（非阻塞；用户任一传输操作后继续）。
     LaunchedEffect(viewModel) {
         viewModel.autoDjBatchLimit.collect {
@@ -971,9 +978,9 @@ fun MusicModeScreen(
                         MusicSongAction.VIEW_ALBUM -> viewModel.openAlbumOfSong(contextSheetSong)
                         MusicSongAction.VIEW_ARTIST ->
                             contextSheetSong.artist?.let(viewModel::openArtistByName)
-                        // T20：接入刷新元数据
+                        // W3-T20：手动刷新单曲元数据（成功 / 失败走 metadataRefreshFeedback 的 snackbar）
                         MusicSongAction.REFRESH_METADATA ->
-                            exchangeScope.launch { snackbarHostState.showSnackbar("该功能将在后续版本提供") }
+                            viewModel.refreshSongMetadata(contextSheetSong)
                         // 音频信息（MUSIC-34）：W5-T6 起启用（设计定稿一 §1）
                         MusicSongAction.AUDIO_INFO -> {
                             audioInfo = viewModel.audioInfoFor(contextSheetSong)

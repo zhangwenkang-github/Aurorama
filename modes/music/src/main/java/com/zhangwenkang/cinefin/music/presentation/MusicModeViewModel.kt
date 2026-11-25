@@ -17,6 +17,7 @@ import com.zhangwenkang.cinefin.music.data.LocalPlaylistRepositoryImpl
 import com.zhangwenkang.cinefin.music.data.MusicAlbum
 import com.zhangwenkang.cinefin.music.data.MusicArtist
 import com.zhangwenkang.cinefin.music.data.MusicAutoDjController
+import com.zhangwenkang.cinefin.music.data.MusicItemSource
 import com.zhangwenkang.cinefin.music.data.MusicItemSourceFilter
 import com.zhangwenkang.cinefin.music.data.MusicLibrary
 import com.zhangwenkang.cinefin.music.data.MusicLyricsOverlayController
@@ -35,6 +36,7 @@ import com.zhangwenkang.cinefin.music.data.PlaylistExchangeDocument
 import com.zhangwenkang.cinefin.music.data.PlaylistExchangeEntry
 import com.zhangwenkang.cinefin.music.data.PlaylistExchangeException
 import com.zhangwenkang.cinefin.music.data.ServerPlaylistCreateOutcome
+import com.zhangwenkang.cinefin.music.data.SongMetadataRefreshResult
 import com.zhangwenkang.cinefin.music.data.TrackRef
 import com.zhangwenkang.cinefin.music.data.groupAlbums
 import com.zhangwenkang.cinefin.music.data.groupArtists
@@ -59,6 +61,7 @@ import com.zhangwenkang.cinefin.music.data.lyrics.nudgeLyricEditLine
 import com.zhangwenkang.cinefin.music.data.lyrics.parseLyricOffsetMs
 import com.zhangwenkang.cinefin.music.data.lyrics.shiftLyricEditLines
 import com.zhangwenkang.cinefin.music.data.lyrics.shiftLyricWords
+import com.zhangwenkang.cinefin.music.data.mergedWithFresh
 import com.zhangwenkang.cinefin.music.data.musicPlayModeOf
 import com.zhangwenkang.cinefin.music.data.musicQueueFillBatches
 import com.zhangwenkang.cinefin.music.data.musicQueueInsertAt
@@ -258,6 +261,14 @@ constructor(
     /** W9-T4：收藏写排队（网络 / 5xx 已落本地待同步）→ 音乐页非阻塞 snackbar（与影视详情页同口径）。 */
     private val favoriteWriteNoticeChannel = Channel<String>(Channel.BUFFERED)
     val favoriteWriteNotices = favoriteWriteNoticeChannel.receiveAsFlow()
+
+    /** W3-T20：手动刷新元数据的成功 / 失败反馈 → 音乐页非阻塞 snackbar。 */
+    private val metadataRefreshFeedbackChannel = Channel<String>(Channel.BUFFERED)
+    val metadataRefreshFeedback = metadataRefreshFeedbackChannel.receiveAsFlow()
+
+    /** W3-T20：无封面补取已尝试的曲目（进程内一次；失败不重试，避免批量轰炸）。 */
+    private val artworkBackfillTried = mutableSetOf<UUID>()
+    private var artworkBackfillJob: Job? = null
 
     /** W58：长按多选状态（按曲目 itemId 选中；列表刷新后按 id 求交集）。 */
     private val _batchSelectionState = MutableStateFlow(MusicBatchSelectionState())
@@ -1287,6 +1298,7 @@ constructor(
                             _uiState.update { it.copy(loading = false, offline = offlineMode) }
                             publishLibraries()
                             playPendingRouteSong()
+                            scheduleArtworkBackfill()
                         },
                         onPlaylistsLoaded = { playlists ->
                             serverPlaylists = playlists
@@ -3124,6 +3136,113 @@ constructor(
         openAlbum(album)
     }
 
+    /**
+     * W3-T20：手动刷新单曲元数据（曲目 ⋮ 菜单「刷新元数据」）。
+     *
+     * 只对服务器曲目生效：`POST /Items/{id}/Refresh`（Default + 不覆盖用户字段）→ 短暂等待服务端任务 → 回读该曲并 合并进列表 / 详情（名称 / 封面
+     * / 时长等即时更新），最后用 snackbar 反馈「已刷新元数据」/「刷新失败」。
+     */
+    fun refreshSongMetadata(song: MusicSong) {
+        if (song.source != MusicItemSource.SERVER) {
+            viewModelScope.launch { metadataRefreshFeedbackChannel.send("刷新失败") }
+            return
+        }
+        viewModelScope.launch {
+            when (repository.refreshSongMetadata(song.itemId)) {
+                is SongMetadataRefreshResult.Failed -> {
+                    Timber.w("刷新元数据：item=%s 失败", song.itemId)
+                    metadataRefreshFeedbackChannel.send("刷新失败")
+                }
+                SongMetadataRefreshResult.Refreshed -> {
+                    // 刷新是服务端异步任务：短暂等待后再回读，避免立刻拿到旧快照。
+                    delay(METADATA_REFRESH_REREAD_DELAY_MS)
+                    val fresh = repository.getSong(song.itemId)
+                    fresh?.let(::applySongMetadataUpdate)
+                    Timber.i(
+                        "刷新元数据：item=%s 成功，回读=%s",
+                        song.itemId,
+                        if (fresh == null) "无数据" else "已更新",
+                    )
+                    metadataRefreshFeedbackChannel.send("已刷新元数据")
+                }
+            }
+        }
+    }
+
+    /** W3-T20：把刷新后的曲目合并回曲库与当前详情层（行内标题 / 封面即时更新）。 */
+    private fun applySongMetadataUpdate(fresh: MusicSong) {
+        serverLibrary =
+            serverLibrary.copy(
+                songs =
+                    serverLibrary.songs.map { existing ->
+                        if (existing.itemId == fresh.itemId) existing.mergedWithFresh(fresh)
+                        else existing
+                    }
+            )
+        _uiState.update { state ->
+            val detail = state.detail
+            val updatedDetail =
+                if (detail != null && detail.songs.any { song -> song.itemId == fresh.itemId }) {
+                    val merged = detail.songs.first { song -> song.itemId == fresh.itemId }
+                    detail.withUpdatedSong(merged.mergedWithFresh(fresh))
+                } else {
+                    detail
+                }
+            state.copy(detail = updatedDetail)
+        }
+        publishLibraries()
+    }
+
+    /**
+     * W3-T20：无封面补取（负责人裁定口径）。
+     *
+     * 列表加载完成后等待 [MUSIC_ARTWORK_BACKFILL_DELAY_MS]，对「服务器来源且无封面」的曲目**只发 GET 回读** （每会话每曲一次，最多
+     * [MUSIC_ARTWORK_BACKFILL_BATCH_LIMIT] 首、并发 [MUSIC_ARTWORK_BACKFILL_CONCURRENCY]）；
+     * 回读仍无封面就跳过——**不自动调用 Refresh POST**（生产服只读红线；Refresh 只保留菜单手动触发）。
+     */
+    private fun scheduleArtworkBackfill() {
+        if (_uiState.value.offline) return
+        if (artworkBackfillJob?.isActive == true) return
+        artworkBackfillJob = viewModelScope.launch {
+            delay(MUSIC_ARTWORK_BACKFILL_DELAY_MS)
+            val candidates =
+                musicArtworkBackfillCandidates(
+                    songs = serverLibrary.songs,
+                    triedItemIds = artworkBackfillTried,
+                )
+            if (candidates.isEmpty()) {
+                Timber.d("无封面补取：本次无可补取曲目（已试 %d）", artworkBackfillTried.size)
+                return@launch
+            }
+            var hit = 0
+            for (chunk in musicArtworkBackfillChunks(candidates)) {
+                if (_uiState.value.offline) return@launch
+                val resolved = coroutineScope {
+                    chunk
+                        .map { itemId ->
+                            async {
+                                itemId to runCatching { repository.getSong(itemId) }.getOrNull()
+                            }
+                        }
+                        .awaitAll()
+                }
+                resolved.forEach { (itemId, fresh) ->
+                    artworkBackfillTried += itemId
+                    if (fresh?.imageUri != null) {
+                        applySongMetadataUpdate(fresh)
+                        hit++
+                    }
+                }
+            }
+            Timber.d(
+                "无封面补取：候选 %d（已试 %d），命中 %d",
+                candidates.size,
+                artworkBackfillTried.size,
+                hit,
+            )
+        }
+    }
+
     /** W5 T1（MUSIC-19）：播放页点艺术家名 → 艺术家详情（按当前曲库聚合的艺人分组定位，找不到则忽略）。 */
     fun openArtistByName(name: String) {
         val state = _uiState.value
@@ -3599,6 +3718,9 @@ constructor(
     private companion object {
         /** 曲库加载失败后的自动重试等待（毫秒）：给弱网 / 服务端偶发超时一次恢复窗口。 */
         const val AUTO_RETRY_DELAY_MS = 1_200L
+
+        /** W3-T20：手动刷新后等待服务端刷新任务落库再回读（毫秒；刷新接口异步执行）。 */
+        const val METADATA_REFRESH_REREAD_DELAY_MS = 800L
 
         /** Jellyfin runtimeTicks：1 tick = 100 ns → 1 ms = 10_000 ticks。 */
         private const val TICKS_PER_MS = 10_000L

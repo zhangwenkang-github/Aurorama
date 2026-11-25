@@ -16,6 +16,7 @@ import org.jellyfin.sdk.api.client.extensions.brandingApi
 import org.jellyfin.sdk.api.client.extensions.devicesApi
 import org.jellyfin.sdk.api.client.extensions.genresApi
 import org.jellyfin.sdk.api.client.extensions.instantMixApi
+import org.jellyfin.sdk.api.client.extensions.itemRefreshApi
 import org.jellyfin.sdk.api.client.extensions.itemsApi
 import org.jellyfin.sdk.api.client.extensions.libraryApi
 import org.jellyfin.sdk.api.client.extensions.mediaInfoApi
@@ -100,6 +101,8 @@ class JellyfinApi(
     /** W5-T12（MUSIC-14 Auto DJ）：以曲目 / 专辑等为种子的即时混排（GET，只读）。 */
     val instantMixApi = api.instantMixApi
     val itemsApi = api.itemsApi
+    /** W3-T20：单曲元数据刷新（`POST /Items/{id}/Refresh`，手动触发）。 */
+    val itemRefreshApi = api.itemRefreshApi
     val libraryApi = api.libraryApi
     val mediaInfoApi = api.mediaInfoApi
     val mediaSegmentsApi = api.mediaSegmentsApi
@@ -115,6 +118,7 @@ class JellyfinApi(
     val timeSyncApi = api.timeSyncApi
     val trickplayApi = api.trickplayApi
     val userApi = api.userApi
+    /** W3-T20：按 id 读取单条 Item（GET，只读；刷新后回读与无封面补取用）。 */
     val userLibraryApi = api.userLibraryApi
     val videosApi = api.videosApi
     val viewsApi = api.userViewsApi
