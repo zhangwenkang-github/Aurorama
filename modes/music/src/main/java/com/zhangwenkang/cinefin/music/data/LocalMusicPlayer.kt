@@ -68,6 +68,8 @@ fun LocalLibraryEntry.toLocalMusicSong(libraryId: Long? = null): MusicSong =
         container = musicCodec,
         // MUSIC-36：APE / DSD 引擎解不了 → 曲目行弱提示「不支持」
         formatUnsupported = !isEnginePlayable,
+        // W3-T14：本地曲目没有「入库时间」，用文件修改时间兜底（添加日期排序用）
+        dateAddedMillis = lastModified.takeIf { it > 0 },
     )
 
 private const val TICKS_PER_MS = 10_000L

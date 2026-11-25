@@ -95,6 +95,12 @@ data class MusicSong(
     val container: String? = null,
     /** MUSIC-36：本地格式引擎解不了（APE / DSD）→ 曲目行弱提示「不支持」，不静默失败。 */
     val formatUnsupported: Boolean = false,
+    /**
+     * W3-T14：入库时间（epoch 毫秒），客户端「添加日期」排序用。
+     *
+     * 服务器曲目取 `DateCreated`（Jellyfin 以 UTC 墙钟返回），本地曲目取文件 `lastModified`；取不到为 null（排序时排末尾）。
+     */
+    val dateAddedMillis: Long? = null,
 )
 
 /**
@@ -522,7 +528,8 @@ constructor(
                 recursive = true,
                 sortBy = listOfNotNull(ItemSortBy.fromName("SortName")),
                 sortOrder = listOfNotNull(SortOrder.fromName("Ascending")),
-                fields = listOf(ItemFields.MEDIA_STREAMS),
+                // W3-T14：DATE_CREATED 属于可选 Fields，不显式请求则入库时间恒为 null（「最近添加」/「添加日期」排序依赖它）
+                fields = listOf(ItemFields.MEDIA_STREAMS, ItemFields.DATE_CREATED),
                 enableUserData = true,
                 limit = SONG_LIMIT,
             )
@@ -565,8 +572,13 @@ constructor(
             sampleRate = audioStream?.sampleRate?.takeIf { it > 0 },
             bitDepth = audioStream?.bitDepth?.takeIf { it > 0 },
             container = sourceContainer,
+            dateAddedMillis = dateCreated?.toEpochMilliUtc(),
         )
     }
+
+    /** Jellyfin 的 `DateCreated` 是 UTC 墙钟时间（无时区），按 UTC 换算 epoch 毫秒。 */
+    private fun java.time.LocalDateTime.toEpochMilliUtc(): Long =
+        toInstant(java.time.ZoneOffset.UTC).toEpochMilli()
 
     private fun BaseItemDto.imageUri(baseUrl: String): String? =
         imageTags?.get(ImageType.PRIMARY)?.let { tag ->

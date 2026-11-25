@@ -41,6 +41,23 @@ class MusicRecentStore @Inject constructor(private val storage: MusicStorage) {
         withContext(Dispatchers.IO) {
             storage.loadRecent(limit).mapNotNull { entry -> entry.toMusicSongOrNull() }
         }
+
+    /**
+     * W3-T14：播放历史时间表（itemId → 最近播放时间）。
+     *
+     * 客户端「播放日期」排序只用这张表，不额外请求服务器；没有播放记录（或记录已被裁剪）的曲目不在表内。
+     */
+    suspend fun loadPlayedAt(): Map<UUID, Long> =
+        withContext(Dispatchers.IO) {
+            storage
+                .loadRecent(MusicStorage.DEFAULT_RECENT_LIMIT)
+                .mapNotNull { entry ->
+                    runCatching { UUID.fromString(entry.itemId) }
+                        .getOrNull()
+                        ?.let { id -> id to entry.playedAt }
+                }
+                .toMap()
+        }
 }
 
 internal fun StoredRecentSong.toMusicSongOrNull(): MusicSong? {

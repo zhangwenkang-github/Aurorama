@@ -515,6 +515,18 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     /** 音乐列表是否显示「本地 / 服务器」来源徽标。 */
     val localLibrarySourceBadge = Preference("pref_music_source_badge", true)
 
+    /**
+     * W3-T14：歌曲 Tab 客户端排序与分页（全部是客户端行为，不改服务端请求参数）。
+     *
+     * 排序键 = `NAME` / `ALBUM` / `ARTIST` / `DATE_ADDED` / `DATE_PLAYED` / `DURATION`；未知值由调用方回落
+     * `NAME`。 每页数量可选 50 / 100 / 200（默认 100），只作用于歌曲 Tab 的分页栏。
+     */
+    val musicSongSortKey = Preference("pref_music_song_sort_key", "NAME")
+
+    val musicSongSortAscending = Preference("pref_music_song_sort_ascending", true)
+
+    val musicSongPageSize = Preference("pref_music_song_page_size", 100)
+
     /** 本地库条目在「继续观看 / 最近播放」是否显示视频首帧封面（本地生成，默认开）。 */
     val localLibraryVideoCover = Preference("pref_local_library_video_cover", true)
 
