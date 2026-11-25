@@ -1,8 +1,8 @@
 # 2.0.1 任务卡台账
 
 <!-- V201_STATUS_BEGIN -->
-> **当前状态（2026-11-25）**：**W3 音乐模块重塑全波次收官**——a 组 T14 `8aa7d705`+`2cd7f0cd` / T15 `00eb1cdf`+`748d76c0` / T16 `5efbf784`；T17 队列语义 `4e391eb5`+`8c283888`（含 `docs/RELEASE_NOTES_v2.0.1.md` 首条）；b 组 T18 播放页 `6e71a8b8`、T20 元数据 `f7c1e8b2`、T19 歌单写操作 `d29bd6b0`。分支 `codex/v2.0.1` HEAD=`d29bd6b0`；master=`312209a6`（远端推送待授权）；设计定稿 `docs/V201_DESIGN_FINAL.md`。
-> **下一卡**：W4 播放器收尾——T21 竖屏控件下移 / T22 竖屏锁定解锁+旋转口径 / T23 串流码率设置页宿主补偿（删播放器内码率面板）。之后 W5：LATER 池裁定 → 全量回归 → 2.0.1 发布。
+> **当前状态（2026-11-26）**：**W4 播放器收尾全波次收官**——T21 `8d5f8213`（竖屏顶栏 safeDrawing 下移出挖孔区）、T22 `4b7392c4`（竖屏锁定可解锁：根因=命中区按容器 height/2 取中点，竖屏下半截是选集区，改实测矩形回传；锁/解锁键统一 spec 档位；旋转 FULL_SENSOR→USER+manifest 同步）、T23 `29f3efdc`（串流码率迁设置→播放器子页+删播放器内码率面板，底栏 6 键→5 键）。分支 `codex/v2.0.1` HEAD=`29f3efdc`；master=`312209a6`（远端推送待授权）；设计定稿 `docs/V201_DESIGN_FINAL.md`。
+> **下一卡**：W5 收口与发布——LATER 池裁定 → 全量回归（T9 R1–R12 + 新增用例 + W4 留档验证项）→ 版本 bump 2.0.1 + RELEASE_NOTES + 签名双 APK + `verifyMpvJniReleaseContract` → push/tag/Release（用户授权）。
 > **工作流（2026-11-24 用户拍板）**：① 下载类任务分散到功能波次，不设独立下载波次；② adb 取证与简单修复下放子代理，负责人只审证据；③ 负责人任务量按上下文消耗弹性排，不固定卡数；④ 负责人只做规划/复杂排错/设计定稿/证据终审；⑤ 波次按依赖与风险排，不照搬需求编号；⑥ 所有主题必须落卡，收口逐卡核销；⑦ 新需求按内容归属插入最合适波次（可插队任意未开始波次），每波次预留 ~20% 缓冲。
 > **红线**：生产服 `jellyfins.zhangwenkang.com` 永久只读；服务器写只在测试服验证；push/tag/Release 需用户授权。
 <!-- V201_STATUS_END -->
@@ -60,9 +60,9 @@
 
 | 卡 | 需求# | 状态 | 内容 | 验收 |
 |---|---|---|---|---|
-| T21 | #19 | TODO | 竖屏控件下移：接通 `BasePlayerActivity.configureInsets()`（死代码 `:136-147`）或 Compose safeDrawing | 真机竖屏控件不被状态栏/摄像头干扰 |
-| T22 | #20 | TODO | 竖屏锁定无法解锁（排查右缘 140×160dp 触摸区 `PlayerOverlayContainer.kt:99-107` 与手势拦截链）；统一锁/解锁键位尺寸；旋转 FULL_SENSOR→SCREEN_ORIENTATION_USER（manifest 同步） | 真机：竖屏可解锁；系统关自动旋转时手机横置不转 |
-| T23 | T13 遗留 | TODO | 串流码率设置页宿主补偿：设置→播放器子页新增「串流码率」行（接 `setPlayerStreamingBitrate` 既有键），落地后删除播放器内码率面板（T13 因设置页无宿主暂留） | 设置页可调码率且面板不再重复；真机联动回显一致 |
+| T21 | #19 | DONE | 竖屏控件下移（`8d5f8213`）：Compose 方案——`PlayerTopBar` 加 `protectTopInset`（`maxWidth<maxHeight` 才取 `safeDrawing.only(Top)`），竖屏顶栏整体下移 39.6dp 出挖孔区，scrim 仍铺到顶缘、命中带随实测高度自动跟随；横屏沉浸式 inset=0 零副作用；`BasePlayerActivity.configureInsets` 死代码保留未删（列清理） | phone 单测+ktfmt+assemble 绿；K60 竖屏 7 个顶栏控件 bounds 全部落挖孔安全区之下（y 11..137→115..241，位移=safeInsetTop 103.5px），中央/底栏/锁定键坐标零变化；横屏顶栏 8dp 无叠加 inset ✅ |
+| T22 | #20 | DONE | 竖屏锁定无法解锁+尺寸统一+旋转口径（`4b7392c4`）：**根因=锁定命中区按容器 `height/2` 取中点，竖屏容器下半截是常驻选集区，解锁键（画面区居中）与命中区错位 ~700px 点不到**；改 `onGloballyPositioned` 实测矩形回传（`lockKeyRectPx`/`unlockKeyRectPx` + `HitRect` 纯类+3 单测，兜底按画面区中点），删 140×160dp 与 76×36dp 两组硬编码；锁/解锁键统一 `playerControlSpec` 档位（窄屏 38dp/宽屏 44dp）；旋转 `FULL_SENSOR→SCREEN_ORIENTATION_USER`（`PlayerActivity.orientationForFormFactor` + manifest `fullSensor→user` 同步，车机/TV SENSOR_LANDSCAPE 不动） | phone 单测（新增 3 例）+ktfmt+assemble 绿；K60 竖屏点解锁键 `locked=false` 控制层恢复（修复前实点复现无反应）、锁/解锁键 bounds 完全同值、横屏锁定/解锁回归、dumpsys 取证 USER→全屏 SENSOR_LANDSCAPE→退出回 USER ✅；留档：「关自动旋转横置不转」因红线未改系统设置未真机验证（平台契约兜底）、Pad 锁定几何未实测（W5 回归带上） |
+| T23 | T13 遗留 | DONE | 串流码率宿主补偿（`29f3efdc`）：设置→播放器子页新增「串流码率」行（`PreferenceStreamingBitrate` 模型，落「播放内核」后，通用 OptionsDialog，档位= `PlayerStreamingQuality.qualityPresets()` 单源），写回仍只有 `setPlayerStreamingBitrate`；删播放器内 `PlayerPanel.Bitrate` 面板+底栏/小窗码率键+`onSelectBitrate` 通路（底栏 6 键→5 键，`PlayerControlLayoutTest` 25 断言同步）；三 locale 字符串补齐。踩坑：settings state 重建映射漏 `is PreferenceStreamingBitrate -> copy(...)` 会致选中后行值不刷新（真机发现已修） | settings+phone 单测绿、ktfmt+assemble 绿；K60：行存在/档位逐条一致/改档持久化（shared_prefs 单键落地）/底栏无「码率」节点/「全部播放设置 →」直达且回显联动 ✅；留档：jellyfin-test 拒连（ping 通 443 拒连），码率→实际转码流验证 W5 补；`player_controls_bitrate_*` 字符串与 `ic_player_bitrate` 无引用待清理 |
 
 ## W5 收口与发布
 
@@ -75,10 +75,12 @@ A4 徽标 / A5 FAILED 同步 / A6 计数 / 对账口径 /「全部继续」/ Pad
 2.0.1 W2 新增：`FavoriteBadge.kt:28` 写死白色 tint 收敛 / 图片占位无灰底（如需底色：surfaceContainerLow 且仅加载中）/ `PlayerSettingsSnapshot` 冗余字段瘦身（T13 遗留）。
 2.0.1 W3 a 组新增：建议 tab「最常播放」真实频次需播放计数表（现=最近播放序近似）/ 专辑·艺术家·歌单 tab 排序（T14 裁定只做歌曲 tab）/ 默认 tab 是否改「建议」（W5 裁）/ 建议 tab「全选」作用域=全部歌曲（W5 裁）/ 收藏 toggle 真机验证需可写测试服（W5 回归带上）/ music 模块文案全部硬编码无 res（如需三 locale 另立卡）。
 2.0.1 W3 b 组新增：主播放键（70dp）是否改极光（现保持 onSurface，W5 裁）/ K60 横屏 Compact 播放页未复测（W5 回归带上）/ 播放页背景环境光晕未实现（§1 允许未要求，2.0.2 再议）/ `MusicRecentStore` 无更新 API（最近播放条目旧封面/名称待再播放自愈）/ 元数据刷新回读 800ms 固定延迟（慢提供器可能回读旧值，未做轮询）/ 服务器歌单「移出曲目」未做独立真机 E2E（接口已改 PlaylistItemId，W5 回归带上）。
+2.0.1 W4 新增：`BasePlayerActivity.configureInsets` 死代码删除（T21 选了 Compose 方案）/ `player_controls_bitrate_*` 字符串与 `ic_player_bitrate` 图标无引用清理（T23 遗留，可合并清理卡）/ 串流码率→实际转码流联动验证（jellyfin-test 2026-11-26 拒连，恢复后 W5 补）/ 「关自动旋转横置不转」真机验证（红线未改系统设置，SCREEN_ORIENTATION_USER 契约兜底，W5 可请用户手动关自动旋转验一次）/ Pad 锁定几何与横屏左右挖孔区控件未实测（W5 回归带上）/ 播放器底栏相关 LATER 项须按新 5 键/7 间距口径复算 `bottomRowWidthDp`。
 
 ## 过程日志（只留最近 ~5 条）
 
-- 2026-11-25：**W3 全波次收官**——T17 `4e391eb5`+`8c283888`（队列追加语义+快照就近迁移+RELEASE_NOTES 首条）、T18 `6e71a8b8`（播放页单入口/隐藏底栏/封面取色撤销回极光）、T20 `f7c1e8b2`（元数据手动刷新+只读保守补取）、T19 `d29bd6b0`（服务器歌单改名/删除/换位；修 PlaylistItemId 误用 bug）。W3 七卡全 DONE，HEAD=`d29bd6b0`，全程 K60/Pad 取证绿、测试服无残留。
+- 2026-11-26：**W4 全波次收官**——T21 `8d5f8213`（竖屏顶栏 safeDrawing 下移）、T22 `4b7392c4`（锁定解锁根因=容器高≠画面区中点，改实测矩形回传；旋转口径 USER）、T23 `29f3efdc`（码率迁设置页+删播放器内面板，底栏 6→5 键）。HEAD=`29f3efdc`，三卡 K60 取证绿；留档 jellyfin-test 拒连（码率联动 W5 补）等 6 项入 LATER 池。
+- 2026-11-25：**W3 全波次收官**——T17 `4e391eb5`+`8c283888`（队列追加语义+快照就近迁移+RELEASE_NOTES 首条）、T18 `6e71a8b8`（播放页单入口/隐藏底栏/封面取色撤销回极光）、T20 `f7c1e8b2`（元数据手动刷新+只读保守补取）、T19 `d29bd6b0`（服务器歌单改名/删除/换位；修 PlaylistItemId 误用 bug）。W3 七卡全 DONE，全程 K60/Pad 取证绿、测试服无残留。
 - 2026-11-25：**W3 a 组收官**——T14/T15/T16 串行 resume 派同一子代理全 DONE（`8aa7d705`+`2cd7f0cd` / `00eb1cdf`+`748d76c0` / `5efbf784`）。
 - 2026-11-25：**W2 收官**——T13 `22988cf2` + T10 `78df3ed7`；T09 批② `c9cb41c9` + 批③ `cd9d6ad0` + T11 `e3bafa2e` + T12 `ddf91d75`。W2 五卡全绿。
 - 2026-11-25：W1 收官——T01–T08 全 DONE（`a4b6ed4f`/`56202e2d`/`52d57030`/`c7e6f2ff`+`84e7b800`/`71a15850`/`0ed6cf41`/`c014f948`/`93b2697b`/`9bc5693c`）。
