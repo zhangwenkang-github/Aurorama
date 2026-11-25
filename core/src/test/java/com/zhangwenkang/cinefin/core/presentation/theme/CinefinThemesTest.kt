@@ -160,4 +160,45 @@ class CinefinThemesTest {
             }
         }
     }
+
+    @Test
+    fun `semantic status colors keep readable content contrast`() {
+        CinefinThemes.map.forEach { (id, palette) ->
+            listOf("dark" to palette.dark, "light" to palette.light).forEach { (mode, colors) ->
+                listOf(
+                        "warning" to (colors.warning to colors.onWarning),
+                        "success" to (colors.success to colors.onSuccess),
+                        "info" to (colors.info to colors.onInfo),
+                    )
+                    .forEach { (name, pair) ->
+                        val ratio = contrast(pair.second, pair.first)
+                        assertTrue("$id.$mode $name 对比度 $ratio < 4.5", ratio >= 4.5)
+                    }
+            }
+        }
+    }
+
+    @Test
+    fun `material color scheme keeps content contrast on brand and neutral roles`() {
+        CinefinThemes.map.forEach { (id, palette) ->
+            listOf("dark" to (palette.dark to true), "light" to (palette.light to false)).forEach {
+                (mode, variant) ->
+                val (colors, dark) = variant
+                val scheme = cinefinColorScheme(colors, dark)
+                listOf(
+                        "primary" to (scheme.primary to scheme.onPrimary),
+                        "primaryContainer" to
+                            (scheme.primaryContainer to scheme.onPrimaryContainer),
+                        "secondary" to (scheme.secondary to scheme.onSecondary),
+                        "secondaryContainer" to
+                            (scheme.secondaryContainer to scheme.onSecondaryContainer),
+                        "tertiary" to (scheme.tertiary to scheme.onTertiary),
+                    )
+                    .forEach { (name, pair) ->
+                        val ratio = contrast(pair.second, pair.first)
+                        assertTrue("$id.$mode $name 对比度 $ratio < 4.5", ratio >= 4.5)
+                    }
+            }
+        }
+    }
 }

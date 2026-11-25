@@ -2,12 +2,14 @@ package com.zhangwenkang.cinefin.core.presentation.theme
 
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonTone
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinInteractionState
 import com.zhangwenkang.cinefin.core.presentation.components.resolveButtonColors
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -102,6 +104,51 @@ class DesignTokenConsistencyTest {
         assertHex(0xFF2F415E, MediaBook.containerPressed, "Book containerPressed")
         assertHex(0xFF0A1220, MediaBook.onBase, "Book onBase")
         assertHex(0xFF415E8A, MediaBook.outline, "Book outline")
+
+        // 2.0.1 定稿 §2 批①：中性域改极光色板（base = Aurora1）。
+        assertHex(0xFF3DE8C2, MediaAurora.base, "Neutral base")
+        assertHex(0xFF8FF5DD, MediaAurora.bright, "Neutral bright")
+        assertHex(0xFF2BA98E, MediaAurora.dim, "Neutral dim")
+        assertHex(0xFF04201A, MediaAurora.onBase, "Neutral onBase")
+    }
+
+    @Test
+    fun `semantic status tokens match design final`() {
+        assertHex(0xFFE0B84F, CinefinTokens.Warning, "Warning")
+        assertHex(0xFF2A2100, CinefinTokens.OnWarning, "OnWarning")
+        assertHex(0xFF45D483, CinefinTokens.Success, "Success")
+        assertHex(0xFF04201A, CinefinTokens.OnSuccess, "OnSuccess")
+        assertHex(0xFF6FA0FF, CinefinTokens.Info, "Info")
+        assertHex(0xFF0A1220, CinefinTokens.OnInfo, "OnInfo")
+        assertEquals(0.12f, CinefinTokens.RatingBadgeAlpha, 0.001f)
+
+        CinefinThemes.map.forEach { (id, palette) ->
+            listOf("dark" to palette.dark, "light" to palette.light).forEach { (mode, colors) ->
+                assertHex(0xFFE0B84F, colors.warning, "$id.$mode warning")
+                assertHex(0xFF45D483, colors.success, "$id.$mode success")
+                assertHex(0xFF6FA0FF, colors.info, "$id.$mode info")
+            }
+        }
+    }
+
+    @Test
+    fun `neutral domain resolves to the aurora media palette`() {
+        val darkColors = CinefinThemes.colorsFor(CinefinThemes.AURORA, dark = true)
+        val lightColors = CinefinThemes.colorsFor(CinefinThemes.LIGHT, dark = false)
+
+        val darkNeutral = mediaColorsFor(ContentDomain.Neutral, darkColors)
+        assertHex(0xFF3DE8C2, darkNeutral.base, "Neutral dark base")
+        assertNotEquals("中性域 base 不得再取影视琥珀", MediaFilm.base, darkNeutral.base)
+        assertHex(0xFF04201A, darkNeutral.onBase, "Neutral dark onBase")
+        assertEquals(MediaAurora.containerOver(darkColors.surfaceContainer), darkNeutral.container)
+
+        val lightNeutral = mediaColorsFor(ContentDomain.Neutral, lightColors)
+        assertEquals(darkNeutral.base, lightNeutral.base)
+        assertHex(0xFF000000, lightNeutral.onBase, "Neutral light onBase")
+        assertEquals(
+            MediaAurora.containerOver(lightColors.surfaceContainer),
+            lightNeutral.container,
+        )
     }
 
     @Test
@@ -114,7 +161,7 @@ class DesignTokenConsistencyTest {
                     ContentDomain.Movie -> MediaFilm
                     ContentDomain.Music -> MediaMusic
                     ContentDomain.Book -> MediaBook
-                    ContentDomain.Neutral -> MediaFilm
+                    ContentDomain.Neutral -> MediaAurora.copy(onBase = colors.onAurora)
                 }
             assertEquals(published.containerOver(colors.surfaceContainer), media.container)
             assertEquals(
@@ -130,26 +177,56 @@ class DesignTokenConsistencyTest {
     }
 
     @Test
-    fun `material color scheme maps current domain media color`() {
+    fun `material color scheme decouples brand roles from domain media colors`() {
+        // 2.0.1 定稿 §2 批①：M3 primary 系归极光，secondary / tertiary 改中性系。
         val darkColors = CinefinThemes.colorsFor(CinefinThemes.AURORA, dark = true)
         val lightColors = CinefinThemes.colorsFor(CinefinThemes.LIGHT, dark = false)
-        val movieDark = cinefinColorScheme(ContentDomain.Movie, darkColors, dark = true)
-        val movieMedia = mediaColorsFor(ContentDomain.Movie, darkColors)
-        assertEquals(movieMedia.base, movieDark.primary)
-        assertEquals(movieMedia.onBase, movieDark.onPrimary)
-        assertEquals(movieMedia.container, movieDark.primaryContainer)
-        assertEquals(movieMedia.bright, movieDark.onPrimaryContainer)
-        assertEquals(darkColors.surface, movieDark.surface)
-        assertEquals(darkColors.surfaceContainer, movieDark.surfaceContainer)
-        assertEquals(CinefinTokens.MediaMusicBase, movieDark.secondary)
-        assertEquals(CinefinTokens.MediaBookBase, movieDark.tertiary)
 
-        val bookLight = cinefinColorScheme(ContentDomain.Book, lightColors, dark = false)
-        assertEquals(MediaBook.base, bookLight.primary)
-        assertEquals(MediaBook.onBase, bookLight.onPrimary)
-        assertEquals(MediaFilm.base, bookLight.secondary)
-        assertEquals(MediaMusic.base, bookLight.tertiary)
-        assertEquals(lightColors.surface, bookLight.surface)
+        listOf(darkColors to true, lightColors to false).forEach { (colors, dark) ->
+            val scheme = cinefinColorScheme(colors, dark = dark)
+            val label = if (dark) "dark" else "light"
+            val auroraContainer =
+                colors.aurora1
+                    .copy(alpha = CinefinTokens.MediaContainerAlpha)
+                    .compositeOver(colors.surfaceContainer)
+
+            assertEquals("$label primary", colors.aurora1, scheme.primary)
+            assertEquals("$label onPrimary", colors.onAurora, scheme.onPrimary)
+            assertEquals("$label primaryContainer", auroraContainer, scheme.primaryContainer)
+            assertEquals("$label onPrimaryContainer", colors.onSurface, scheme.onPrimaryContainer)
+            assertEquals("$label inversePrimary", MediaAurora.dim, scheme.inversePrimary)
+
+            assertEquals("$label secondary", colors.onSurfaceVariant, scheme.secondary)
+            assertEquals("$label onSecondary", colors.surface, scheme.onSecondary)
+            assertEquals(
+                "$label secondaryContainer",
+                colors.surfaceContainerHigh,
+                scheme.secondaryContainer,
+            )
+            assertEquals(
+                "$label onSecondaryContainer",
+                colors.onSurface,
+                scheme.onSecondaryContainer,
+            )
+            assertEquals("$label tertiary", colors.onSurfaceVariant, scheme.tertiary)
+            assertEquals(
+                "$label tertiaryContainer",
+                colors.surfaceContainerHigh,
+                scheme.tertiaryContainer,
+            )
+
+            // 域媒体色不再进入 M3 强调槽位（影视琥珀 / 音乐松石 / 阅读天青）。
+            assertNotEquals("$label primary 不得为琥珀", MediaFilm.base, scheme.primary)
+            assertNotEquals("$label secondary 不得为松石", MediaMusic.base, scheme.secondary)
+            assertNotEquals("$label tertiary 不得为天青", MediaBook.base, scheme.tertiary)
+
+            assertEquals("$label surface", colors.surface, scheme.surface)
+            assertEquals(
+                "$label surfaceContainer",
+                colors.surfaceContainer,
+                scheme.surfaceContainer,
+            )
+        }
     }
 
     @Test

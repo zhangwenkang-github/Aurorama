@@ -15,8 +15,9 @@ import timber.log.Timber
  * 组件层只允许引用本数据类或 [MediaColors]，禁止直接引用 [CinefinTokens] 的原始色值。 M3 槽位映射由 [cinefinColorScheme] 统一完成，保证
  * `MaterialTheme.colorScheme` 与设计系统同源。
  *
- * [aurora1] / [aurora2] / [aurora3] 是品牌极光三色（随主题走），[onAurora] 是在 [aurora1] 上阅读的内容色； [glass] /
- * [glassBorder] 是玻璃面板的底与描边（底含 alpha）。
+ * [aurora1] / [aurora2] / [aurora3] 是品牌极光三色（随主题走），[onAurora] 是在 [aurora1] 上阅读的内容色； [warning] /
+ * [success] / [info] 是语义状态色（2.0.1 定稿 §2 批①，告警 / 成功 / 信息态一律走这三组槽位，禁手写色值）； [glass] / [glassBorder]
+ * 是玻璃面板的底与描边（底含 alpha）。
  */
 @Immutable
 data class CinefinColors(
@@ -40,6 +41,12 @@ data class CinefinColors(
     val onError: Color,
     val errorContainer: Color,
     val onErrorContainer: Color,
+    val warning: Color,
+    val onWarning: Color,
+    val success: Color,
+    val onSuccess: Color,
+    val info: Color,
+    val onInfo: Color,
     val navSurface: Color,
     val stateHover: Color,
     val stateFocus: Color,
@@ -100,6 +107,12 @@ object CinefinThemes {
             onError = CinefinTokens.OnError,
             errorContainer = CinefinTokens.ErrorContainerDark,
             onErrorContainer = CinefinTokens.AuroraDarkOnErrorContainer,
+            warning = CinefinTokens.Warning,
+            onWarning = CinefinTokens.OnWarning,
+            success = CinefinTokens.Success,
+            onSuccess = CinefinTokens.OnSuccess,
+            info = CinefinTokens.Info,
+            onInfo = CinefinTokens.OnInfo,
             navSurface = CinefinTokens.AuroraDarkNavSurface,
             stateHover = Color.White.copy(alpha = CinefinTokens.StateHoverAlpha),
             stateFocus = Color.White.copy(alpha = CinefinTokens.StateFocusAlpha),
@@ -159,6 +172,12 @@ object CinefinThemes {
             onError = CinefinTokens.OnError,
             errorContainer = CinefinTokens.AuroraLightErrorContainer,
             onErrorContainer = CinefinTokens.AuroraLightOnErrorContainer,
+            warning = CinefinTokens.Warning,
+            onWarning = CinefinTokens.OnWarning,
+            success = CinefinTokens.Success,
+            onSuccess = CinefinTokens.OnSuccess,
+            info = CinefinTokens.Info,
+            onInfo = CinefinTokens.OnInfo,
             navSurface = CinefinTokens.AuroraLightNavSurface,
             stateHover = Color.Black.copy(alpha = CinefinTokens.StateHoverAlpha),
             stateFocus = Color.Black.copy(alpha = CinefinTokens.StateFocusAlpha),
@@ -202,6 +221,12 @@ object CinefinThemes {
             onError = CinefinTokens.OnError,
             errorContainer = CinefinTokens.ErrorContainerDark,
             onErrorContainer = CinefinTokens.LumenOnErrorContainer,
+            warning = CinefinTokens.Warning,
+            onWarning = CinefinTokens.OnWarning,
+            success = CinefinTokens.Success,
+            onSuccess = CinefinTokens.OnSuccess,
+            info = CinefinTokens.Info,
+            onInfo = CinefinTokens.OnInfo,
             navSurface = CinefinTokens.LumenBackground,
             stateHover = Color.White.copy(alpha = CinefinTokens.StateHoverAlpha),
             stateFocus = Color.White.copy(alpha = CinefinTokens.StateFocusAlpha),
@@ -291,21 +316,19 @@ val LocalCinefinColors = staticCompositionLocalOf {
 }
 
 /**
- * 依据 UI_DESIGN_SYSTEM §2.4 生成 M3 ColorScheme。
+ * 依据 2.0.1 定稿 §2 批① 生成 M3 ColorScheme：M3 角色与域媒体色解耦。
  *
- * 深色：primary / onPrimary / primaryContainer / onPrimaryContainer 取当前域媒体色（容器按当前色板派生）。 浅色：媒体色 base
- * 不变，容器改用 base 16% 叠加浅色 surface 的派生值，容器文字用更深的 dim 保证对比度。
+ * primary 系归极光——`primary` = aurora1、`onPrimary` = onAurora、`primaryContainer` = aurora1 16% 叠加
+ * `surfaceContainer`、`inversePrimary` = aurora dim；secondary / tertiary 改中性系（次级文字档 +
+ * 高表面容器），不再绑定另外两域媒体色。 域媒体色只经 [LocalMediaColors] 供域身份位使用，不再进入 M3 强调槽位。
  */
-fun cinefinColorScheme(domain: ContentDomain, colors: CinefinColors, dark: Boolean): ColorScheme {
-    val media = mediaColorsFor(domain, colors)
-    val (secondary, tertiary) = otherMediaColorsFor(domain, colors)
-
-    val primaryContainer = media.container
-    val onPrimaryContainer = if (dark) media.bright else media.dim
-    val secondaryContainer = secondary.container
-    val onSecondaryContainer = if (dark) secondary.bright else secondary.dim
-    val tertiaryContainer = tertiary.container
-    val onTertiaryContainer = if (dark) tertiary.bright else tertiary.dim
+fun cinefinColorScheme(colors: CinefinColors, dark: Boolean): ColorScheme {
+    val primaryContainer =
+        colors.aurora1
+            .copy(alpha = CinefinTokens.MediaContainerAlpha)
+            .compositeOver(colors.surfaceContainer)
+    val neutral = colors.onSurfaceVariant
+    val neutralContainer = colors.surfaceContainerHigh
     val surfaceVariant = colors.surfaceContainer
     val errorContainer =
         if (dark) colors.errorContainer
@@ -317,18 +340,18 @@ fun cinefinColorScheme(domain: ContentDomain, colors: CinefinColors, dark: Boole
     val scheme =
         if (dark) {
             darkColorScheme(
-                primary = media.base,
-                onPrimary = media.onBase,
+                primary = colors.aurora1,
+                onPrimary = colors.onAurora,
                 primaryContainer = primaryContainer,
-                onPrimaryContainer = onPrimaryContainer,
-                secondary = secondary.base,
-                onSecondary = secondary.onBase,
-                secondaryContainer = secondaryContainer,
-                onSecondaryContainer = onSecondaryContainer,
-                tertiary = tertiary.base,
-                onTertiary = tertiary.onBase,
-                tertiaryContainer = tertiaryContainer,
-                onTertiaryContainer = onTertiaryContainer,
+                onPrimaryContainer = colors.onSurface,
+                secondary = neutral,
+                onSecondary = colors.surface,
+                secondaryContainer = neutralContainer,
+                onSecondaryContainer = colors.onSurface,
+                tertiary = neutral,
+                onTertiary = colors.surface,
+                tertiaryContainer = neutralContainer,
+                onTertiaryContainer = colors.onSurface,
                 error = colors.error,
                 onError = colors.onError,
                 errorContainer = errorContainer,
@@ -344,7 +367,7 @@ fun cinefinColorScheme(domain: ContentDomain, colors: CinefinColors, dark: Boole
                 scrim = colors.scrim,
                 inverseSurface = colors.inverseSurface,
                 inverseOnSurface = colors.inverseOnSurface,
-                inversePrimary = media.dim,
+                inversePrimary = CinefinTokens.MediaAuroraDim,
                 surfaceDim = colors.surfaceDim,
                 surfaceBright = colors.surfaceBright,
                 surfaceContainerLowest = colors.surfaceContainerLowest,
@@ -355,18 +378,18 @@ fun cinefinColorScheme(domain: ContentDomain, colors: CinefinColors, dark: Boole
             )
         } else {
             lightColorScheme(
-                primary = media.base,
-                onPrimary = media.onBase,
+                primary = colors.aurora1,
+                onPrimary = colors.onAurora,
                 primaryContainer = primaryContainer,
-                onPrimaryContainer = onPrimaryContainer,
-                secondary = secondary.base,
-                onSecondary = secondary.onBase,
-                secondaryContainer = secondaryContainer,
-                onSecondaryContainer = onSecondaryContainer,
-                tertiary = tertiary.base,
-                onTertiary = tertiary.onBase,
-                tertiaryContainer = tertiaryContainer,
-                onTertiaryContainer = onTertiaryContainer,
+                onPrimaryContainer = colors.onSurface,
+                secondary = neutral,
+                onSecondary = colors.surface,
+                secondaryContainer = neutralContainer,
+                onSecondaryContainer = colors.onSurface,
+                tertiary = neutral,
+                onTertiary = colors.surface,
+                tertiaryContainer = neutralContainer,
+                onTertiaryContainer = colors.onSurface,
                 error = colors.error,
                 onError = colors.onError,
                 errorContainer = errorContainer,
@@ -382,7 +405,7 @@ fun cinefinColorScheme(domain: ContentDomain, colors: CinefinColors, dark: Boole
                 scrim = colors.scrim,
                 inverseSurface = colors.inverseSurface,
                 inverseOnSurface = colors.inverseOnSurface,
-                inversePrimary = media.base,
+                inversePrimary = CinefinTokens.MediaAuroraDim,
                 surfaceDim = colors.surfaceDim,
                 surfaceBright = colors.surfaceBright,
                 surfaceContainerLowest = colors.surfaceContainerLowest,

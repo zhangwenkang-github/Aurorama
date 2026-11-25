@@ -51,6 +51,20 @@ object CinefinTokens {
     val OnErrorContainerDark = Color(0xFFF4F1EA) // 派生
     val ErrorContainerLight = Color(0xFFF6D9D3) // 派生
     val OnErrorContainerLight = Color(0xFF3F120B) // 派生
+
+    // ---- 2.0.1 定稿 §2 批① 语义状态色（AUDIT-21）：告警 / 成功 / 信息一律走 token，禁手写 ----
+    /** 告警：琥珀金（定稿 §2 批①给定值）。 */
+    val Warning = Color(0xFFE0B84F)
+    /** 告警上的内容色：与黄铜 onTertiary 同族深墨。 */
+    val OnWarning = Color(0xFF2A2100)
+    /** 成功：极光绿。 */
+    val Success = Color(0xFF45D483)
+    /** 成功上的内容色：与 onAurora 同族深墨。 */
+    val OnSuccess = Color(0xFF04201A)
+    /** 信息：定稿指定 Aurora2 兼任。 */
+    val Info = Color(0xFF6FA0FF)
+    /** 信息上的内容色：与阅读域 onBase 同族深墨。 */
+    val OnInfo = Color(0xFF0A1220)
     val Scrim = Color(0xFF06080C)
     val NavSurfaceDark = Color(0xFF12171D) // §8.6 侧导航底色
     val NavSurfaceLight = Color(0xFFEDEAE3) // 派生
@@ -79,6 +93,8 @@ object CinefinTokens {
     const val MediaContainerAlpha = 0.16f
     const val MediaContainerPressedAlpha = 0.24f
     const val MediaOutlineAlpha = 0.45f
+    /** 评分徽标淡色底：aurora1 @ 12%（2.0.1 定稿 §2 批①：评分徽标改极光淡色 pill）。 */
+    const val RatingBadgeAlpha = 0.12f
     const val FocusRingAlpha = 0.60f
 
     // ---- §5.2 内高光 / §8.8 图上进度轨道 ----
@@ -111,6 +127,12 @@ object CinefinTokens {
     val MediaBookContainerPressed = Color(0xFF2F415E)
     val MediaBookOnBase = Color(0xFF0A1220)
     val MediaBookOutline = Color(0xFF415E8A)
+
+    // ---- 2.0.1 定稿 §2 批① 媒体色 · 中性（极光）：base = Aurora1、onBase = onAurora ----
+    /** 中性域 bright：Aurora1 提亮档（定稿给定值）。 */
+    val MediaAuroraBright = Color(0xFF8FF5DD)
+    /** 中性域 dim：Aurora1 压暗档（定稿给定值）。 */
+    val MediaAuroraDim = Color(0xFF2BA98E)
 
     // ---- Lumen 遗产色板（原 LumenColors.kt，仅注册表 `lumen` 条目引用；不在用户可选值域内）----
     /** `--bg` 曜石黑。 */
