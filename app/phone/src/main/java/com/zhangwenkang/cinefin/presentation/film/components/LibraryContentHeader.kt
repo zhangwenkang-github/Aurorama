@@ -1,7 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.film.components
 
 import androidx.annotation.DrawableRes
-import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,11 +37,11 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinFilterChip
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSelectIndicator
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinSelectable
+import com.zhangwenkang.cinefin.core.presentation.components.navSelectedContent
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.library.LibraryFilter
 import com.zhangwenkang.cinefin.film.presentation.library.LibraryTab
@@ -120,7 +119,6 @@ fun LibraryToolbarRow(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     Row(
         modifier = modifier.fillMaxWidth().heightIn(min = 48.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -160,13 +158,16 @@ fun LibraryToolbarRow(
                 icon = CoreR.drawable.ic_filter,
                 onClick = onFilterClick,
                 contentDescription = stringResource(FilmR.string.library_filter),
-                tint = if (filterActive) media.bright else null,
+                tint = if (filterActive) navSelectedContent(colors) else null,
             )
         }
     }
 }
 
-/** 工具行里的图标开关：选中 = `SurfaceContainerHigh` 底 + 媒体色图标（§2.6 第 9 条：未选中不着色）。 */
+/**
+ * 工具行里的图标开关（2.0.1 定稿 §3 T10）：去方框磁贴底，选中只换图标色 = [navSelectedContent]（浅色档即 auroraInk）， 未选中
+ * `onSurfaceVariant`，不再铺 `surfaceContainerHigh` 底。
+ */
 @Composable
 private fun LibraryIconToggle(
     icon: Int,
@@ -175,25 +176,14 @@ private fun LibraryIconToggle(
     onClick: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     Box(
-        modifier =
-            Modifier.size(44.dp)
-                .clip(CinefinShapes.Button)
-                .then(
-                    if (selected) {
-                        Modifier.background(colors.surfaceContainerHigh)
-                    } else {
-                        Modifier
-                    }
-                )
-                .cinefinClickable(onClick = onClick),
+        modifier = Modifier.size(44.dp).cinefinClickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             painter = painterResource(icon),
             contentDescription = contentDescription,
-            tint = if (selected) media.bright else colors.onSurfaceVariant,
+            tint = if (selected) navSelectedContent(colors) else colors.onSurfaceVariant,
         )
     }
 }

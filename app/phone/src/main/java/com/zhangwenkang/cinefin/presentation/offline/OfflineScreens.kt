@@ -718,9 +718,9 @@ private fun OfflineArtwork(
 ) {
     val colors = LocalCinefinColors.current
     val context = LocalContext.current
+    // 2.0.1 定稿 §3 T10：去方框磁贴底，无封面时类型图标扁平呈现。
     Box(
-        modifier =
-            Modifier.size(size).clip(CinefinShapes.Xs).background(colors.surfaceContainerHigh),
+        modifier = Modifier.size(size).clip(CinefinShapes.Xs),
         contentAlignment = Alignment.Center,
     ) {
         if (imageUri != null) {

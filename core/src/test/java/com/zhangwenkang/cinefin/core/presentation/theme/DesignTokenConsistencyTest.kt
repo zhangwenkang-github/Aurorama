@@ -401,6 +401,25 @@ class DesignTokenConsistencyTest {
     }
 
     @Test
+    fun `media content tokens match the T10 design values`() {
+        // 2.0.1 定稿 §3：scrimBehindControl = 黑 32%；mediaContentShadow = 0 1px 4px rgba(0,0,0,.6)
+        assertEquals(0.32f, CinefinTokens.ScrimBehindControl.alpha, 0.005f)
+        assertEquals(0.6f, CinefinTokens.MediaContentShadowColor.alpha, 0.01f)
+        assertEquals(1f, CinefinTokens.MediaContentShadowOffsetYPx, 0.0001f)
+        assertEquals(4f, CinefinTokens.MediaContentShadowBlurRadiusPx, 0.0001f)
+
+        // 两套明暗色板都接线到 CinefinColors（组件层只允许引用 CinefinColors）
+        listOf(
+                CinefinThemes.colorsFor(CinefinThemes.AURORA, dark = true),
+                CinefinThemes.colorsFor(CinefinThemes.LIGHT, dark = false),
+            )
+            .forEach { colors ->
+                assertEquals(CinefinTokens.ScrimBehindControl, colors.scrimBehindControl)
+                assertEquals(CinefinTokens.MediaContentShadowColor, colors.mediaContentShadow)
+            }
+    }
+
+    @Test
     fun `aurora ink keeps AA contrast on selected fills`() {
         // 浅色档（2.0.1 定稿 §2 批③ 专项裁定）：#0A6B5A 对 aurora1@16% 叠 surface，须 ≥4.5:1。
         val light = CinefinThemes.colorsFor(CinefinThemes.LIGHT, dark = false)

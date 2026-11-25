@@ -1782,10 +1782,8 @@ internal fun DownloadArtwork(
     val colors = LocalCinefinColors.current
     val context = LocalContext.current
     val resolved = remember(model, context) { resolveArtworkModel(context, model) }
-    Box(
-        modifier = modifier.clip(shape).background(colors.surfaceContainerHigh),
-        contentAlignment = Alignment.Center,
-    ) {
+    // 2.0.1 定稿 §3 T10：去方框磁贴底，占位类型图标扁平呈现（图片加载完成后照常覆盖）。
+    Box(modifier = modifier.clip(shape), contentAlignment = Alignment.Center) {
         Icon(
             painter = painterResource(kind.iconRes()),
             contentDescription = null,

@@ -1,7 +1,6 @@
 package com.zhangwenkang.cinefin.presentation.film.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -23,7 +22,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -35,13 +33,12 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
+import com.zhangwenkang.cinefin.core.presentation.components.navSelectedContent
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
-import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidCollection
@@ -65,12 +62,10 @@ fun LibraryEntryCard(
     index: Int = 0,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
     val pressed by interactionSource.collectIsPressedAsState()
     val scrim = Color.Black
-    val tileShape = CinefinShapes.Xs
     val collection = item as? FindroidCollection
     // W74（#3）：无论库自身有没有封面，底层都常驻「库类型图标 + 媒体域色底」占位——
     // 无封面 / 加载中 / 加载失败都不再出现纯黑（深色）块；真实封面就绪后覆盖在上层。
@@ -88,10 +83,10 @@ fun LibraryEntryCard(
         emphasized = hovered || pressed,
         container = colors.surfaceContainerHigh,
     ) {
+        // 2.0.1 定稿 §3 T10：无封面占位同样去方框磁贴底，只留域身份淡色画布 + 扁平图标。
         Box(
             modifier =
                 Modifier.fillMaxSize()
-                    .background(colors.surfaceContainerHigh)
                     .background(
                         placeholderMedia.base.copy(alpha = LibraryPlaceholderBaseTintAlpha)
                     ),
@@ -137,23 +132,14 @@ fun LibraryEntryCard(
                     ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // 类型图标磁贴（雾灰 + 发丝线 + 强调色图标）：媒体库总览会列出音乐 / 书籍库，
-            // 但卡片本体不引用各域的媒体色——强调色统一取当前皮肤（Lumen = 极光青）。
-            Box(
-                modifier =
-                    Modifier.size(44.dp)
-                        .clip(tileShape)
-                        .background(colors.surfaceContainerHigh)
-                        .border(1.dp, colors.outline, tileShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(libraryIconRes(libraryType)),
-                    contentDescription = null,
-                    tint = media.base,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
+            // 2.0.1 定稿 §3 T10（AUDIT-15）：去方框磁贴底，类型图标扁平直接压在封面上；
+            // 强调色取全 App 选中/强调语言（navSelectedContent，浅色档即 auroraInk），不再取域媒体色。
+            Icon(
+                painter = painterResource(libraryIconRes(libraryType)),
+                contentDescription = null,
+                tint = navSelectedContent(colors),
+                modifier = Modifier.size(22.dp),
+            )
             Spacer(Modifier.width(CinefinSpacing.Space3))
             Column(modifier = Modifier.weight(1f)) {
                 Text(

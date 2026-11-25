@@ -46,6 +46,8 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.auroraGradient
+import com.zhangwenkang.cinefin.core.presentation.theme.mediaContentShadow
+import com.zhangwenkang.cinefin.core.presentation.theme.scrimBehindControl
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
@@ -120,8 +122,23 @@ fun HomeHero(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    // 2.0.1 定稿 §2 批③：hero 状态圆点走极光（影视域复用时不再出琥珀）
-                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(colors.aurora1))
+                    /*
+                     * 2.0.1 定稿 §2 批③：hero 状态圆点走极光（影视域复用时不再出琥珀）。
+                     * §3 T10 示范：图上控件用 scrimBehindControl（黑 32% 垫层）+ mediaContentShadow（图上投影），
+                     * 亮剧照背景上仍可读。
+                     */
+                    Box(
+                        modifier = Modifier.size(14.dp).scrimBehindControl(colors, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(
+                            modifier =
+                                Modifier.size(6.dp)
+                                    .mediaContentShadow(colors, CircleShape)
+                                    .clip(CircleShape)
+                                    .background(colors.aurora1)
+                        )
+                    }
                     Spacer(Modifier.width(CinefinSpacing.Space2))
                     Text(
                         text =

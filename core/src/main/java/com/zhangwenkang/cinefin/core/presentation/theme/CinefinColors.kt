@@ -68,6 +68,10 @@ data class CinefinColors(
     val auroraInk: Color,
     val glass: Color,
     val glassBorder: Color,
+    /** 图上控件垫层（[CinefinTokens.ScrimBehindControl]，黑 32%）：**仅**用于 hero / 封面图上的控件垫底。 */
+    val scrimBehindControl: Color,
+    /** 图上内容投影（[CinefinTokens.MediaContentShadowColor]，黑 60%）：hero / 封面图上的图标与文字统一取它。 */
+    val mediaContentShadow: Color,
 )
 
 /** 一套主题的明 / 暗两个变体（浅色变体可以与其他主题共用同一份）。 */
@@ -136,6 +140,8 @@ object CinefinThemes {
             auroraInk = CinefinTokens.Aurora1Dark,
             glass = CinefinTokens.AuroraDarkNavSurface.copy(alpha = CinefinTokens.GlassAlpha),
             glassBorder = Color.White.copy(alpha = CinefinTokens.AuroraDarkGlassBorderAlpha),
+            scrimBehindControl = CinefinTokens.ScrimBehindControl,
+            mediaContentShadow = CinefinTokens.MediaContentShadowColor,
         )
 
     /** AMOLED：与 aurora.dark 只差纯黑表面与更深的容器层级。 */
@@ -205,6 +211,8 @@ object CinefinThemes {
                 CinefinTokens.AuroraLightOnSurface.copy(
                     alpha = CinefinTokens.AuroraLightGlassBorderAlpha
                 ),
+            scrimBehindControl = CinefinTokens.ScrimBehindControl,
+            mediaContentShadow = CinefinTokens.MediaContentShadowColor,
         )
 
     /** Lumen 遗产条目（非用户可选）：曜石黑 A 稿色板，保留给存量主题 id。 */
@@ -251,6 +259,8 @@ object CinefinThemes {
             auroraInk = CinefinTokens.LumenAccent,
             glass = CinefinTokens.LumenBackground.copy(alpha = CinefinTokens.GlassAlpha),
             glassBorder = Color.White.copy(alpha = CinefinTokens.LumenLineAlpha),
+            scrimBehindControl = CinefinTokens.ScrimBehindControl,
+            mediaContentShadow = CinefinTokens.MediaContentShadowColor,
         )
 
     /** 主题 id → 明暗变体；`light` / `amoled` / `lumen` 的浅色变体统一指 [light]。 */

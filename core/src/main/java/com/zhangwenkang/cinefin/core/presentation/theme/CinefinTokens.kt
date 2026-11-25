@@ -170,6 +170,25 @@ object CinefinTokens {
     const val AuroraGlowElevationDp = 6
 
     const val AuroraGlowAlpha = 0.28f
+
+    // ---- 2.0.1 定稿 §3 T10：复杂背景可读性（AUDIT-15）----
+    /** `scrimBehindControl`：黑 32% 的控件垫层。**仅**用于 hero / 封面图上的控件（按钮、图标、状态点）垫底， 不得用于普通页面容器或文本块。 */
+    val ScrimBehindControl = Color(0x52000000)
+
+    /**
+     * `mediaContentShadow`：图上内容投影（`0 1px 4px rgba(0,0,0,.6)`），用于 hero / 封面图上的图标与文字统一加投影
+     * （等效窄描边，避免逐处手写 stroke / 多份 text-shadow）。
+     */
+    val MediaContentShadowColor = Color(0x99000000)
+
+    /** 投影的 y 偏移（CSS `1px`，按 px 直取，保持"窄描边"观感）。 */
+    const val MediaContentShadowOffsetYPx = 1f
+
+    /** 投影模糊半径（CSS `4px`，按 px 直取）。 */
+    const val MediaContentShadowBlurRadiusPx = 4f
+
+    /** 控件垫层场景下 `Modifier.mediaContentShadow` 的 elevation（Compose 阴影无 px 级控制，取最轻档）。 */
+    const val MediaContentShadowElevationDp = 2
     /**
      * 玻璃面板底色透明度（aurora / lumen 同值）。
      *

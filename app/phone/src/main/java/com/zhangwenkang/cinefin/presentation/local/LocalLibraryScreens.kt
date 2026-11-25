@@ -170,9 +170,9 @@ private fun HomeLocalLibraryCard(
             // W70b：无封面回退类型图标 + 媒体色底（与库卡 / 详情封面卡同一套配色，不再是深灰）。
             val placeholder = localLibraryPlaceholderMedia(card.type)
             Box(
+                // 2.0.1 定稿 §3 T10：去方框磁贴底，只留域身份淡色画布（图标扁平压在画布上）。
                 modifier =
                     Modifier.fillMaxSize()
-                        .background(colors.surfaceContainerHigh)
                         .background(
                             placeholder.base.copy(alpha = LocalLibraryPlaceholderTintAlpha)
                         ),
@@ -241,7 +241,7 @@ private fun TypeBadge(type: LocalLibraryType, modifier: Modifier = Modifier) {
     }
 }
 
-/** W70b：本地库占位底色的媒体色叠加强度（`surfaceContainerHigh` 之上的 `media.base` 透明度，12–18% 取中）。 */
+/** W70b：本地库占位底色的媒体色叠加强度（`media.base` 的透明度，12–18% 取中；W2-T10 起底为页面表面，不再叠 `surfaceContainerHigh`）。 */
 private const val LocalLibraryPlaceholderTintAlpha = 0.14f
 
 /**
@@ -287,7 +287,7 @@ internal fun LocalThumbnailTile(
             modifier
                 .size(width = width, height = height)
                 .clip(shape)
-                .background(colors.surfaceContainerHigh)
+                // 2.0.1 定稿 §3 T10：去方框磁贴底，只留域身份淡色画布
                 .background(placeholderMedia.base.copy(alpha = LocalLibraryPlaceholderTintAlpha)),
         contentAlignment = Alignment.Center,
     ) {
@@ -870,7 +870,7 @@ private fun LocalLibraryHeaderCover(
             Modifier.fillMaxWidth()
                 .height(140.dp)
                 .clip(CinefinShapes.Poster)
-                .background(colors.surfaceContainerHigh)
+                // 2.0.1 定稿 §3 T10：无封面占位去方框磁贴底，只留域身份淡色画布
                 .background(placeholder.base.copy(alpha = LocalLibraryPlaceholderTintAlpha)),
         contentAlignment = Alignment.Center,
     ) {

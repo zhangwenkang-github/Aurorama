@@ -297,13 +297,7 @@ private fun PlayerContentRow(
                 .padding(CinefinSpacing.Space2),
     ) {
         // 缩略图：剧集截图（16:9），没有图时留一块底色占位，列表不会跳高度
-        Box(
-            modifier =
-                Modifier.width(96.dp)
-                    .aspectRatio(16f / 9f)
-                    .clip(CinefinShapes.Xs)
-                    .background(colors.surfaceContainerHigh)
-        ) {
+        Box(modifier = Modifier.width(96.dp).aspectRatio(16f / 9f).clip(CinefinShapes.Xs)) {
             if (!entry.artworkUri.isNullOrBlank()) {
                 AsyncImage(
                     model = entry.artworkUri,
@@ -599,12 +593,7 @@ private fun PlayerEpisodeCards(
                         .clickable { onSelect(index) }
             ) {
                 // 缩略图铺满卡片上半部分（16:9），正在播放的集角上压一个媒体色角标
-                Box(
-                    modifier =
-                        Modifier.fillMaxWidth()
-                            .aspectRatio(16f / 9f)
-                            .background(colors.surfaceContainerHigh)
-                ) {
+                Box(modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
                     if (!entry.artworkUri.isNullOrBlank()) {
                         AsyncImage(
                             model = entry.artworkUri,
