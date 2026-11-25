@@ -45,14 +45,18 @@ class ShowViewModel @Inject constructor(private val repository: JellyfinReposito
             try {
                 val show = repository.getShow(showId)
                 if (!contentRequests.isCurrent(request)) return@launch
+                // W1-T05（#16）：同一部剧的刷新保留上次的季 / 演员等明细（静默刷新），避免清空后
+                // 再填充的闪空中间态；换剧时才清掉旧剧明细，防止串剧。
+                val latest = _state.value
+                val sameShow = latest.show?.id == showId
                 _state.emit(
-                    _state.value.copy(
+                    latest.copy(
                         show = show,
-                        nextUp = null,
-                        seasons = emptyList(),
-                        actors = emptyList(),
-                        director = null,
-                        writers = emptyList(),
+                        nextUp = if (sameShow) latest.nextUp else null,
+                        seasons = if (sameShow) latest.seasons else emptyList(),
+                        actors = if (sameShow) latest.actors else emptyList(),
+                        director = if (sameShow) latest.director else null,
+                        writers = if (sameShow) latest.writers else emptyList(),
                         error = null,
                     )
                 )
@@ -62,6 +66,11 @@ class ShowViewModel @Inject constructor(private val repository: JellyfinReposito
                 val directorResult = readOptionalDetail { getDirector(show) }
                 val writersResult = readOptionalDetail { getWriters(show) }
                 if (!contentRequests.isCurrent(request)) return@launch
+
+                // 静默刷新时明细取失败就沿用旧值，不把已展示的季 / 演员退回空列表。
+                fun <T> settled(result: Result<T>, previous: T, fallback: T): T =
+                    if (result.isFailure && sameShow) previous else result.getOrDefault(fallback)
+
                 val enrichmentError =
                     listOf(
                             nextUpResult,
@@ -71,13 +80,14 @@ class ShowViewModel @Inject constructor(private val repository: JellyfinReposito
                             writersResult,
                         )
                         .firstNotNullOfOrNull { result -> result.exceptionOrNull() as? Exception }
+                val current = _state.value
                 _state.emit(
-                    _state.value.copy(
-                        nextUp = nextUpResult.getOrNull(),
-                        seasons = seasonsResult.getOrDefault(emptyList()),
-                        actors = actorsResult.getOrDefault(emptyList()),
-                        director = directorResult.getOrNull(),
-                        writers = writersResult.getOrDefault(emptyList()),
+                    current.copy(
+                        nextUp = settled(nextUpResult, current.nextUp, null),
+                        seasons = settled(seasonsResult, current.seasons, emptyList()),
+                        actors = settled(actorsResult, current.actors, emptyList()),
+                        director = settled(directorResult, current.director, null),
+                        writers = settled(writersResult, current.writers, emptyList()),
                         error = enrichmentError,
                     )
                 )
