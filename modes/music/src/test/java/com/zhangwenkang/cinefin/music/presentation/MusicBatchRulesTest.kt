@@ -498,14 +498,6 @@ class MusicBatchRulesTest {
     }
 
     @Test
-    fun `菜单文案把删除和下载彻底分开`() {
-        assertEquals("下载", songDownloadMenuLabel(SongDownloadMenuAction.DOWNLOAD))
-        assertEquals("取消下载", songDownloadMenuLabel(SongDownloadMenuAction.CANCEL))
-        assertEquals("删除下载", songDownloadMenuLabel(SongDownloadMenuAction.DELETE))
-        assertNull(songDownloadMenuLabel(SongDownloadMenuAction.NONE))
-    }
-
-    @Test
     fun `行副标题状态与动作一一对应`() {
         assertEquals(
             "已下载",

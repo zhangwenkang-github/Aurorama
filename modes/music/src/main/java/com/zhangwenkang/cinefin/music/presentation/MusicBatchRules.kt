@@ -133,15 +133,6 @@ internal fun songDownloadMenuAction(
         else -> SongDownloadMenuAction.DOWNLOAD
     }
 
-/** W9-T2：曲目行菜单项文案（null = 不渲染该项）。 */
-internal fun songDownloadMenuLabel(action: SongDownloadMenuAction): String? =
-    when (action) {
-        SongDownloadMenuAction.DOWNLOAD -> "下载"
-        SongDownloadMenuAction.CANCEL -> "取消下载"
-        SongDownloadMenuAction.DELETE -> "删除下载"
-        SongDownloadMenuAction.NONE -> null
-    }
-
 /** W9-T2：曲目行副标题里的下载状态（null = 不显示）。 */
 internal fun songDownloadStatusLabel(
     action: SongDownloadMenuAction,

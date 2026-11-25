@@ -94,11 +94,3 @@ internal fun songListCenteredScrollOffset(viewportHeight: Int, itemHeight: Int):
     if (viewportHeight <= 0 || itemHeight <= 0) return 0
     return -((viewportHeight - itemHeight) / 2).coerceAtLeast(0)
 }
-
-/**
- * 歌曲行序号文案（W79b-FIX）：至少两位，三位 / 四位数不截断。
- *
- * 列表上限 1000 首时最大为「1000」，渲染侧必须单行显示。
- */
-internal fun songRowIndexLabel(index: Int): String =
-    index.coerceAtLeast(0).toString().padStart(2, '0')
