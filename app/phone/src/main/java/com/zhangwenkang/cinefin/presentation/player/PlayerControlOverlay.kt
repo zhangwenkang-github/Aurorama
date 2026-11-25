@@ -36,15 +36,20 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -1175,6 +1180,8 @@ fun PlayerControlOverlay(
         val bottomScrim = playerBottomScrim()
         // 版式规格（W11 反馈①③⑧）：<600dp 收一档——右上工具簇退化纯图标、播放设置下移左下、键尺寸收一档
         val spec = playerControlSpec(maxWidth.value)
+        // 竖屏窗口：画面区顶边即窗口顶边，顶栏要让出状态栏 / 摄像头挖孔
+        val protectTopInset = maxWidth < maxHeight
         // 面板抽屉宽度：手机 / 窄窗整宽；宽屏取 46%（360–560dp）。抽屉盖在画面上，不改画面布局
         val drawerWidth =
             if (maxWidth < 420.dp) maxWidth else (maxWidth * 0.46f).coerceIn(360.dp, 560.dp)
@@ -1286,6 +1293,8 @@ fun PlayerControlOverlay(
                             tools = toolCluster,
                             modifier = Modifier.align(Alignment.TopCenter),
                             onHeightChanged = onTopBarHeight,
+                            // 竖屏窗口（SplitPortrait / 平板竖屏）的画面区从窗口顶边开始，顶栏要让开挖孔
+                            protectTopInset = protectTopInset,
                         )
 
                         val playerError = uiState.playerError
@@ -1709,13 +1718,26 @@ private fun PlayerTopBar(
     tools: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     onHeightChanged: (Int) -> Unit = {},
+    /** 竖屏顶栏贴着屏幕最上缘：让出状态栏 / 摄像头挖孔，控件不落进挖孔区 */
+    protectTopInset: Boolean = false,
 ) {
     val colors = LocalCinefinColors.current
+    /*
+     * 竖屏（画面区顶边即窗口顶边）时按 safeDrawing 顶部让出状态栏 / 挖孔高度；
+     * 横屏沉浸式下 statusBars 隐藏、挖孔在短边，顶部 inset = 0，不会引入多余内边距。
+     */
+    val topInset =
+        if (protectTopInset) {
+            WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
+        } else {
+            WindowInsets(0, 0, 0, 0)
+        }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier =
             modifier
                 .fillMaxWidth()
+                .windowInsetsPadding(topInset)
                 .onSizeChanged { onHeightChanged(it.height) }
                 .background(playerTopScrim())
                 .padding(
