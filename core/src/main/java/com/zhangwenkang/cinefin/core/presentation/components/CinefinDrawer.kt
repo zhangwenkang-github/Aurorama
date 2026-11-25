@@ -4,12 +4,11 @@ import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.animateTo
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -17,14 +16,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemGestures
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalDrawerSheet
@@ -47,6 +49,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -64,6 +70,8 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.core.presentation.theme.rememberReduceMotionEnabled
 import kotlin.math.roundToInt
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
@@ -136,6 +144,41 @@ class CinefinDrawerState(initialValue: DrawerValue = DrawerValue.Closed) {
         )
     }
 
+    /** 拖拽中的原始位移（px）。写偏移不做动画，由 [settleAfterDrag] 收尾。 */
+    internal fun dragBy(deltaPx: Float) {
+        anchoredState.dispatchRawDelta(deltaPx)
+    }
+
+    /** 取消上一次拖拽的收尾动画：新手势起手时让位给用户。 */
+    internal fun cancelDragSettle() {
+        dragSettleJob?.cancel()
+        dragSettleJob = null
+    }
+
+    /**
+     * 松手收尾：速度 / 位置阈值决定开合（与 `AnchoredDraggableState` 同口径），动画走定稿落位规格 （开 200ms / 关 160ms，尊重 Reduce
+     * Motion）。
+     *
+     * 手势协程受 `AwaitPointerEventScope` 限制不能直接调用挂起函数，因此收尾动画放到组合作用域里跑。
+     */
+    internal fun settleAfterDrag(animationScope: CoroutineScope, velocity: Float) {
+        cancelDragSettle()
+        val closedOffset = anchoredState.anchors.positionOf(DrawerValue.Closed)
+        val openOffset = anchoredState.anchors.positionOf(DrawerValue.Open)
+        val target =
+            drawerTargetAfterDrag(
+                offset = anchoredState.offset,
+                closedOffset = closedOffset,
+                openOffset = openOffset,
+                velocity = velocity,
+                velocityThresholdPx = with(density) { DrawerVelocityThreshold.toPx() },
+            )
+        val spec = CinefinNavigationMotion.drawerSettleSpec(reduceMotion)
+        dragSettleJob = animationScope.launch { anchoredState.animateTo(target, spec) }
+    }
+
+    private var dragSettleJob: Job? = null
+
     companion object {
         val Saver: Saver<CinefinDrawerState, DrawerValue> =
             Saver(save = { it.currentValue }, restore = { CinefinDrawerState(it) })
@@ -148,6 +191,75 @@ fun rememberCinefinDrawerState(initialValue: DrawerValue = DrawerValue.Closed): 
 
 private const val DrawerPositionalThreshold = 0.5f
 private val DrawerVelocityThreshold = 400.dp
+
+/** 边缘呼出手势热区宽度（W2-T11 / 需求 #12）：抽屉关闭时只有该宽度的左缘（RTL 为右缘）可起手拖出抽屉。 */
+internal val DrawerEdgeSwipeWidth = 28.dp
+
+/** 手势导航机型屏幕最外侧留给系统返回手势的保留区；热区从保留区之后开始，否则永远被系统抢走。 */
+internal val DrawerSystemEdgeReserve = 24.dp
+
+/**
+ * 抽屉拖拽门控（W2-T11 / 需求 #12）：手势是否允许驱动抽屉。
+ *
+ * 抽屉已打开（或正在打开）时全屏可拖拽关闭，与改造前行为一致；抽屉关闭时只有落点在边缘热区 `[edgeStartPx, edgeStartPx + edgeWidthPx]`
+ * 内的手势才放行，屏幕中部 / 右缘的水平、斜向滑动与页面上下滚动都不再误触。
+ */
+internal fun drawerDragAllowedAt(
+    startX: Float,
+    containerWidth: Float,
+    edgeStartPx: Float,
+    edgeWidthPx: Float,
+    drawerVisible: Boolean,
+    rtl: Boolean,
+): Boolean {
+    if (drawerVisible) return true
+    if (edgeWidthPx <= 0f || containerWidth <= 0f) return false
+    val fromStart = if (rtl) containerWidth - startX else startX
+    return fromStart >= edgeStartPx && fromStart <= edgeStartPx + edgeWidthPx
+}
+
+/** 边缘热区内手势方向的仲裁结果。 */
+internal enum class DrawerDragVerdict {
+    /** 横向占优：抽屉接管本次手势。 */
+    Claim,
+    /** 纵向占优：让给页面滚动，抽屉不参与。 */
+    Yield,
+    /** 位移还不够：继续观察。 */
+    Pending,
+}
+
+/** 边缘热区里的方向仲裁（W2-T11）：横向位移过 slop 且明显大于纵向才算抽屉； 纵向先过 slop 一律让给页面滚动——页面上下滑动因此不可能呼出抽屉。 */
+internal fun drawerDragVerdict(dx: Float, dy: Float, touchSlopPx: Float): DrawerDragVerdict {
+    val absDx = kotlin.math.abs(dx)
+    val absDy = kotlin.math.abs(dy)
+    return when {
+        absDx > touchSlopPx && absDx > absDy -> DrawerDragVerdict.Claim
+        absDy > touchSlopPx && absDy >= absDx -> DrawerDragVerdict.Yield
+        else -> DrawerDragVerdict.Pending
+    }
+}
+
+/**
+ * 拖拽松手后的落点判定（W2-T11）：速度过阈按方向决定，否则看位移是否越过 `positionalThreshold` （`offset` 已由
+ * [CinefinDrawerState.dragBy] 夹在开 / 关两个锚点之间）。
+ */
+internal fun drawerTargetAfterDrag(
+    offset: Float,
+    closedOffset: Float,
+    openOffset: Float,
+    velocity: Float,
+    velocityThresholdPx: Float,
+    positionalThreshold: Float = DrawerPositionalThreshold,
+): DrawerValue {
+    if (openOffset == closedOffset) return DrawerValue.Closed
+    val towardOpen = if (openOffset > closedOffset) 1f else -1f
+    val directedVelocity = velocity * towardOpen
+    if (directedVelocity >= velocityThresholdPx) return DrawerValue.Open
+    if (directedVelocity <= -velocityThresholdPx) return DrawerValue.Closed
+    val moved = (offset - closedOffset) * towardOpen
+    val distance = (openOffset - closedOffset) * towardOpen
+    return if (moved >= distance * positionalThreshold) DrawerValue.Open else DrawerValue.Closed
+}
 
 /**
  * 抽屉分组：`title = null` 表示不画分组标题。
@@ -169,8 +281,11 @@ class CinefinDrawerGroup(
  * `selectedIndex` 按分组顺序拍平后计算；选中态与常显侧轨同一套 K1 离散语言（极光淡色 pill + `glassBorder` 描边 + `aurora1` 图文，见
  * [navItemContainerColor]）。
  *
- * 容器外壳（W3-T1）：M3 `ModalNavigationDrawer` 的动画规格不可外部定制，这里用 `AnchoredDraggableState` 自绘—— 与 M3
- * 相同的全屏水平手势 / 遮罩 / 锚点模型，位移只走 `Modifier.offset { IntOffset(...) }`，不触发布局重排。
+ * 容器外壳（W3-T1）：M3 `ModalNavigationDrawer` 的动画规格不可外部定制，这里用 `AnchoredDraggableState` 自绘—— 与 M3 相同的遮罩 /
+ * 锚点模型，位移只走 `Modifier.offset { IntOffset(...) }`，不触发布局重排。
+ *
+ * 呼出手势（W2-T11 / 需求 #12）：关闭态只有左缘 [DrawerEdgeSwipeWidth] 热区内起手才能拖出抽屉（RTL 为右缘），热区整体 内移到系统返回手势保留区
+ * [DrawerSystemEdgeReserve] 之后，屏幕中部的横向 / 斜向滑动与页面上下滚动都不再误触； 抽屉打开后全屏可拖拽关闭。
  */
 @Composable
 fun CinefinModalDrawer(
@@ -195,30 +310,121 @@ fun CinefinModalDrawer(
     // 关闭锚点 = -抽屉宽度；由抽屉内容实测宽写回（旋转 / 分屏 / 窄屏都自洽）。
     var closedAnchor by remember(density) { mutableFloatStateOf(0f) }
     val openAnchor = 0f
-    val flingBehavior =
-        AnchoredDraggableDefaults.flingBehavior(
-            state = drawerState.anchoredState,
-            positionalThreshold = { distance -> distance * DrawerPositionalThreshold },
-            animationSpec = CinefinNavigationMotion.drawerSettleSpec(reduceMotion),
-        )
     SideEffect {
         drawerState.updateDensity(density)
         drawerState.reduceMotion = reduceMotion
     }
 
+    val reverseDirection = layoutDirection == LayoutDirection.Rtl
+    val edgeSwipeWidthPx = with(density) { DrawerEdgeSwipeWidth.toPx() }
+    // 手势导航机型最外侧 ~24dp 归系统返回手势；热区整体内移到保留区之后，否则边缘滑动永远被系统吃掉。
+    val edgeSwipeStartPx =
+        maxOf(
+            WindowInsets.systemGestures.getLeft(density, layoutDirection),
+            with(density) { DrawerSystemEdgeReserve.toPx() }.roundToInt(),
+        )
+    val edgeSwipeStartDp = with(density) { edgeSwipeStartPx.toDp() }
+
     Box(
         modifier =
             modifier
                 .fillMaxSize()
-                .anchoredDraggable(
-                    state = drawerState.anchoredState,
-                    orientation = Orientation.Horizontal,
-                    enabled = gesturesEnabled,
-                    reverseDirection = layoutDirection == LayoutDirection.Rtl,
-                    flingBehavior = flingBehavior,
-                )
+                // W2-T11（需求 #12）：手势不再挂在整屏。关闭态只有左缘热区（系统返回手势保留区之后）内起手才进入
+                // 横向拖拽判定，页面上下滚动（乃至中部 / 右缘的横向滑动）不再误触抽屉；抽屉打开后仍是全屏拖拽关闭。
+                .pointerInput(
+                    drawerState,
+                    gesturesEnabled,
+                    reverseDirection,
+                    edgeSwipeStartPx,
+                    edgeSwipeWidthPx,
+                ) {
+                    if (!gesturesEnabled) return@pointerInput
+                    val direction = if (reverseDirection) -1f else 1f
+                    val anchoredState = drawerState.anchoredState
+                    val touchSlopPx = viewConfiguration.touchSlop
+                    awaitEachGesture {
+                        val down =
+                            awaitFirstDown(
+                                requireUnconsumed = false,
+                                pass = PointerEventPass.Initial,
+                            )
+                        val drawerVisible =
+                            anchoredState.settledValue == DrawerValue.Open ||
+                                anchoredState.targetValue == DrawerValue.Open
+                        val allowed =
+                            drawerDragAllowedAt(
+                                startX = down.position.x,
+                                containerWidth = size.width.toFloat(),
+                                edgeStartPx = edgeSwipeStartPx.toFloat(),
+                                edgeWidthPx = edgeSwipeWidthPx,
+                                drawerVisible = drawerVisible,
+                                rtl = reverseDirection,
+                            )
+                        if (!allowed) {
+                            return@awaitEachGesture
+                        }
+
+                        // Initial pass 抢先仲裁：热区里的横向拖拽优先于页面里的横向轮播，纵向滑动一律让给页面滚动。
+                        var dx = 0f
+                        var dy = 0f
+                        var last = down.position
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            val change =
+                                event.changes.firstOrNull { it.id == down.id }
+                                    ?: return@awaitEachGesture
+                            if (!change.pressed) return@awaitEachGesture
+                            dx += change.position.x - last.x
+                            dy += change.position.y - last.y
+                            last = change.position
+                            when (drawerDragVerdict(dx, dy, touchSlopPx)) {
+                                DrawerDragVerdict.Claim -> {
+                                    change.consume()
+                                    break
+                                }
+                                DrawerDragVerdict.Yield -> return@awaitEachGesture
+                                DrawerDragVerdict.Pending -> Unit
+                            }
+                        }
+                        drawerState.cancelDragSettle()
+                        drawerState.dragBy(dx * direction)
+                        val velocityTracker = VelocityTracker()
+                        velocityTracker.addPointerInputChange(down)
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            velocityTracker.addPointerInputChange(change)
+                            if (!change.pressed) break
+                            change.consume()
+                            drawerState.dragBy((change.position.x - last.x) * direction)
+                            last = change.position
+                        }
+                        val velocity = velocityTracker.calculateVelocity().x * direction
+                        // 松手收尾：速度 / 位置阈值定开合，动画走定稿落位规格（开 200ms / 关 160ms）。
+                        drawerState.settleAfterDrag(
+                            animationScope = scope,
+                            velocity = velocity,
+                        )
+                    }
+                }
     ) {
         Box(modifier = Modifier.fillMaxSize()) { content() }
+
+        // 热区向系统申请排除返回手势（部分 ROM 生效；MIUI 仍保留最外侧 ~24dp，故热区已内移到保留区之后）。
+        // 该节点只有布局节点、没有 pointerInput，不遮挡热区内内容的点击 / 滚动。
+        if (gesturesEnabled) {
+            Box(
+                modifier = Modifier.fillMaxSize().padding(start = edgeSwipeStartDp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                Box(
+                    modifier =
+                        Modifier.fillMaxHeight()
+                            .width(DrawerEdgeSwipeWidth)
+                            .systemGestureExclusion()
+                )
+            }
+        }
 
         // 遮罩：alpha 跟随抽屉位移在绘制阶段读取（不触发逐帧重组），点击关闭走 160ms 定稿规格。
         val scrimModifier =
