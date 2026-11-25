@@ -86,6 +86,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -816,6 +818,16 @@ fun PlayerControlOverlay(
     onBottomBarHeight: (Int) -> Unit = {},
     /** 实测中央簇尺寸（px）回传给命中区：窄窗收尺寸后命中块跟着收，画面其余部分仍留给手势 */
     onCenterClusterSize: (Int, Int) -> Unit = { _, _ -> },
+    /**
+     * 锁定键 / 解锁键实测矩形（px，Compose 根坐标）回传给命中区。
+     *
+     * 锁定键尺寸随版式规格收放、解锁键又落在画面区（不是整个容器）垂直中点上，命中区必须和视觉同源（W4-T22）。
+     */
+    onLockKeyRect: (left: Float, top: Float, right: Float, bottom: Float) -> Unit = { _, _, _, _ ->
+    },
+    onUnlockKeyRect: (left: Float, top: Float, right: Float, bottom: Float) -> Unit =
+        { _, _, _, _ ->
+        },
     /** 睡眠定时状态（W55 统一状态源：音乐 / 视频共用同一计时器） */
     sleepState: SleepTimerController.State = SleepTimerController.State(),
     /** 选择睡眠定时分钟；null = 取消 */
@@ -1330,14 +1342,21 @@ fun PlayerControlOverlay(
                         }
 
                         // 锁定键（W11 反馈②）：屏幕右缘垂直居中、贴边，样式与其它覆盖键一致
+                        // W4-T22：键尺寸跟版式规格走（窄窗 38dp / 宽屏 44dp），与解锁键同一规格
                         PlayerIconButton(
                             iconRes = CoreR.drawable.ic_lock,
                             contentDescription =
                                 stringResource(PlayerR.string.player_controls_lock),
                             onClick = { controls.setLock(true) },
+                            size = spec.toolKeySizeDp.dp,
+                            iconSize = spec.iconSizeDp.dp,
                             modifier =
                                 Modifier.align(Alignment.CenterEnd)
-                                    .padding(end = CinefinSpacing.Space3),
+                                    .padding(end = CinefinSpacing.Space3)
+                                    .onGloballyPositioned { coordinates ->
+                                        val rect = coordinates.boundsInRoot()
+                                        onLockKeyRect(rect.left, rect.top, rect.right, rect.bottom)
+                                    },
                         )
 
                         // 折叠半开的底栏落在折痕下屏，画面区不再重复一份
@@ -1377,6 +1396,9 @@ fun PlayerControlOverlay(
                 if (controls.locked) {
                     LockedOverlay(
                         onUnlock = { controls.setLock(false) },
+                        size = spec.toolKeySizeDp.dp,
+                        iconSize = spec.iconSizeDp.dp,
+                        onRectChanged = onUnlockKeyRect,
                         modifier = Modifier.align(Alignment.CenterEnd),
                     )
                 }
@@ -3336,6 +3358,9 @@ private fun SkipSegmentChip(
 @Composable
 private fun LockedOverlay(
     onUnlock: () -> Unit,
+    size: Dp,
+    iconSize: Dp,
+    onRectChanged: (left: Float, top: Float, right: Float, bottom: Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val media = LocalMediaColors.current
@@ -3343,18 +3368,23 @@ private fun LockedOverlay(
         contentAlignment = Alignment.Center,
         modifier =
             modifier
-                .padding(end = CinefinSpacing.Space5)
-                .size(56.dp)
+                // 与未锁定态的锁定键同一边距（Space3），锁定 / 解锁时按钮不横移、尺寸不跳（W4-T22）
+                .padding(end = CinefinSpacing.Space3)
+                .size(size)
                 .clip(CinefinShapes.Xl)
                 .background(media.container)
                 .border(1.dp, media.outline, CinefinShapes.Xl)
+                .onGloballyPositioned { coordinates ->
+                    val rect = coordinates.boundsInRoot()
+                    onRectChanged(rect.left, rect.top, rect.right, rect.bottom)
+                }
                 .clickable(onClick = onUnlock),
     ) {
         Icon(
             painter = painterResource(CoreR.drawable.ic_unlock),
             contentDescription = stringResource(PlayerR.string.player_controls_unlock),
             tint = media.bright,
-            modifier = Modifier.size(24.dp),
+            modifier = Modifier.size(iconSize),
         )
     }
 }

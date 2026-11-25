@@ -18,6 +18,9 @@ import android.widget.FrameLayout
  * 画面区之外的常驻内容区（平板右侧栏、手机竖屏下方选集、折叠半开下屏）整块接管，这样 Compose 内容不会被手势层穿透，画面区里的手势却一点不受影响。
  *
  * 错误卡片比中央控件高一截，出现时中央命中区放大到 600×400dp，否则重试按钮点不到。
+ *
+ * 锁定键 / 解锁键（W4-T22）走「实测回传」：尺寸随版式规格收放，而且竖屏容器的下半截是常驻选集区，按容器高度取中点会把 锁定命中区压到选集区上——两处都改为控制层
+ * `onGloballyPositioned` 回传的实际矩形。
  */
 class PlayerOverlayContainer
 @JvmOverloads
@@ -73,6 +76,15 @@ constructor(
     var topBarHeightPx: Float = 0f
     var bottomBarHeightPx: Float = 0f
 
+    /**
+     * 锁定键 / 解锁键实测矩形（px，容器坐标）：由控制层 `onGloballyPositioned` 回传。
+     *
+     * 锁定态只保留解锁键可点，命中区必须和解锁键同源：竖屏容器的下半截是常驻选集区，用 `height / 2` 取中点会把命中区 压到选集区上，解锁键点不到（W4-T22 真机：解锁键在
+     * y≈471，命中区在 y≥990）。锁定键同理，键尺寸随版式规格收放。
+     */
+    var lockKeyRectPx: HitRect? = null
+    var unlockKeyRectPx: HitRect? = null
+
     /** 中央播放簇的实测尺寸（px）：控制层回传，命中块跟它同源（窄窗收尺寸时不会多吃掉画面手势）。 */
     var centerClusterWidthPx: Float = 0f
     var centerClusterHeightPx: Float = 0f
@@ -97,13 +109,7 @@ constructor(
         if (chrome == PlayerChromeLayout.Pip) return false
 
         if (locked) {
-            return RectF(
-                    width - 140f * density,
-                    height / 2f - 80f * density,
-                    width.toFloat(),
-                    height / 2f + 80f * density,
-                )
-                .contains(x, y)
+            return lockTargetRect().contains(x, y)
         }
 
         val videoWidth = videoWidthPx.takeIf { it > 0f } ?: width.toFloat()
@@ -167,14 +173,16 @@ constructor(
                 videoWidth / 2f + centerHalfWidth * density,
                 videoHeight / 2f + centerHalfHeight * density,
             )
-        // 锁定键（W11 反馈②）：右缘垂直居中的一个小方块，键之外的右缘仍然放行给手势
+        // 锁定键（W11 反馈②）：右缘垂直居中的一个小方块，键之外的右缘仍然放行给手势。
+        // W4-T22：键尺寸随版式规格收放（窄窗 38dp / 宽屏 44dp），命中块改用控制层回传的实测矩形。
         val lockBand =
-            RectF(
-                videoWidth - 76f * density,
-                videoHeight / 2f - 36f * density,
-                videoWidth,
-                videoHeight / 2f + 36f * density,
-            )
+            lockKeyRectPx
+                ?: HitRect(
+                    left = videoWidth - 76f * density,
+                    top = videoHeight / 2f - 36f * density,
+                    right = videoWidth,
+                    bottom = videoHeight / 2f + 36f * density,
+                )
         // 底栏 = 左下角传输行 + 通栏进度条；有实测高度就按实测
         val bottomBandHeight =
             bottomBarHeightPx.takeIf { it > 0f }
@@ -186,4 +194,38 @@ constructor(
             lockBand.contains(x, y) ||
             bottomBand.contains(x, y)
     }
+
+    /**
+     * 锁定态只留解锁键可点：优先用控制层回传的解锁键实测矩形，未回传时按「画面区右缘垂直居中」兜底。
+     *
+     * 兜底也**不能**用容器高度取中点——竖屏容器下半截是选集区，中点会落到画面区之外（W4-T22 真机复现）。
+     */
+    private fun lockTargetRect(): HitRect {
+        (unlockKeyRectPx ?: lockKeyRectPx)?.let {
+            return it
+        }
+
+        val videoWidth = videoWidthPx.takeIf { it > 0f } ?: width.toFloat()
+        val videoHeight = videoHeightPx.takeIf { it > 0f } ?: height.toFloat()
+        val half = LOCK_TARGET_FALLBACK_DP * density / 2f
+        return HitRect(
+            left = videoWidth - LOCK_TARGET_FALLBACK_DP * density,
+            top = videoHeight / 2f - half,
+            right = videoWidth,
+            bottom = videoHeight / 2f + half,
+        )
+    }
 }
+
+/** 容器坐标下的命中矩形（px）。纯 Kotlin，便于单测「实测矩形 → 命中判定」的换算。 */
+data class HitRect(
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float,
+) {
+    fun contains(x: Float, y: Float): Boolean = x >= left && x <= right && y >= top && y <= bottom
+}
+
+/** 实测矩形缺失时的锁定键兜底块（dp）：右缘一个 60dp 见方，垂直居中于画面区 */
+private const val LOCK_TARGET_FALLBACK_DP = 60f

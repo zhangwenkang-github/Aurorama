@@ -77,6 +77,7 @@ import com.zhangwenkang.cinefin.player.local.syncplay.SyncPlayJoinOutcome
 import com.zhangwenkang.cinefin.player.local.syncplay.SyncPlaySessionCoordinator
 import com.zhangwenkang.cinefin.presentation.player.BackendSwitchNotice
 import com.zhangwenkang.cinefin.presentation.player.BackendSwitchOverlay
+import com.zhangwenkang.cinefin.presentation.player.HitRect
 import com.zhangwenkang.cinefin.presentation.player.PlayerChromeLayout
 import com.zhangwenkang.cinefin.presentation.player.PlayerControlOverlay
 import com.zhangwenkang.cinefin.presentation.player.PlayerControlsState
@@ -601,6 +602,21 @@ class PlayerActivity : BasePlayerActivity() {
                         binding.controlOverlay.centerClusterWidthPx = width.toFloat()
                         binding.controlOverlay.centerClusterHeightPx = height.toFloat()
                     },
+                    // W4-T22：锁定键 / 解锁键实测矩形回传，命中区与按钮视觉同源（竖屏锁定后点得到解锁键）
+                    onLockKeyRect = { left, top, right, bottom ->
+                        val rect = HitRect(left, top, right, bottom)
+                        if (binding.controlOverlay.lockKeyRectPx != rect) {
+                            binding.controlOverlay.lockKeyRectPx = rect
+                            Timber.d("player lock key rect=%s", rect)
+                        }
+                    },
+                    onUnlockKeyRect = { left, top, right, bottom ->
+                        val rect = HitRect(left, top, right, bottom)
+                        if (binding.controlOverlay.unlockKeyRectPx != rect) {
+                            binding.controlOverlay.unlockKeyRectPx = rect
+                            Timber.d("player unlock key rect=%s", rect)
+                        }
+                    },
                 )
             }
         }
@@ -1002,15 +1018,19 @@ class PlayerActivity : BasePlayerActivity() {
         }
     }
 
-    /** 方向策略：手机 / 平板自由旋转，车机与 TV 锁横屏；锁屏时由锁定按钮单独接管 */
+    /**
+     * 方向策略：手机 / 平板跟随用户旋转偏好，车机与 TV 锁横屏；锁屏时由锁定按钮单独接管。
+     *
+     * W4-T22：手机 / 平板从 FULL_SENSOR 改为 USER——系统开自动旋转时等同传感器旋转，关掉时锁在当前方向、不随重力转。
+     */
     private fun orientationForFormFactor(): Int =
         when (layoutContext?.formFactor) {
             PlayerFormFactor.Car,
             PlayerFormFactor.Tv -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            else -> ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+            else -> ActivityInfo.SCREEN_ORIENTATION_USER
         }
 
-    /** 当前该给系统的方向：全屏优先横屏，否则按形态（车机 / TV 锁横屏，手机 / 平板自由旋转）。 */
+    /** 当前该给系统的方向：全屏优先横屏，否则按形态（车机 / TV 锁横屏，手机 / 平板跟随用户旋转偏好）。 */
     private fun desiredOrientation(): Int =
         if (fullscreenMode.value) {
             ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
