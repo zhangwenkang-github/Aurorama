@@ -86,17 +86,27 @@ internal fun MusicQueue.toStored(positionMs: Long, savedAt: Long): StoredQueue =
 
 internal fun StoredQueue.toSnapshot(): MusicQueueSnapshot? {
     val ordered = items.sortedBy { item -> item.position }
-    val restoredItems =
+    // W3-T17：逐项恢复——只有确认损坏（id 非法 / 没有媒体地址）的行才剔除，其余（含「不可用」标记）原样保留。
+    val restoredWithOriginalIndex =
         ordered
             .filter { item -> item.kind != StoredQueueKind.UP_NEXT }
-            .mapNotNull { item -> item.toPlayerItemOrNull() }
+            .mapIndexedNotNull { index, item ->
+                item.toPlayerItemOrNull()?.let { playerItem -> index to playerItem }
+            }
+    val restoredItems = restoredWithOriginalIndex.map { (_, playerItem) -> playerItem }
     if (restoredItems.isEmpty()) return null
     val restoredUpNext =
         ordered
             .filter { item -> item.kind == StoredQueueKind.UP_NEXT }
             .mapNotNull { item -> item.toPlayerItemOrNull() }
     val positionMs = state.positionMs.coerceAtLeast(0L)
-    val currentIndex = state.currentIndex.coerceIn(0, restoredItems.lastIndex)
+    // W3-T17：保存的当前曲目若被剔除，就近落到下一个仍可恢复的条目（没有再回退上一个），
+    // 不再对原下标做盲 clamp（那会让「续播」悄悄落在另一首无关曲目上）。
+    val currentIndex =
+        restoredCurrentIndex(
+            savedCurrentIndex = state.currentIndex,
+            keptOriginalIndices = restoredWithOriginalIndex.map { (index, _) -> index },
+        ) ?: return null
     val restoredShuffleOrder =
         decodeShuffleOrder(state.shuffleOrder)?.takeIf { order ->
             restoredUpNext.isEmpty() && isValidShuffleOrder(order, restoredItems.size)
@@ -123,6 +133,26 @@ internal fun StoredQueue.toSnapshot(): MusicQueueSnapshot? {
         positionMs = positionMs,
         savedAt = state.savedAt,
     )
+}
+
+/**
+ * W3-T17：快照恢复时的当前曲目定位（纯函数）。
+ *
+ * 保存时的当前条目若确认损坏被剔除（[keptOriginalIndices] 里没有它），就近落到**下一个**仍可恢复的条目； 后面没有则回退到**上一个**；一个都不剩才返回
+ * null（此时整份快照确实无可用条目，才作废）。
+ */
+internal fun restoredCurrentIndex(
+    savedCurrentIndex: Int,
+    keptOriginalIndices: List<Int>,
+): Int? {
+    if (keptOriginalIndices.isEmpty()) return null
+    val exact = keptOriginalIndices.indexOf(savedCurrentIndex)
+    if (exact >= 0) return exact
+    val next = keptOriginalIndices.indexOfFirst { originalIndex ->
+        originalIndex > savedCurrentIndex
+    }
+    if (next >= 0) return next
+    return keptOriginalIndices.lastIndex
 }
 
 /**

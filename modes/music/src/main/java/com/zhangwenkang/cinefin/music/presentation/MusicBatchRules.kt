@@ -207,7 +207,7 @@ internal fun musicBatchActionEnabled(
         MusicBatchAction.REMOVE_FROM_PLAYLIST -> inPlaylist && selected.isNotEmpty()
     }
 
-/** 批量「播放」的入队顺序：按**当前视图列表顺序**取选中曲目（不是点击顺序）， 与单曲起播「整份列表入队」的列表序语义一致。 */
+/** 批量「播放」的入队顺序：按**当前视图列表顺序**取选中曲目（不是点击顺序）， 与「播放全部」的列表序语义一致（单曲起播自 W3-T17 起为追加队尾）。 */
 internal fun batchPlayOrder(songs: List<MusicSong>, selectedIds: Set<String>): List<MusicSong> =
     songs.filter {
         it.itemId.toString() in selectedIds

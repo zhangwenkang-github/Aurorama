@@ -48,7 +48,8 @@ fun MusicPlaylist.stableKey(): String = "${kind.name}:$id"
 /**
  * 曲目列表详情（专辑 / 艺术家 / 歌单三种来源）。
  *
- * [songs] 是"以哪一份列表为播放上下文"的唯一依据：点歌起播时整份列表入队， [source] / [sourceId] 记录队列来源（MU-3 的"继续播放"语义）。
+ * [songs] 是"以哪一份列表为播放上下文"的唯一依据：W3-T17 起点歌会把「该曲到列表尾」追加到队尾并起播， [source] / [sourceId] 记录新队列来源（MU-3
+ * 的"继续播放"语义）。
  */
 sealed interface MusicDetail {
     val title: String

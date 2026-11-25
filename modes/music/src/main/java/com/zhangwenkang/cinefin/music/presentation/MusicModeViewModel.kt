@@ -155,7 +155,7 @@ data class MusicBatchPrecheck(
 /**
  * 音乐模式 ViewModel（W1 R2 最小闭环，W2 R2 扩到四维浏览 + 队列操作）。
  *
- * 负责：曲库浏览（专辑 / 艺术家 / 歌曲 / 歌单）、"点歌 → 整份列表入队起播"、 队列操作（拖拽排序 / 下一首播放 / 点队列跳转 / 移除）。播放本身完全交给
+ * 负责：曲库浏览（专辑 / 艺术家 / 歌曲 / 歌单）、"点歌 → 追加队尾并起播（W3-T17）"、 队列操作（拖拽排序 / 下一首播放 / 点队列跳转 / 移除）。播放本身完全交给
  * [MusicPlaybackController]，UI 不接触播放器 API。
  *
  * W3 R2 追加歌词（MU-5）：当前曲目变化 → 拉取 / 解析歌词（外挂 LRC → 服务端 → 本地缓存）， 播放位置 → 当前行索引（滚动同步与高亮）， 语言切换与双语对照只影响显示侧。
@@ -582,28 +582,34 @@ constructor(
         if (album != null) openAlbum(album)
     }
 
+    /**
+     * W3-T17：单曲路由（搜索结果 / 下载页单条 / 通知点开）走与行点击一致的「追加队尾并起播」，
+     * 不再用整份曲库列表重建队列；显式多选排序参数（[playRouteSongs]）仍按给定列表整列播放。
+     */
     private fun playRouteSong(itemId: UUID) {
         val serverIndex = serverLibrary.songs.indexOfFirst { it.itemId == itemId }
         if (serverIndex >= 0) {
             pendingRouteSongId = null
-            startQueuePlayback(
-                song = serverLibrary.songs[serverIndex],
-                songs = serverLibrary.songs,
-                startIndex = serverIndex,
+            val song = serverLibrary.songs[serverIndex]
+            playSongAppend(
+                song = song,
+                tailSongs = listOf(song),
                 source = QueueSource.MANUAL,
                 sourceId = null,
+                snapshotItems = emptyMap(),
             )
             return
         }
         val localIndex = localLibrary.songs.indexOfFirst { it.itemId == itemId }
         if (localIndex >= 0) {
             pendingRouteSongId = null
-            startQueuePlayback(
-                song = localLibrary.songs[localIndex],
-                songs = localLibrary.songs,
-                startIndex = localIndex,
+            val song = localLibrary.songs[localIndex]
+            playSongAppend(
+                song = song,
+                tailSongs = listOf(song),
                 source = QueueSource.MANUAL,
                 sourceId = null,
+                snapshotItems = emptyMap(),
             )
             return
         }
@@ -2684,12 +2690,13 @@ constructor(
     }
 
     /**
-     * 点击歌曲：**先只解析被点的那一首立刻起播**，其余曲目随后按顺序补进队列。
+     * 点击歌曲（W3-T17 · §4.4 / V2-MUSIC-50）：**追加队尾并起播**，不再整列重建队列。
      *
-     * 旧实现要先把当前列表整份串行解析（歌曲页 100 首 = 100 次 PlaybackInfo）再 `setQueue`，
-     * 真机表现为"点了没反应"，且任意一首解析失败会让整次点击失败（W3-R3b 缺陷 2）。 新流程最终队列与旧行为一致（整份列表入队、当前曲目 = 被点的曲目）：
-     * 1) 解析被点曲目 → `setQueue` 起播（1 次请求）；
-     * 2) 后台补队列：先补"当前之后"的曲目（下一首最先就位），再补"当前之前"的曲目； 单曲解析失败只跳过该曲，不影响已起播的播放。
+     * - 该曲已在队列（活动队列或恢复快照）→ 不重复追加，直接跳到队列里的既有位置起播；
+     * - 不在 → 只解析被点的这一首后追加到队尾并跳到新下标；
+     * - 详情层（专辑 / 艺术家 / 歌单 / 收藏 / 最近播放）把「被点曲到列表结尾」的余下曲目在后台按列表序补到队尾， 保持列表连续播放，同时不动用户已有的点击序列；库列表（歌曲 /
+     *   建议 Tab）只追加被点的一首；
+     * - 整列加载只剩「播放全部 / 随机播放」以及批量播放、下载页多选播放这些显式列表入口。
      */
     fun playSong(song: MusicSong) {
         if (song.isPlaylistPlaceholder) {
@@ -2702,21 +2709,173 @@ constructor(
             state.detail?.takeIf { detail ->
                 detail.songs.any { it.playlistSelectionKey() == selectionKey }
             }
-        val songs = detail?.songs ?: state.songs
-        val startIndex = songs.indexOfFirst { it.playlistSelectionKey() == selectionKey }
+        val listSongs = detail?.songs ?: state.songs
+        val startIndex = listSongs.indexOfFirst { it.playlistSelectionKey() == selectionKey }
         if (startIndex < 0) return
-        val snapshotItems =
-            (detail as? MusicDetail.Playlist)?.let { playlistDetail ->
-                playlistSnapshotPlaybackItems(playlistDetail.playlist, latestQueueSnapshot())
-            } ?: emptyMap()
-        startQueuePlayback(
+        val tailSongs =
+            if (detail != null) {
+                listSongs.subList(startIndex, listSongs.size).toList()
+            } else {
+                listOf(song)
+            }
+        playSongAppend(
             song = song,
-            songs = songs,
-            startIndex = startIndex,
+            tailSongs = tailSongs,
             source = detail?.source ?: QueueSource.MANUAL,
             sourceId = detail?.sourceId,
-            snapshotItems = snapshotItems,
+            snapshotItems =
+                (detail as? MusicDetail.Playlist)?.let { playlistDetail ->
+                    playlistSnapshotPlaybackItems(playlistDetail.playlist, latestQueueSnapshot())
+                } ?: emptyMap(),
         )
+    }
+
+    /** W3-T17：点单曲队列计划 → 跳位或追加起播（计划由 [musicPlaySongPlan] 纯函数给出）。 */
+    private fun playSongAppend(
+        song: MusicSong,
+        tailSongs: List<MusicSong>,
+        source: QueueSource,
+        sourceId: String?,
+        snapshotItems: Map<UUID, PlayerItem>,
+    ) {
+        autoDjController.onUserTransportAction()
+        val existingItemIds =
+            playbackController.queue.value?.items?.map { item -> item.itemId }
+                ?: _restoredQueue.value?.items?.map { item -> item.itemId }
+                ?: emptyList()
+        val plan =
+            musicPlaySongPlan(
+                existingItemIds = existingItemIds,
+                clickedItemId = song.itemId,
+                tailItemIds = tailSongs.map { tailSong -> tailSong.itemId },
+            )
+        when (plan) {
+            is MusicPlaySongPlan.JumpToExisting -> jumpToQueueItem(plan.index)
+            is MusicPlaySongPlan.AppendAndPlay ->
+                startAppendPlayback(
+                    song = song,
+                    tailSongs = tailSongs,
+                    source = source,
+                    sourceId = sourceId,
+                    snapshotItems = snapshotItems,
+                )
+        }
+    }
+
+    /**
+     * W3-T17：解析被点曲目 → 追加到队尾并跳到新下标 → 后台按列表序补详情层余下曲目。
+     *
+     * 已有活动队列走 [MusicQueueEditor] 追加；只有恢复快照时把新曲追加进快照队列后 `setQueue`；两者都没有才新建单曲队列。
+     */
+    private fun startAppendPlayback(
+        song: MusicSong,
+        tailSongs: List<MusicSong>,
+        source: QueueSource,
+        sourceId: String?,
+        snapshotItems: Map<UUID, PlayerItem>,
+    ) {
+        playJob?.cancel()
+        val requestId = ++nextPlayRequestId
+        val pending =
+            PendingPlaybackUi(
+                requestId = requestId,
+                item = song.toPendingPlayerItem(),
+            )
+        _pendingPlayback.value = pending
+        playJob = viewModelScope.launch {
+            val first =
+                try {
+                    resolveQueueItem(song, snapshotItems) ?: error("无法解析「${song.name}」的播放地址")
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (error: Exception) {
+                    if (_pendingPlayback.value?.requestId == requestId) {
+                        _pendingPlayback.value = pendingPlaybackAfterFailure(pending, requestId)
+                        _uiState.update {
+                            it.copy(
+                                errorTitle = "播放失败",
+                                errorMessage =
+                                    error.message?.takeIf { message -> message.isNotBlank() }
+                                        ?: "无法解析「${song.name}」的播放地址",
+                            )
+                        }
+                    }
+                    return@launch
+                }
+            if (_pendingPlayback.value?.requestId != requestId) return@launch
+            try {
+                appendAndStart(first, source, sourceId)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                if (_pendingPlayback.value?.requestId == requestId) {
+                    _pendingPlayback.value = pendingPlaybackAfterFailure(pending, requestId)
+                    _uiState.update {
+                        it.copy(
+                            errorTitle = "播放失败",
+                            errorMessage =
+                                error.message?.takeIf { message -> message.isNotBlank() }
+                                    ?: "无法将「${song.name}」加入播放队列",
+                        )
+                    }
+                }
+                return@launch
+            }
+            if (_pendingPlayback.value?.requestId == requestId) {
+                _pendingPlayback.value = null
+            }
+            // 详情层：余下曲目按列表序后台补到队尾（换队列 / 再点歌时由 requestId 取消）。
+            appendTailAfterPlayback(tailSongs.drop(1), requestId, snapshotItems)
+        }
+    }
+
+    /** W3-T17：把首曲放进队列并起播（活动队列追加 / 恢复快照续上 / 无队列新建）。 */
+    private fun appendAndStart(first: PlayerItem, source: QueueSource, sourceId: String?) {
+        val liveQueue = playbackController.queue.value
+        val restored = _restoredQueue.value
+        if (liveQueue == null && restored != null) {
+            val rebuilt =
+                restored.copy(
+                    items = restored.items + first,
+                    currentIndex = restored.items.size,
+                    shuffleOrder = null,
+                    shuffleSeed = null,
+                )
+            _restoredQueue.value = null
+            playbackController.setQueue(rebuilt, startIndex = rebuilt.currentIndex)
+            return
+        }
+        if (liveQueue == null) {
+            playbackController.setQueue(
+                MusicQueue(
+                    items = listOf(first),
+                    currentIndex = 0,
+                    source = source,
+                    sourceId = sourceId,
+                ),
+                startIndex = 0,
+            )
+            return
+        }
+        // 先追加再跳转：与批量播放同口径，避免自动切歌改变当前索引后条目落到错误位置。
+        queueEditor.appendToQueue(listOf(first))
+        playbackController.queue.value?.items?.lastIndex?.let { index -> queueEditor.jumpTo(index) }
+    }
+
+    /** W3-T17：详情层余下曲目按列表序分批追加队尾；解析失败只跳过该曲。 */
+    private suspend fun appendTailAfterPlayback(
+        tailSongs: List<MusicSong>,
+        requestId: Long,
+        snapshotItems: Map<UUID, PlayerItem>,
+    ) {
+        if (tailSongs.isEmpty()) return
+        for (batch in tailSongs.indices.toList().chunked(QUEUE_FILL_BATCH_SIZE)) {
+            if (!isCurrentPlaybackRequest(requestId, nextPlayRequestId)) return
+            if (playbackController.queue.value == null) return
+            val items = resolveQueueBatch(tailSongs, batch, snapshotItems)
+            if (!isCurrentPlaybackRequest(requestId, nextPlayRequestId)) return
+            if (items.isNotEmpty()) queueEditor.appendToQueue(items)
+        }
     }
 
     /**
