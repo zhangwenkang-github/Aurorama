@@ -33,7 +33,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 
 private val PreviewDomains = listOf(ContentDomain.Movie, ContentDomain.Music, ContentDomain.Book)
 
@@ -196,7 +195,6 @@ private fun CinefinButtonStateMatrixPreview() {
 
 @Composable
 private fun CardPreviewContent() {
-    val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
     Column(
         modifier = Modifier.fillMaxSize().padding(20.dp),
@@ -208,7 +206,7 @@ private fun CardPreviewContent() {
                 meta = "科幻 · 2017",
                 modifier = Modifier.weight(1f),
             ) {
-                Box(modifier = Modifier.fillMaxSize().background(media.container))
+                Box(modifier = Modifier.fillMaxSize().background(colors.surfaceContainerHigh))
             }
             CinefinPosterCard(
                 title = "海街日记",
@@ -230,10 +228,12 @@ private fun CardPreviewContent() {
             titleColor = colors.aurora1,
             trailing = { PreviewIcon(colors.aurora1) },
             leading = {
-                // 域身份位：缩略图占位沿用域媒体色。
+                // 缩略图占位：预览板只用中性容器色，不读域媒体色（D6 守卫）。
                 Box(
                     modifier =
-                        Modifier.size(46.dp).clip(CinefinShapes.Xs).background(media.container)
+                        Modifier.size(46.dp)
+                            .clip(CinefinShapes.Xs)
+                            .background(colors.surfaceContainerHigh)
                 )
             },
         )

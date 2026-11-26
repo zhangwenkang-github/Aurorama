@@ -539,7 +539,6 @@ fun LocalLibraryDetailScreen(
             title = state.name.ifBlank { "本地媒体库" },
             subtitle = "共 ${state.itemCount} 项 · ${state.folderCount} 个文件夹",
             onBack = onBack,
-            modifier = Modifier.padding(start = safePadding.start),
         )
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(horizontal = horizontalPadding),

@@ -1,6 +1,6 @@
 # Aurorama UI 设计系统 v2.0 R1（V2 权威基线）
 
-> **状态（2026-11-24）**：本文档为 v1.0 设计系统说明。主题体系与强调色规则已被 `docs/V2_DESIGN.md` §3（K1 Aurora Cinema）与 `docs/V201_DESIGN_FINAL.md` 取代——域色只做域身份，交互强调一律极光；冲突项以新文档为准。本文档保留为组件结构/间距/响应式的细节参考。
+> **状态（2026-11-24）**：本文档为 v1.0 设计系统说明。主题体系与强调色规则已被 `docs/V2_DESIGN.md` §3（K1 Aurora Cinema）与 `docs/V201_DESIGN_FINAL.md` 取代——域色只做域身份，交互强调一律极光；冲突项以新文档为准。本文档保留为组件结构/间距/响应式的细节参考。2.0.2 D6 起颜色/图标核对清单见 `docs/design/COLOR_ICON_INVENTORY.md`，主题/配色修改以台账为准。
 
 > 状态：`S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / RUNTIME_UNVERIFIED / Q03_OPEN / Q04_CLOSED_D201`
 > 来源：`V2-Q-G1-04` S5 `decision-brief.md` + `manifest.json`（SHA-256

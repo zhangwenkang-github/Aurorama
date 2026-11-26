@@ -24,6 +24,10 @@ import org.junit.Test
 class DesignTokenConsistencyTest {
     private val tolerance = 0.5f / 255f
 
+    /** 全仓源码扫描时跳过的目录（构建产物与工具输出，不是源码）。 */
+    private val repoScanSkipDirs =
+        setOf("build", ".git", ".gradle", ".kotlin", "graphify-out", ".planning", ".superpowers")
+
     private fun assertHex(expectedHex: Long, actual: Color, label: String) {
         val red = ((expectedHex shr 16) and 0xFF).toInt() / 255f
         val green = ((expectedHex shr 8) and 0xFF).toInt() / 255f
@@ -522,6 +526,103 @@ class DesignTokenConsistencyTest {
             }
         }
     }
+
+    /**
+     * 2.0.2 D6 守卫 a：C8a 起交互强调归极光，下列五个文件不得再消费域媒体色的「交互槽」 （`base` / `onBase` / `bright` /
+     * `containerPressed`）。`container` 等域身份位（占位图底色、域徽标）仍合法， 故意不拦截。
+     */
+    @Test
+    fun `d6 五个重构文件不再消费域媒体交互槽`() {
+        val interactionSlots =
+            Regex(
+                """(?:media|mediaColors|mediaPalette|LocalMediaColors\.current)\.(base|onBase|bright|containerPressed)\b"""
+            )
+        val files =
+            listOf(
+                "core/src/main/java/com/zhangwenkang/cinefin/core/presentation/components/CinefinMultiSelect.kt",
+                "core/src/main/java/com/zhangwenkang/cinefin/core/presentation/components/CinefinNavigation.kt",
+                "core/src/main/java/com/zhangwenkang/cinefin/core/presentation/components/CinefinDrawer.kt",
+                "app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/video/VideoScreen.kt",
+                "app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/film/components/DetailHero.kt",
+            )
+        files.forEach { path ->
+            val source = findSource(path)
+            val offenders = interactionSlots.findAll(source).map { it.value }.toList()
+            assertTrue(
+                "$path 仍消费域媒体交互槽 $offenders（交互强调一律极光 token）",
+                offenders.isEmpty(),
+            )
+        }
+    }
+
+    /**
+     * 2.0.2 D6 守卫 b：C8a 删除的 `ic_filter` / `header_gradient` 不得复活——既不允许重新定义同名资源， 也不允许任何模块的源码 /
+     * 布局重新引用。扫描仓内所有 `src` 下的 `.kt` / `.xml`。
+     */
+    @Test
+    fun `d6 退役 drawable 不得复活`() {
+        val root = repoRoot()
+        val reference = Regex("""(?:R\.drawable\.|@drawable/)(?:ic_filter|header_gradient)\b""")
+        val resurrectedFiles = sourceFiles(root, "kt") + sourceFiles(root, "xml")
+        val offenders =
+            resurrectedFiles
+                .filter { file -> reference.containsMatchIn(file.readText()) }
+                .map { it.relativeTo(root).invariantSeparatorsPath }
+        assertTrue("退役 drawable 被重新引用：$offenders", offenders.isEmpty())
+
+        val redefined =
+            root
+                .walkTopDown()
+                .onEnter { it.name !in repoScanSkipDirs }
+                .filter {
+                    it.isFile &&
+                        (it.name == "ic_filter.xml" || it.name == "header_gradient.xml") &&
+                        it.invariantSeparatorsPath.contains("/src/")
+                }
+                .map { it.relativeTo(root).invariantSeparatorsPath }
+                .toList()
+        assertTrue("退役 drawable 被重新定义：$redefined", redefined.isEmpty())
+    }
+
+    /** 2.0.2 D6 守卫 c：组件预览板只用中性色板，不得再读 `LocalMediaColors`。 */
+    @Test
+    fun `d6 预览板不再读 LocalMediaColors`() {
+        val source =
+            findSource(
+                "core/src/main/java/com/zhangwenkang/cinefin/core/presentation/components/CinefinComponentPreviews.kt"
+            )
+        assertFalse(
+            "CinefinComponentPreviews 不得再读 LocalMediaColors",
+            source.contains("LocalMediaColors"),
+        )
+    }
+
+    /**
+     * 跨模块扫描的基准目录：从 `user.dir`（Gradle test 工作目录 = 模块目录）向上找仓库根 （含 `settings.gradle.kts`），保证 `:core` /
+     * `:app:phone` 等不同模块下运行时定位一致。
+     */
+    private fun repoRoot(): File {
+        var directory: File? = File(requireNotNull(System.getProperty("user.dir"))).absoluteFile
+        repeat(8) {
+            val candidate = directory
+            if (candidate != null && File(candidate, "settings.gradle.kts").isFile) {
+                return candidate
+            }
+            directory = candidate?.parentFile
+        }
+        error("Repo root not found from ${System.getProperty("user.dir")}")
+    }
+
+    private fun sourceFiles(root: File, extension: String): List<File> =
+        root
+            .walkTopDown()
+            .onEnter { it.name !in repoScanSkipDirs }
+            .filter {
+                it.isFile &&
+                    it.extension == extension &&
+                    it.invariantSeparatorsPath.contains("/src/")
+            }
+            .toList()
 
     private fun findSource(relativePath: String): String {
         var directory: File? = File(requireNotNull(System.getProperty("user.dir"))).absoluteFile

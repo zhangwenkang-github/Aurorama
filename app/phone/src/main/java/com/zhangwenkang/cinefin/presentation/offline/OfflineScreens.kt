@@ -116,7 +116,6 @@ fun OfflineHomeScreen(
             title = "离线模式",
             subtitle = "视频 ${state.videoCount} · 音乐 ${state.musicCount} · 书籍 ${state.bookCount}",
             onOpenDrawer = onOpenDrawer,
-            modifier = Modifier.padding(start = safePadding.start),
         )
         OfflineNotice()
         Spacer(Modifier.height(CinefinSpacing.Space4))
@@ -287,7 +286,6 @@ fun OfflineLibraryScreen(
             title = "已下载媒体",
             subtitle = "视频 ${state.videoCount} · 音乐 ${state.musicCount} · 书籍 ${state.bookCount}",
             onOpenDrawer = onOpenDrawer,
-            modifier = Modifier.padding(start = safePadding.start),
             actions = {
                 CinefinIconButton(onClick = { viewModel.setShowHidden(!state.showHidden) }) { tint
                     ->
@@ -466,7 +464,6 @@ fun OfflineShelfScreen(
             title = "书架",
             subtitle = "离线模式 · 已下载 ${books.size} 本",
             onOpenDrawer = onOpenDrawer,
-            modifier = Modifier.padding(start = safePadding.start),
         )
         OfflineNotice(message = "离线模式 · 仅显示已下载书籍，点击直接阅读")
         Spacer(Modifier.height(CinefinSpacing.Space2))

@@ -387,7 +387,6 @@ private fun BookshelfPlaceholder(
         CinefinPageTopBar(
             title = stringResource(CoreR.string.title_book_shelf),
             onOpenDrawer = onOpenDrawer,
-            modifier = Modifier.padding(start = safePadding.start),
             actions = {
                 if (onExitTemporaryLibrary != null) {
                     CinefinBackToDefaultChip(onClick = onExitTemporaryLibrary)

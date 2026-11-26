@@ -65,7 +65,6 @@ fun UpdateScreen(
         CinefinPageTopBar(
             title = stringResource(R.string.update_title),
             onBack = navigateBack,
-            modifier = Modifier.padding(start = safePadding.start),
         )
         Column(
             modifier =

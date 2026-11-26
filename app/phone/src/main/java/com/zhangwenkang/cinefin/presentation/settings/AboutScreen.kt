@@ -95,7 +95,6 @@ fun AboutScreen(navigateBack: () -> Unit) {
         CinefinPageTopBar(
             title = stringResource(SettingsR.string.about),
             onBack = navigateBack,
-            modifier = Modifier.padding(start = safePadding.start),
         )
         LibrariesContainer(
             libraries = libraries,
