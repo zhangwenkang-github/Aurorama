@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.presentation.film.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -21,6 +22,8 @@ import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 
 @Composable
@@ -52,15 +55,20 @@ fun ItemTopBar(
     }
 }
 
-/** 压在剧照上的覆盖层图标键（§5.2 / §8.7 覆盖层）：黑 60% 底 + 方圆形 12dp + 白图标。 */
+/**
+ * 压在剧照上的覆盖层图标键（§5.2 / §8.7 覆盖层）：纯图标控件垫层 = scrim 28%（`PlayerGlassAlpha` 口径）+ `glassBorder` 细描边 + 方圆形
+ * 12dp + 白图标（2.0.2 D4 减重裁定）。
+ */
 @Composable
 private fun OverlayIconAction(icon: Int, onClick: () -> Unit) {
+    val colors = LocalCinefinColors.current
     Box(
         modifier =
             Modifier.padding(end = CinefinSpacing.Space2)
                 .size(44.dp)
                 .clip(CinefinShapes.Button)
-                .background(Color.Black.copy(alpha = 0.6f))
+                .background(colors.scrim.copy(alpha = CinefinTokens.PlayerGlassAlpha))
+                .border(1.dp, colors.glassBorder, CinefinShapes.Button)
                 .cinefinClickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

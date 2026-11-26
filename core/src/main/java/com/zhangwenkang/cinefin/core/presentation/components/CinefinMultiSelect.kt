@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
@@ -94,7 +95,8 @@ fun Modifier.cinefinSelectable(
 }
 
 /**
- * §8.5 多选勾选指示（20dp）：选中 = `Media.Base` 填充 + `OnBase` 勾；未选中 = 透明底 + 1dp 描边。
+ * §8.5 多选勾选指示（20dp）：选中 = `Media.Base` 填充 + `OnBase` 勾；未选中 = scrim 28%（`PlayerGlassAlpha` 口径）+ 白 24%
+ * 描边（2.0.2 D4：纯图标控件垫层不再用手写黑底，选中态环维持 aurora1）。
  *
  * 卡片（§8.4「左上角已选圆点」）/ 列表行（§8.5 左侧勾选）共用；仅作指示，点击由整行 / 整卡承担。
  */
@@ -111,10 +113,13 @@ fun CinefinSelectIndicator(
             modifier
                 .size(size)
                 .clip(CircleShape)
-                .background(if (selected) media.base else colors.scrim.copy(alpha = 0.55f))
+                .background(
+                    if (selected) media.base
+                    else colors.scrim.copy(alpha = CinefinTokens.PlayerGlassAlpha)
+                )
                 .then(
                     if (selected) Modifier
-                    else Modifier.border(1.dp, colors.onSurface.copy(alpha = 0.65f), CircleShape)
+                    else Modifier.border(1.dp, colors.onSurface.copy(alpha = 0.24f), CircleShape)
                 ),
         contentAlignment = Alignment.Center,
     ) {

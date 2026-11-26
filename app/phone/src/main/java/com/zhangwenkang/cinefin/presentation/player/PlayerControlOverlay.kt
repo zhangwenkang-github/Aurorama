@@ -1806,7 +1806,8 @@ private fun PlayerBufferingIndicator(visible: Boolean, modifier: Modifier = Modi
             modifier =
                 Modifier.size(64.dp)
                     .clip(CinefinShapes.Full)
-                    .background(colors.scrim.copy(alpha = 0.45f)),
+                    .background(colors.scrim.copy(alpha = CinefinTokens.PlayerGlassAlpha))
+                    .border(1.dp, colors.glassBorder, CinefinShapes.Full),
         ) {
             CircularProgressIndicator(
                 modifier = Modifier.size(30.dp),
@@ -3279,8 +3280,8 @@ private fun SkipSegmentChip(
 ) {
     /*
      * W20（§6.1 提示条样式统一）：与顶栏徽标（PlayerOverlayBadge）/ 面板胶囊（PanelChip）共用同一套
-     * 中性描边 token（outlineVariant）与 scrim 底，只把图标留给媒体强调色；
-     * 旧实现用 media.outline 描边，在亮画面上比其它覆盖层控件更抢眼。
+     * 中性描边 token 与玻璃底（2.0.2 D4：图上控件唯一垫层 = `colors.glass` + `glassBorder`，含文字 chip 维持 58% 填充），
+     * 只把图标留给媒体强调色；旧实现用 media.outline 描边，在亮画面上比其它覆盖层控件更抢眼。
      */
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -3290,8 +3291,8 @@ private fun SkipSegmentChip(
         modifier =
             modifier
                 .clip(shape)
-                .background(colors.scrim.copy(alpha = 0.8f))
-                .border(1.dp, colors.outlineVariant, shape)
+                .background(colors.glass)
+                .border(1.dp, colors.glassBorder, shape)
                 .clickable(onClick = onClick)
                 .padding(horizontal = CinefinSpacing.Space4, vertical = CinefinSpacing.Space3),
     ) {

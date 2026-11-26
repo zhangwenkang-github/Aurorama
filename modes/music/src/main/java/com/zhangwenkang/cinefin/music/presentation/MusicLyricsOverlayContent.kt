@@ -76,8 +76,10 @@ fun MusicLyricsOverlayContent(
     onClose: () -> Unit,
 ) {
     val tint = Color(state.tint.argb.toInt())
-    val container = Color(0xE60E1116)
-    val borderColor = Color(0x1FFFFFFF)
+    val colors = LocalCinefinColors.current
+    // 2.0.2 D4：悬浮窗窗口底/工具条底归 surface 系 token（v1 写死 0xE60E1116 / 0xB30E1116 退役）
+    val container = colors.surface
+    val borderColor = colors.glassBorder
     val shape = CinefinShapes.Card
     // 背景 / 边框的显示窗口：面板打开或"最近一次交互后未超时且未锁定"（锁定 = 恒隐藏；常显档位 = 不超时）
     var interacting by remember { mutableStateOf(true) }
@@ -195,7 +197,9 @@ fun MusicLyricsOverlayContent(
             Row(
                 modifier =
                     Modifier.clip(CinefinShapes.Button)
-                        .background(if (showChrome) Color.Transparent else Color(0xB30E1116))
+                        .background(
+                            if (showChrome) Color.Transparent else colors.surfaceContainerHigh
+                        )
                         .padding(horizontal = 6.dp, vertical = 2.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -238,7 +242,7 @@ fun MusicLyricsOverlayContent(
                     iconRes =
                         if (state.locked) CoreR.drawable.ic_lock else CoreR.drawable.ic_unlock,
                     contentDescription = if (state.locked) "已锁定，单击解锁" else "锁定歌词",
-                    tint = if (state.locked) Color(0xFF5CE1D2) else Color(0xFFF2F5F9),
+                    tint = if (state.locked) colors.aurora1 else colors.onSurface,
                     onClick = {
                         touch()
                         onToggleLock()
@@ -263,7 +267,7 @@ private fun OverlayIconButton(
     iconRes: Int,
     contentDescription: String,
     onClick: () -> Unit,
-    tint: Color = Color(0xFFF2F5F9),
+    tint: Color = LocalCinefinColors.current.onSurface,
     enabled: Boolean = true,
 ) {
     val alpha = if (enabled) 1f else 0.38f

@@ -8,8 +8,10 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonTone
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinInteractionState
 import com.zhangwenkang.cinefin.core.presentation.components.resolveButtonColors
+import java.io.File
 import kotlin.math.pow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -479,5 +481,55 @@ class DesignTokenConsistencyTest {
                 tone = CinefinButtonTone.Media,
             )
         assertEquals(fallback, aurora)
+    }
+
+    /**
+     * 2.0.2 D4 黑底清理守卫：图上控件/徽标的垫层只准走 `colors.glass` + `glassBorder` 或 scrim 28%（`PlayerGlassAlpha`
+     * 口径），禁止再手写 `Color.Black.copy` 与写死黑色字面量。
+     *
+     * 覆盖点：BaseBadge（7 徽标共用）/ ItemTopBar 覆盖层图标键 / 多选圆点 / 播放器控制层 / 桌面歌词悬浮窗。
+     */
+    @Test
+    fun `d4 image overlay controls back their content with glass tokens only`() {
+        val componentRoots =
+            listOf(
+                "app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/film/components/BaseBadge.kt" to
+                    listOf("LocalCinefinColors.current.glass"),
+                "app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/film/components/ItemTopBar.kt" to
+                    listOf("CinefinTokens.PlayerGlassAlpha", "colors.glassBorder"),
+                "core/src/main/java/com/zhangwenkang/cinefin/core/presentation/components/CinefinMultiSelect.kt" to
+                    listOf("CinefinTokens.PlayerGlassAlpha"),
+                "app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt" to
+                    listOf("colors.glass", "colors.glassBorder"),
+                "modes/music/src/main/java/com/zhangwenkang/cinefin/music/presentation/MusicLyricsOverlayContent.kt" to
+                    listOf("colors.surface", "colors.aurora1"),
+            )
+        // 黑字面量：ARGB 全黑（任意 alpha）+ 桌面歌词 v1 两条写死色
+        val hardcodedBlack =
+            Regex("""Color\(0x[0-9A-Fa-f]{2}000000\)|Color\(0x(?:E60E1116|B30E1116|66000000)\)""")
+        componentRoots.forEach { (path, requiredSnippets) ->
+            val source = findSource(path)
+            assertFalse(
+                "$path 不得再手写 Color.Black.copy（图上垫层走 colors.glass + glassBorder / scrim 28%）",
+                source.contains("Color.Black.copy"),
+            )
+            assertFalse(
+                "$path 不得再写死黑色字面量：${hardcodedBlack.findAll(source).map { it.value }.toList()}",
+                hardcodedBlack.containsMatchIn(source),
+            )
+            requiredSnippets.forEach { snippet ->
+                assertTrue("$path 垫层必须读 token：$snippet", source.contains(snippet))
+            }
+        }
+    }
+
+    private fun findSource(relativePath: String): String {
+        var directory: File? = File(requireNotNull(System.getProperty("user.dir"))).absoluteFile
+        repeat(8) {
+            val candidate = directory?.resolve(relativePath)
+            if (candidate?.isFile == true) return candidate.readText()
+            directory = directory?.parentFile
+        }
+        error("Source not found from ${System.getProperty("user.dir")}: $relativePath")
     }
 }
