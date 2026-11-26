@@ -54,6 +54,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import org.junit.AfterClass
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -1414,14 +1415,33 @@ class DownloadsViewModelDeletionTest {
                 }
             }
 
+        private var originalMainDispatcher: Any? = null
+
         private fun installTestMainDispatcher() {
+            if (originalMainDispatcher != null) return
+            val current = mainDispatcherField().get(null)
+            if (current === TestMainDispatcher) return
+            originalMainDispatcher = current
+            writeMainDispatcher(TestMainDispatcher)
+        }
+
+        @JvmStatic
+        @AfterClass
+        fun restoreMainDispatcher() {
+            val original = originalMainDispatcher ?: return
+            writeMainDispatcher(original)
+            originalMainDispatcher = null
+        }
+
+        private fun mainDispatcherField(): java.lang.reflect.Field =
+            Class.forName("kotlinx.coroutines.internal.MainDispatcherLoader").getField("dispatcher")
+
+        private fun writeMainDispatcher(dispatcher: Any) {
             val unsafeClass = Class.forName("sun.misc.Unsafe")
             val instanceField =
                 unsafeClass.getDeclaredField("theUnsafe").apply { isAccessible = true }
             val unsafe = instanceField.get(null)
-            val dispatcherField =
-                Class.forName("kotlinx.coroutines.internal.MainDispatcherLoader")
-                    .getField("dispatcher")
+            val dispatcherField = mainDispatcherField()
             val base = unsafeClass.getMethod("staticFieldBase", java.lang.reflect.Field::class.java)
             val offset =
                 unsafeClass.getMethod("staticFieldOffset", java.lang.reflect.Field::class.java)
@@ -1436,7 +1456,7 @@ class DownloadsViewModelDeletionTest {
                 unsafe,
                 base.invoke(unsafe, dispatcherField),
                 offset.invoke(unsafe, dispatcherField),
-                TestMainDispatcher,
+                dispatcher,
             )
         }
     }
