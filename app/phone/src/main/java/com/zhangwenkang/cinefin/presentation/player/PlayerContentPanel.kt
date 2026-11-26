@@ -66,7 +66,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
 import kotlin.math.roundToInt
@@ -131,7 +130,6 @@ private fun PlayerContentTabItem(
             PlayerContentTab.Queue -> stringResource(PlayerR.string.player_controls_queue)
         }
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier =
@@ -142,7 +140,8 @@ private fun PlayerContentTabItem(
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            color = if (selected) media.bright else colors.onSurfaceVariant,
+            // 2.0.2 D5 批②：选集 / 队列 Tab 选中态（文字 + 下划线）归极光。
+            color = if (selected) colors.aurora1 else colors.onSurfaceVariant,
         )
         Spacer(Modifier.height(4.dp))
         Box(
@@ -150,7 +149,7 @@ private fun PlayerContentTabItem(
                 Modifier.width(20.dp)
                     .height(2.dp)
                     .clip(CircleShape)
-                    .background(if (selected) media.base else Color.Transparent)
+                    .background(if (selected) colors.aurora1 else Color.Transparent)
         )
     }
 }

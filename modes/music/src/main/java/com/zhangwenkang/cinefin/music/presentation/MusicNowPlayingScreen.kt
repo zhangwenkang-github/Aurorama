@@ -1265,8 +1265,8 @@ private fun TransportControls(
  * MUSIC-22 · 48dp 最小触控目标（可视仍 44dp 图标钮口径）。
  *
  * core 的 `CinefinIconButton` 可点区域就是内层 44dp（48dp 只是外层占位），本卡要求主传输三键与次级五键 ≥48dp 且 core
- * 不可改动，故在音乐模块内补这一层：视觉与 core Icon 变体同色阶（透明底 / `media.bright` 图标，按下 `media.container` 底 +
- * `media.base` 图标）。core 侧把 clickable 提到 48dp 后可删除本层。
+ * 不可改动，故在音乐模块内补这一层：视觉与 core Icon 变体同色阶（透明底 / `aurora1` 图标，按下 `aurora1`@12% 底 + `auroraInk` 图标）。core
+ * 侧把 clickable 提到 48dp 后可删除本层。
  */
 @Composable
 private fun PlayerIconButton(

@@ -2843,7 +2843,7 @@ private data class MusicMiniBarGesture(
  * `colors.glassBorder` + 顶部 0.5dp 白 6% 内高光（与 W4 玻璃容器同法）。宽 ≥840dp 退化为底部通栏（同一组件、外边距 0、圆角 0）。
  *
  * 组成：40dp 封面（`TwoXs`）→ 标题 marquee（首尾停顿 1.2s、30dp/s）→ 艺术家 12sp `onSurfaceVariant` → 播放/暂停 44dp → 下一首
- * 44dp → 关闭 ×（语义不变：停播清内存队列、存档保留）；贴条上缘 2dp 进度线（`media.base`，暂停 40% alpha）。
+ * 44dp → 关闭 ×（语义不变：停播清内存队列、存档保留）；贴条上缘 2dp 进度线（`aurora1`→`aurora2` 渐变，暂停 40% alpha）。
  *
  * 手势：左右滑 ≥56dp 且同向速度 ≥800dp/s 切歌（左右各 16dp 边缘返回安全区不响应）；上滑 ≥48dp 或向上速度 ≥600dp/s 展开全屏；点击展开保留；未达阈值
  * `SpringSnap` 回位。滑动中条目随指位移、邻曲封面从反侧探入。

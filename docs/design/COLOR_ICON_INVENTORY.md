@@ -1,6 +1,6 @@
 # Cinefin 颜色 / 图标台账（2.0.2 · D6）
 
-> **状态（2026-11-26 · C8b 生成，C8c 勘误 + 灰度裁定执行）**：本表是 2.0.2 主题 / 配色的**核对清单**，只记录代码真实现状，不含设计提案。今后改主题、改配色、增删图标，先对表再动代码；表中「死资源」只留档不删除（2.0.2 负责人裁定）。
+> **状态（2026-11-26 · C8b 生成，C8c 勘误 + 灰度裁定，C8d 面板焦点/选中态收口）**：本表是 2.0.2 主题 / 配色的**核对清单**，只记录代码真实现状，不含设计提案。今后改主题、改配色、增删图标，先对表再动代码；表中「死资源」只留档不删除（2.0.2 负责人裁定）。
 >
 > **扫描口径**：在仓库根目录执行（排除 `build/`、`graphify-out/`）——
 >
@@ -229,7 +229,7 @@ mediaColorsFor(ContentDomain, CinefinColors)
 - 资源总数 **137**：core 96 + music 10 + player 9（+ `drawable-nodpi/ic_music_placeholder.png` 1）+ settings 19 + film 1 + tv 1（冻结端）。
 - 「Kotlin / XML 引用文件数」= 生产源码（剔除 `src/test`、`build/`）中命中 `R.drawable.<name>` / `@drawable/<name>` 的文件数；同名资源按名字合并计数。
 - tint 状态分桶见文档开头口径说明；`XML` = 只被布局 / 主题 XML 引用（无 Kotlin 消费），`死资源` = 生产源码零引用（布局引用需按 ViewBinding 生成类名复核，见 B7）。
-- 「token tint」= 显式 tint 且非写死色，其中既有 `colors.*`（语义 token，合规）也有 `media.*`（域媒体色）；后者是否落在身份位由 A5 口径判定。C8c 裁定后仅余 4 处 `tint/color = media.*`（3 处身份位 + 1 处静态字幕轨徽标），逐点见 C 节 #20。
+- 「token tint」= 显式 tint 且非写死色，其中既有 `colors.*`（语义 token，合规）也有 `media.*`（域媒体色）；后者是否落在身份位由 A5 口径判定。C8c/C8d 裁定执行后全仓仅余 4 处 `tint/color = media.*`（3 处身份位 + 1 处静态字幕轨徽标）；字幕颜色预设与歌词高亮 / 外观属白名单，不计入交互槽。逐点见 C 节 #20 / #21。
 - **死资源只标记不删除**（`ic_filter` / `header_gradient` 已在 C8a 删除，本表不留行）。
 
 ### B2 core 模块（96 个）
@@ -441,7 +441,7 @@ mediaColorsFor(ContentDomain, CinefinColors)
 | 18 | 跨模块同名 drawable ×8 组 | C8b | **登记 / C9 复核** | 见 B7；未做链接级实证 |
 | 19 | 原始 token 遗留：§2.1 深色阶 13 个、§2.4 浅色阶 14 个、`ChromeTranslucency` / `RailTranslucency` / `NavUnselectedIconAlpha` / `LumenScrim` / `NavSurfaceDark` / `NavSurfaceLight` 零引用 | C8b | **留档** | 属色板历史层，删除需评估主题 id 兼容；本卡不动 |
 | 20 | 15 处 `tint / color / background = media.*`（C8b 台账抽查新发现） | C8b→C8c | **已裁定（2026-11-26）：12 处归极光 / 1 处按先例保留，DONE（本 commit）** | 身份位 3 处合规不动；逐点处置见下表 |
-| 21 | 同状态姊妹点位 19 处（C8c 执行时审计发现，**不在 #20 裁定清单内**） | C8c | **登记 / 待裁定** | `PlayerControlOverlay.kt` 16 处：`:2019` / `:3198` 焦点环、`:2332`–`:2339` 主 / 次 chip、`:3179` / `:3191` / `:3236` / `:3253` / `:3269` 画质面板选中行、`:5021` / `:5022` / `:5038` 面板列表选中行、`:5185` / `:5191` / `:5209` 另一列表选中行；`PlayerSettingsPanel.kt:529` / `:532` / `:535` 设置行选中。均属选中 / 焦点态，与 #20 同一把尺，但未获本卡授权，**本次未改** |
+| 21 | 同状态姊妹点位（C8c 登记 19 处） | C8c→C8d | **已裁定（2026-11-26）全部归极光：DONE（本 commit）** | 19 处中 16 处转换、3 处实为字幕颜色预设（白名单，不改）；审计另补 1 处漏登的播放器 Tab；另有 2 组歌词外观 chip 属白名单邻近，未改。逐点见 C-21 明细 |
 
 ### C-20 处置明细（2026-11-26 C8c）
 
@@ -464,6 +464,39 @@ mediaColorsFor(ContentDomain, CinefinColors)
 | — | `BookCoverPlaceholder.kt:35` 占位图标 tint | 身份位 | 合规不动 |
 | — | `CinefinCard.kt:388` 域徽标文字 | 身份位 | 合规不动 |
 | — | `MusicModeScreen.kt:2483` 占位音符图标 | 身份位 | 合规不动 |
+
+### C-21 处置明细（2026-11-26 C8d）
+
+行号为 C8c 登记时（`eb174d31`）的行号；C8d 改动后整体有位移，以控件名定位为准。
+
+| # | 点位 | 控件 / 语义 | 处置 |
+| --- | --- | --- | --- |
+| 1 | `PlayerControlOverlay.kt:2019` | 次级传输键焦点环 | `colors.aurora1.copy(alpha = 0.6f)` |
+| 2 | `PlayerControlOverlay.kt:3198` | 播放器工具键焦点环 | 同上 |
+| 3 | `PlayerControlOverlay.kt:2332` | 错误面板主按钮底 | `colors.aurora1`（字 `onAurora`） |
+| 4 | `PlayerControlOverlay.kt:2333` | 错误面板次按钮描边 | `aurora1`@45%（字 `aurora1`） |
+| 5 | `PlayerControlOverlay.kt:2339` | 错误面板按钮文字 | 主 `onAurora` / 次 `aurora1` |
+| 6 | `PlayerControlOverlay.kt:3179` | 工具键选中底 | `aurora1`@16%（`MediaContainerAlpha`） |
+| 7 | `PlayerControlOverlay.kt:3191` | 工具键选中描边 | `aurora1`@45%（`MediaOutlineAlpha`） |
+| 8 | `PlayerControlOverlay.kt:3236` | 工具键选中图标 | `colors.aurora1` |
+| 9 | `PlayerControlOverlay.kt:3253` | 工具键选中标签 | `colors.aurora1` |
+| 10 | `PlayerControlOverlay.kt:3269` | 工具键「有内容 / 需注意」激活点 | `colors.aurora1` |
+| 11 | `PlayerControlOverlay.kt:5185` | `PanelChip` 选中底 | `aurora1`@16% |
+| 12 | `PlayerControlOverlay.kt:5191` | `PanelChip` 选中描边 | `aurora1`@45% |
+| 13 | `PlayerControlOverlay.kt:5209` | `PanelChip` 选中文字 | `colors.aurora1` |
+| 14 | `PlayerSettingsPanel.kt:529` | 分类 Tab（播放 / 手势）选中文字 | `colors.aurora1` |
+| 15 | `PlayerSettingsPanel.kt:532` | 分类 Tab 选中底 | `aurora1`@16% |
+| 16 | `PlayerSettingsPanel.kt:535` | 分类 Tab 选中描边 | `aurora1`@45% |
+| 17 | `PlayerContentPanel.kt:145/153`（**C8c 漏登，C8d 审计补漏**） | 选集 / 队列 Tab 选中文字 + 下划线 | `colors.aurora1` |
+| — | `PlayerControlOverlay.kt:5021/5022/5038` | **字幕颜色预设 chip**（`SubtitleColorChip`） | **白名单不改**：#21 登记时误归为「面板列表选中行」，执行时按控件更正 |
+| — | `PlayerControlOverlay.kt:4325/4329/4330` | 字幕轨静态徽标 | C8c 已裁保留（先例 `CinefinSourceBadge`） |
+
+**审计后仍保留的 `media.*`（全部合规）**：
+
+- 身份位 4 处：`BookCoverPlaceholder.kt:29/35`、`CinefinCard.kt:380/381/388`、`CinefinEmptyState.kt:56`、`MusicModeScreen.kt:2477/2484`。
+- 字幕颜色预设白名单：`PlayerControlOverlay.kt:5026/5027/5043/5063`（chip + swatch）。
+- 歌词高亮白名单：`LyricsSheet.kt:231/232`、`MusicLyricsPage.kt:518/519/540/554`。
+- 歌词外观 / 显示预设（白名单邻近，本次未改、待后续裁定）：`MusicLyricsPage.kt:315/316`、`MusicLyricsTextControls.kt:97/98`。
 
 ---
 

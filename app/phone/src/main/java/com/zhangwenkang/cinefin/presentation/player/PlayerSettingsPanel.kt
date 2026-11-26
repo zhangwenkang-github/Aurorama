@@ -35,8 +35,8 @@ import com.zhangwenkang.cinefin.R as AppR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSwitch
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.player.core.playback.DevicePlaybackCapabilities
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
 import com.zhangwenkang.cinefin.player.local.domain.PlayerDecodeMode
@@ -513,7 +513,6 @@ private fun SettingsGroupRow(
     onSelect: (Int) -> Unit,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     Row(
         horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1),
         modifier =
@@ -526,13 +525,24 @@ private fun SettingsGroupRow(
             Text(
                 text = stringResource(labelRes),
                 style = MaterialTheme.typography.labelLarge,
-                color = if (isSelected) media.bright else colors.onSurfaceVariant,
+                // 2.0.2 D5 批②：分类选中态（播放 / 手势 Tab）整套归极光。
+                color = if (isSelected) colors.aurora1 else colors.onSurfaceVariant,
                 modifier =
                     Modifier.clip(CinefinShapes.Button)
-                        .background(if (isSelected) media.container else colors.surfaceContainer)
+                        .background(
+                            if (isSelected) {
+                                colors.aurora1.copy(alpha = CinefinTokens.MediaContainerAlpha)
+                            } else {
+                                colors.surfaceContainer
+                            }
+                        )
                         .border(
                             1.dp,
-                            if (isSelected) media.outline else colors.outline,
+                            if (isSelected) {
+                                colors.aurora1.copy(alpha = CinefinTokens.MediaOutlineAlpha)
+                            } else {
+                                colors.outline
+                            },
                             CinefinShapes.Button,
                         )
                         .clickable { onSelect(index) }

@@ -1987,7 +1987,6 @@ private fun PlayerTransportButton(
     size: Dp = 46.dp,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val focused by interactionSource.collectIsFocusedAsState()
@@ -2016,7 +2015,8 @@ private fun PlayerTransportButton(
                 )
                 .then(
                     if (focused) {
-                        Modifier.border(2.dp, media.base.copy(alpha = 0.6f), CinefinShapes.Full)
+                        // 2.0.2 D5 批②：焦点环属交互强调，归极光。
+                        Modifier.border(2.dp, colors.aurora1.copy(alpha = 0.6f), CinefinShapes.Full)
                     } else {
                         Modifier
                     }
@@ -2322,21 +2322,26 @@ private fun ErrorActionButton(
     onClick: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     val shape = CinefinShapes.Button
     Box(
         contentAlignment = Alignment.Center,
         modifier =
             Modifier.heightIn(min = 48.dp)
                 .clip(shape)
-                .background(if (primary) media.base else Color.Transparent)
-                .border(1.dp, if (primary) Color.Transparent else media.outline, shape)
+                // 2.0.2 D5 批②：错误面板的主 / 次操作属交互强调，归极光（主键实底 + onAurora 字，次键极光描边）。
+                .background(if (primary) colors.aurora1 else Color.Transparent)
+                .border(
+                    1.dp,
+                    if (primary) Color.Transparent
+                    else colors.aurora1.copy(alpha = CinefinTokens.MediaOutlineAlpha),
+                    shape,
+                )
                 .clickable(onClick = onClick)
                 .padding(horizontal = CinefinSpacing.Space5),
     ) {
         Text(
             text = text,
-            color = if (primary) media.onBase else media.bright,
+            color = if (primary) colors.onAurora else colors.aurora1,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Medium,
         )
@@ -3143,7 +3148,7 @@ internal fun PlayerIconButton(
     loading: Boolean = false,
     /** 错误态：图标转朱砂并压一层淡朱砂底 */
     error: Boolean = false,
-    /** 激活徽标：右上角朱砂小点，表示"有内容 / 需注意" */
+    /** 激活徽标：右上角极光小点，表示"有内容 / 需注意"（2.0.2 D5 批②） */
     badge: Boolean = false,
     /** 是否使用覆盖层玻璃底：画面上的按钮用玻璃（§8.7），实体面板内的按钮保持透明 */
     glass: Boolean = true,
@@ -3151,7 +3156,6 @@ internal fun PlayerIconButton(
     label: String? = null,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val focused by interactionSource.collectIsFocusedAsState()
@@ -3176,26 +3180,26 @@ internal fun PlayerIconButton(
                 .background(
                     when {
                         error -> colors.error.copy(alpha = 0.16f)
-                        selected -> media.container
+                        selected -> colors.aurora1.copy(alpha = CinefinTokens.MediaContainerAlpha)
                         pressed -> colors.scrim.copy(alpha = CinefinTokens.PlayerGlassPressedAlpha)
                         focused -> colors.stateHover
                         glass -> colors.scrim.copy(alpha = CinefinTokens.PlayerGlassAlpha)
                         else -> Color.Transparent
                     }
                 )
-                // W12 反馈 A：所有控件外框加 1dp 描边（选中态用媒体色描边），未选中是极淡的月白
+                // W12 反馈 A：所有控件外框加 1dp 描边（2.0.2 D5 批②：选中态描边归极光），未选中是极淡的月白
                 .border(
                     1.dp,
                     when {
                         error -> colors.error.copy(alpha = 0.4f)
-                        selected -> media.outline
+                        selected -> colors.aurora1.copy(alpha = CinefinTokens.MediaOutlineAlpha)
                         glass -> colors.glassBorder
                         else -> Color.Transparent
                     },
                     shape,
                 )
                 .then(
-                    if (focused) Modifier.border(2.dp, media.base.copy(alpha = 0.6f), shape)
+                    if (focused) Modifier.border(2.dp, colors.aurora1.copy(alpha = 0.6f), shape)
                     else Modifier
                 )
                 .clickable(
@@ -3233,7 +3237,7 @@ internal fun PlayerIconButton(
                     tint =
                         when {
                             error -> colors.error
-                            selected -> media.bright
+                            selected -> colors.aurora1
                             else -> colors.onSurface
                         },
                     modifier = Modifier.size(drawnIconSize),
@@ -3250,7 +3254,7 @@ internal fun PlayerIconButton(
                         color =
                             when {
                                 error -> colors.error
-                                selected -> media.bright
+                                selected -> colors.aurora1
                                 else -> colors.onSurface
                             },
                         maxLines = 1,
@@ -3266,7 +3270,8 @@ internal fun PlayerIconButton(
                         .padding(top = size * 0.14f, end = size * 0.14f)
                         .size(6.dp)
                         .clip(CircleShape)
-                        .background(media.base)
+                        // 2.0.2 D5 批②：「有内容 / 需注意」属状态强调，归极光。
+                        .background(colors.aurora1)
             )
         }
     }
@@ -5163,7 +5168,7 @@ private fun SubtitleAppearanceActions(
     )
 }
 
-/** 面板里的小胶囊按钮（§8.3 Chip）：未选中中性底 + 描边，选中态媒体色融入控件本体。 */
+/** 面板里的小胶囊按钮（§8.3 Chip）：未选中中性底 + 描边，选中态融入极光（2.0.2 D5 批②）。 */
 @Composable
 internal fun PanelChip(
     label: String,
@@ -5173,7 +5178,6 @@ internal fun PanelChip(
     enabled: Boolean = true,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     val shape = CinefinShapes.Button
     Box(
         contentAlignment = Alignment.Center,
@@ -5182,13 +5186,17 @@ internal fun PanelChip(
                 .background(
                     when {
                         !enabled -> colors.surfaceContainerLow
-                        selected -> media.container
+                        selected -> colors.aurora1.copy(alpha = CinefinTokens.MediaContainerAlpha)
                         else -> colors.surfaceContainer
                     }
                 )
                 .border(
                     1.dp,
-                    if (selected && enabled) media.outline else colors.outlineVariant,
+                    if (selected && enabled) {
+                        colors.aurora1.copy(alpha = CinefinTokens.MediaOutlineAlpha)
+                    } else {
+                        colors.outlineVariant
+                    },
                     shape,
                 )
                 .clickable(enabled = enabled, onClick = onClick)
@@ -5206,7 +5214,7 @@ internal fun PanelChip(
             color =
                 when {
                     !enabled -> colors.onSurfaceFaint
-                    selected -> media.bright
+                    selected -> colors.aurora1
                     else -> colors.onSurfaceVariant
                 },
         )
