@@ -229,7 +229,7 @@ mediaColorsFor(ContentDomain, CinefinColors)
 - 资源总数 **137**：core 96 + music 10 + player 9（+ `drawable-nodpi/ic_music_placeholder.png` 1）+ settings 19 + film 1 + tv 1（冻结端）。
 - 「Kotlin / XML 引用文件数」= 生产源码（剔除 `src/test`、`build/`）中命中 `R.drawable.<name>` / `@drawable/<name>` 的文件数；同名资源按名字合并计数。
 - tint 状态分桶见文档开头口径说明；`XML` = 只被布局 / 主题 XML 引用（无 Kotlin 消费），`死资源` = 生产源码零引用（布局引用需按 ViewBinding 生成类名复核，见 B7）。
-- 「token tint」= 显式 tint 且非写死色，其中既有 `colors.*`（语义 token，合规）也有 `media.*`（域媒体色）；后者是否落在身份位由 A5 口径判定。C8c/C8d 裁定执行后全仓仅余 4 处 `tint/color = media.*`（3 处身份位 + 1 处静态字幕轨徽标）；字幕颜色预设与歌词高亮 / 外观属白名单，不计入交互槽。逐点见 C 节 #20 / #21。
+- 「token tint」= 显式 tint 且非写死色，其中既有 `colors.*`（语义 token，合规）也有 `media.*`（域媒体色）；后者是否落在身份位由 A5 口径判定。C8c/C8d/C9 裁定执行后全仓仅余 **4 处身份位**（`BookCoverPlaceholder` / `CinefinCard` 域徽标 / `CinefinEmptyState` / `MusicModeScreen` 占位音符）+ **1 处静态字幕轨徽标** 的 `tint/color = media.*`；字幕颜色预设与歌词高亮 / 外观属白名单，不计入交互槽。逐点见 C 节 #20 / #21 / #22。
 - **死资源只标记不删除**（`ic_filter` / `header_gradient` 已在 C8a 删除，本表不留行）。
 
 ### B2 core 模块（96 个）
@@ -429,19 +429,20 @@ mediaColorsFor(ContentDomain, CinefinColors)
 | 6 | `beginDownload` 重建不回收旧 release `.part/.apk` | C1 | **LATER（既有行为）** | 下载引擎历史行为，非本轮回归；随 C9 下载任务一并评估 |
 | 7 | 桌面歌词底改不透明 `colors.surface` | C4 | **留档（负责人裁定）** | 维持不透明，不新增 `window` token |
 | 8 | `LumenCardFrame(emphasized = true)` 全仓零调用 = 死分支 | C5 | **留档** | 保留不接线；后续新页面需要时再接 |
-| 9 | 进度条 / 进度环运行时样本缺失（点位 #4/#5/#14–#19） | C5 | **待 C9** | 需真实下载任务才有运行时画面，C9 补拍 |
+| 9 | 进度条 / 进度环运行时样本缺失（点位 #4/#5/#14–#19） | C5→C9 | **DONE（C9 补样本）** | K60 测试服真实下载（17.4MB FLAC，151→14 KB/s 在跑）：下载行进度条 = 填充 `aurora1` 实心 / 轨道 `#D3D5D8`（浅色主题实测 `#0C9E82` + `#D3D5D8`，琥珀 0）。海报 `auroraGradient` 进度仍仅 token 级证据（测试服无可续播海报进度） |
 | 10 | `CinefinEmptyState` 占位图标 tint / `CinefinSourceBadge` 来源徽标 | C5b | **留档** | 小面积静态身份位，允用媒体色；C9 对账复核 |
 | 11 | 库选择 chip 需 ≥3 库才显示 | C6 | **留档（既有条件）** | 产品既有条件，非缺陷 |
 | 12 | 440dp 窄屏标签行计数挤占 tab 横滑 | C7 | **D2 既定行为，C9 复核** | 书架「最近阅读 + 本地书籍双空」真机分支由单测 `bookshelfShelfHeaderVisible` 兜底 |
 | 13 | 音乐页横屏改用 `cinefinSafeHorizontal()` | C8a | **已裁定接受** | 与 `safeDrawing` 同源、消费式；音乐页 start 边在侧轨形态下属额外避让（口径登记） |
-| 14 | 颜色像素未实证 3 点位（多选圆点 / 睡眠定时 / eyebrow） | C8a | **转 C9** | 静态代码已对 token，缺像素级取证 |
-| 15 | 测试服 TLS `-0x7280` 未通 | D5 后续 | **KNOWN_ISSUE** | 服务端排查无异常，疑客户端 / 链路中间环节；播放器动态态（进度条 / HUD 动态、Exo 重试文字色）补验受阻 |
+| 14 | 颜色像素未实证 3 点位（多选圆点 / 睡眠定时 / eyebrow） | C8a→C9 | **DONE（C9 像素实证）** | 睡眠定时激活图标 `#3DE8C2`（裁剪区 17.2%）；详情页 eyebrow「动画」`#3DE8C2`（22.1%）；下载页多选：进入多选「已选 1 项」+ 选中行描边 `#3DE8C2`（圆点本体 C4 已实证） |
+| 15 | 测试服 TLS `-0x7280` 未通 | D5 后续 | **KNOWN_ISSUE（C9 复测未复现）** | C9 实测：视频播放链路正常（00:12/24:25 在走）、下载链路正常（17.4MB 真实下载 151 KB/s）。此前 `-0x7280` 未在本轮重现，口径改为「未复现，保持观察」 |
 | 16 | `CinefinPageTopBar` 调用点双层水平留白 ×7 | C8b | **DONE** | 顶栏自 C8a 起自吃水平 inset；删除 `BookshelfScreen` / `LocalLibraryScreens` / `OfflineScreens`×3 / `AboutScreen` / `UpdateScreen` 的 `padding(start = safePadding.start)` |
 | 17 | `CinefinComponentPreviews.kt` 残余读 `LocalMediaColors` | C8b | **DONE** | 两处占位底改 `colors.surfaceContainerHigh`（仅 @Preview），守卫 c 钉住 |
 | 18 | 跨模块同名 drawable ×8 组 | C8b | **登记 / C9 复核** | 见 B7；未做链接级实证 |
 | 19 | 原始 token 遗留：§2.1 深色阶 13 个、§2.4 浅色阶 14 个、`ChromeTranslucency` / `RailTranslucency` / `NavUnselectedIconAlpha` / `LumenScrim` / `NavSurfaceDark` / `NavSurfaceLight` 零引用 | C8b | **留档** | 属色板历史层，删除需评估主题 id 兼容；本卡不动 |
 | 20 | 15 处 `tint / color / background = media.*`（C8b 台账抽查新发现） | C8b→C8c | **已裁定（2026-11-26）：12 处归极光 / 1 处按先例保留，DONE（本 commit）** | 身份位 3 处合规不动；逐点处置见下表 |
-| 21 | 同状态姊妹点位（C8c 登记 19 处） | C8c→C8d | **已裁定（2026-11-26）全部归极光：DONE（本 commit）** | 19 处中 16 处转换、3 处实为字幕颜色预设（白名单，不改）；审计另补 1 处漏登的播放器 Tab；另有 2 组歌词外观 chip 属白名单邻近，未改。逐点见 C-21 明细 |
+| 21 | 同状态姊妹点位（C8c 登记 19 处） | C8c→C8d | **已裁定（2026-11-26）全部归极光：DONE** | 19 处中 16 处转换、3 处实为字幕颜色预设（白名单，不改）；审计另补 1 处漏登的播放器 Tab。逐点见 C-21 明细 |
+| 22 | 歌词外观 / 显示预设 chip 选中态 4 行（`MusicLyricsPage` / `MusicLyricsTextControls`） | C8d→C9 | **DONE（负责人裁定：交互强调，非白名单）** | 两处 chip 改委托 `CinefinFilterChip(compact = true)`：选中 = aurora1@16% 容器 + aurora1 描边 + `navSelectedContent` 文字；K60 像素：选中 chip 容器 `#0E272C`（深色）/`#D4EBE8`（浅色）+ `#3DE8C2` 20.1% 命中，未选中 0%；守卫 e 钉住 |
 
 ### C-20 处置明细（2026-11-26 C8c）
 
@@ -495,8 +496,10 @@ mediaColorsFor(ContentDomain, CinefinColors)
 
 - 身份位 4 处：`BookCoverPlaceholder.kt:29/35`、`CinefinCard.kt:380/381/388`、`CinefinEmptyState.kt:56`、`MusicModeScreen.kt:2477/2484`。
 - 字幕颜色预设白名单：`PlayerControlOverlay.kt:5026/5027/5043/5063`（chip + swatch）。
-- 歌词高亮白名单：`LyricsSheet.kt:231/232`、`MusicLyricsPage.kt:518/519/540/554`。
-- 歌词外观 / 显示预设（白名单邻近，本次未改、待后续裁定）：`MusicLyricsPage.kt:315/316`、`MusicLyricsTextControls.kt:97/98`。
+- 歌词高亮白名单：`LyricsSheet.kt:231/232`、`MusicLyricsPage.kt:513/514/535/549`（C9 改动后行号有位移）。
+- 歌词外观 / 显示预设 chip：**C9 已归极光**（#22），两文件只余歌词高亮本身消费 `media.base/bright`，交互槽为 0。
+
+**审计复查（2026-11-26 C9）**：全仓 `media.*` 只剩上述白名单 + 身份位，无遗漏交互态；`MusicModeScreen` 两处 C8c 遗留的未使用 `val media` 已清。另登记待裁定：`ReaderControlLayer.kt:148` / `PageOverlay.kt:47` 的 `accent = LocalMediaColors.current.base` 驱动阅读器进度条 / 章节点 / 批注框描边（书籍域内容色，D5 白名单未列），本卡未改。
 
 ---
 
