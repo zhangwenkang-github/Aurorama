@@ -30,11 +30,11 @@ import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSegmentedControl
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
+import com.zhangwenkang.cinefin.core.presentation.components.navSelectedContent
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.models.SortBy
 import com.zhangwenkang.cinefin.models.SortOrder
 
@@ -115,7 +115,6 @@ private fun SortByPanelItem(
     onSelect: (SortBy) -> Unit,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     Row(
         modifier =
             Modifier.fillMaxWidth().heightIn(min = 48.dp).cinefinClickable {
@@ -126,14 +125,14 @@ private fun SortByPanelItem(
         Text(
             text = option.second,
             style = CinefinType.BodyLarge,
-            color = if (isSelected) media.bright else colors.onSurface,
+            color = if (isSelected) navSelectedContent(colors) else colors.onSurface,
             modifier = Modifier.weight(1f),
         )
         if (isSelected) {
             Icon(
                 painter = painterResource(CoreR.drawable.ic_check),
                 contentDescription = null,
-                tint = media.bright,
+                tint = navSelectedContent(colors),
             )
         }
     }

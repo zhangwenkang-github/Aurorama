@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 
 /**
  * Lumen（S1 方向 A · 流光）手法原语。
@@ -41,8 +40,8 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
  * 刻意不做的两件（守住 B 纪律，见 `UI_PLAN.md` 决策 D17）：焦点放大 1.04（触摸端无 hover 语义，且 §6.3 明确禁止位移 / 缩放），
  * 胶片颗粒噪点（需要新增位图资源，收益低于成本）。动画只改透明度与位移，走 `graphicsLayer`，不触发逐帧重组。
  *
- * 光的颜色纪律（§2.6 / §5.3）：光晕、外发光、内高光一律用**无彩色的白 / 黑**（和既有 `lumenVignette` 同口径），
- * 媒体色只出现在进度、焦点描边与主行动上——不新增媒体色发光。
+ * 光的颜色纪律（§2.6 / §5.3 / 2.0.2 §D5 批②）：光晕、外发光、内高光一律用**无彩色的白 / 黑**（和既有 `lumenVignette`
+ * 同口径）；强调态描边走极光（`aurora2` 40%），域色不做大面积氛围光。
  */
 
 /** 卡片外壳：1dp 渐变描边 + 顶部 1px 内高光，统一画在内容之上（压在图上也可见）；外壳外一圈极轻的光晕。 */
@@ -55,15 +54,15 @@ fun LumenCardFrame(
     content: @Composable BoxScope.() -> Unit,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     val borderBrush =
         if (emphasized) {
             Brush.linearGradient(
                 colorStops =
                     arrayOf(
-                        0f to media.outline,
-                        0.5f to media.base.copy(alpha = 0.55f),
-                        1f to media.outline,
+                        0f to colors.outline,
+                        // 2.0.2 §D5 批②：详情页氛围光晕归极光系（aurora2 @40%），琥珀退出大面积可见位。
+                        0.5f to colors.aurora2.copy(alpha = 0.40f),
+                        1f to colors.outline,
                     )
             )
         } else {

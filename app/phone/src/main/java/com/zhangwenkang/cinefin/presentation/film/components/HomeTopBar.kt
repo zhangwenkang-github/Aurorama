@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -24,7 +25,6 @@ import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 
 /**
@@ -49,7 +49,6 @@ fun HomeTopBar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val colors = LocalCinefinColors.current
-        val media = LocalMediaColors.current
 
         if (onOpenDrawer != null) {
             TopBarAction(onClick = onOpenDrawer) {
@@ -83,7 +82,10 @@ fun HomeTopBar(
         AnimatedVisibility(visible = isLoading, enter = fadeIn(), exit = fadeOut()) {
             TopBarAction(onClick = onRetryClick) {
                 Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(strokeWidth = 2.dp, color = media.base)
+                    CircularProgressIndicator(
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
                 }
             }
         }

@@ -34,7 +34,6 @@ import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadState
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.isDownloaded
@@ -214,14 +213,14 @@ fun DownloadStatusBadge(badge: DownloadBadgeInfo, modifier: Modifier = Modifier)
     }
 }
 
-/** 进度环：轨道白 16% + 当前域媒体色弧线；不确定态转圈（1100ms linear，§8.8）。 */
+/** 进度环：轨道白 16% + 极光 `aurora1` 弧线；不确定态转圈（1100ms linear，§8.8）。 */
 @Composable
 private fun DownloadProgressRing(
     progress: Float,
     indeterminate: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val media = LocalMediaColors.current
+    val arcColor = LocalCinefinColors.current.aurora1
     val animatedProgress by
         animateFloatAsState(
             targetValue = progress.coerceIn(0f, 1f),
@@ -258,7 +257,7 @@ private fun DownloadProgressRing(
             )
             if (indeterminate) {
                 drawArc(
-                    color = media.base,
+                    color = arcColor,
                     startAngle = rotation - 90f,
                     sweepAngle = 90f,
                     useCenter = false,
@@ -268,7 +267,7 @@ private fun DownloadProgressRing(
                 )
             } else {
                 drawArc(
-                    color = media.base,
+                    color = arcColor,
                     startAngle = -90f,
                     sweepAngle = 360f * animatedProgress,
                     useCenter = false,

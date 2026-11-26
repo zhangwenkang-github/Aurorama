@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,14 +30,12 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.models.UiText
 import kotlin.math.roundToInt
 
 @Composable
 fun DownloaderCard(state: DownloaderState, onCancelClick: () -> Unit, onRetryClick: () -> Unit) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     val animatedProgress by
         animateFloatAsState(
             targetValue = state.progress,
@@ -61,7 +60,7 @@ fun DownloaderCard(state: DownloaderState, onCancelClick: () -> Unit, onRetryCli
     val progressIndicatorColor =
         when (state.status) {
             DownloadManager.STATUS_FAILED -> colors.error
-            else -> media.base
+            else -> MaterialTheme.colorScheme.primary
         }
 
     val progressTrackColor = colors.progressTrack

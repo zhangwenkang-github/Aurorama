@@ -31,6 +31,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -66,12 +67,13 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinCard
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSelectIndicator
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSwitch
+import com.zhangwenkang.cinefin.core.presentation.components.navSelectedContent
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadAction
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadBookSection
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadContainerTaskAction
@@ -678,7 +680,7 @@ internal fun DownloadTopLevelRow(
                             Text(
                                 text = label,
                                 style = CinefinType.LabelMedium,
-                                color = LocalMediaColors.current.bright,
+                                color = navSelectedContent(colors),
                                 maxLines = 1,
                             )
                             Spacer(Modifier.width(CinefinSpacing.Space2))
@@ -1395,7 +1397,7 @@ internal fun DownloadLeafCard(
                             Text(
                                 text = label,
                                 style = CinefinType.LabelMedium,
-                                color = LocalMediaColors.current.bright,
+                                color = navSelectedContent(colors),
                                 maxLines = 1,
                             )
                             Spacer(Modifier.width(CinefinSpacing.Space2))
@@ -1514,7 +1516,6 @@ private fun DownloadStatusBadge(
     deletionText: String? = null,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     val displayStatus =
         when {
             deletionProjection.deleting -> DownloadTaskStatus.DELETING
@@ -1526,13 +1527,13 @@ private fun DownloadStatusBadge(
     val contentColor =
         when {
             failed -> colors.error
-            running -> media.bright
+            running -> navSelectedContent(colors)
             else -> colors.onSurfaceVariant
         }
     val borderColor =
         when {
             failed -> colors.error.copy(alpha = 0.45f)
-            running -> media.outline
+            running -> colors.aurora1.copy(alpha = 0.45f)
             else -> colors.outline
         }
     val icon =
@@ -1586,7 +1587,10 @@ private fun DownloadStatusBadge(
     Row(
         modifier =
             Modifier.clip(CinefinShapes.Xs)
-                .background(if (running) media.container else Color.Transparent)
+                .background(
+                    if (running) colors.aurora1.copy(alpha = CinefinTokens.MediaContainerAlpha)
+                    else Color.Transparent
+                )
                 .border(1.dp, borderColor, CinefinShapes.Xs)
                 .padding(horizontal = CinefinSpacing.Space2, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1654,7 +1658,7 @@ private fun DownloadTaskExplanationLine(
                 else CoreR.string.download_show_technical_details
             ),
         style = CinefinType.LabelSmall,
-        color = LocalMediaColors.current.bright,
+        color = navSelectedContent(colors),
         modifier = Modifier.clickable { expanded = !expanded },
     )
     if (expanded) {
@@ -1748,11 +1752,10 @@ private fun DownloadProgressBar(
     height: Dp = 4.dp,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     if (indeterminate) {
         LinearProgressIndicator(
             modifier = modifier.fillMaxWidth().height(height).clip(CinefinShapes.Full),
-            color = media.base,
+            color = MaterialTheme.colorScheme.primary,
             trackColor = colors.progressTrack,
         )
         return
@@ -1766,7 +1769,7 @@ private fun DownloadProgressBar(
     LinearProgressIndicator(
         progress = { animated },
         modifier = modifier.fillMaxWidth().height(height).clip(CinefinShapes.Full),
-        color = media.base,
+        color = MaterialTheme.colorScheme.primary,
         trackColor = colors.progressTrack,
     )
 }

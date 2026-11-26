@@ -21,6 +21,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
@@ -50,7 +51,6 @@ import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.core.presentation.utils.cinefinSafeTop
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.search.SearchAction
@@ -85,7 +85,6 @@ fun FilmSearchBar(
     /** W60b：下载状态角标（itemId → 角标）；搜索结果与列表同一套卡片角标。 */
     downloadBadges: Map<UUID, DownloadBadgeInfo> = emptyMap(),
 ) {
-    val media = LocalMediaColors.current
     val pageGutter = rememberPageGutter()
     val focusRequester = remember { FocusRequester() }
     val safePadding = rememberSafePadding()
@@ -186,7 +185,7 @@ fun FilmSearchBar(
                 trailingIcon = {
                     if (state.loading) {
                         Box(modifier = Modifier.size(32.dp)) {
-                            CircularProgressIndicator(color = media.base)
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         }
                     } else if (query.isNotEmpty()) {
                         Box(
@@ -366,7 +365,7 @@ fun FilmSearchBar(
                 }
                 if (query.isNotBlank() && state.loading && state.isEmpty) {
                     CircularProgressIndicator(
-                        color = media.base,
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.align(Alignment.Center),
                     )
                 } else if (query.isNotBlank() && state.isEmpty && !state.loading) {

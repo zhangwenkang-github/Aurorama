@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,7 +47,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
@@ -80,7 +80,6 @@ fun BatchDownloadDialog(
     seasonlessShow: Boolean = false,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     var limitEnabled by remember { mutableStateOf(true) }
 
     val selection =
@@ -163,7 +162,7 @@ fun BatchDownloadDialog(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
-                                color = media.base,
+                                color = MaterialTheme.colorScheme.primary,
                                 strokeWidth = 2.dp,
                             )
                             Spacer(Modifier.width(CinefinSpacing.Space3))
@@ -385,7 +384,6 @@ fun EpisodeDownloadSelectionDialog(
     onDismiss: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     var selectedIds by
         remember(preparation.requestId, preparation.candidates) { mutableStateOf(emptySet<UUID>()) }
 
@@ -418,7 +416,7 @@ fun EpisodeDownloadSelectionDialog(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
-                                color = media.base,
+                                color = MaterialTheme.colorScheme.primary,
                                 strokeWidth = 2.dp,
                             )
                             Spacer(Modifier.width(CinefinSpacing.Space3))

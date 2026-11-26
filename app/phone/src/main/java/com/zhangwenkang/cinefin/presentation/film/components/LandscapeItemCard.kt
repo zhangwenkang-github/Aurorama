@@ -40,7 +40,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
+import com.zhangwenkang.cinefin.core.presentation.theme.auroraGradient
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
@@ -83,7 +83,6 @@ fun LandscapeItemCard(
     onServerImageFailed: (() -> Unit)? = null,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
     val pressed by interactionSource.collectIsPressedAsState()
@@ -221,7 +220,7 @@ fun LandscapeItemCard(
             ) {
                 Box(
                     modifier =
-                        Modifier.fillMaxWidth(resumeFraction).height(3.dp).background(media.base)
+                        Modifier.fillMaxWidth(resumeFraction).height(3.dp).auroraGradient(colors)
                 )
             }
         }
