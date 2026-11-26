@@ -39,11 +39,11 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 连接层 | 🟢 W31 完成；遗留 `fix/w31-trust-session-reuse` 分支待合并 | `docs/ARCHITECTURE.md` §5.4 |
 | 投屏/同步观看 | ⛔ 投屏未开始（LATER）；SyncPlay 为 SHOULD（W4 评估） | `docs/V2_REQUIREMENTS.md` §9.5 |
 | 维护/缺陷修复 → 2.0.1 | 🟢 **已发布**（2026-11-26，用户授权）：分支 `codex/v2.0.1`、tag `v2.0.1`（@`d463e64b`）、master 强推对齐 `312209a6`、GitHub Release 双 APK（发布后重下载 SHA-256 复核一致）；K60 升级 E2E：AVAILABLE+更新说明渲染 ✅ | `docs/V201_TASKS.md` |
-| UI 重构/热修 → 2.0.2 | 🟢 **代码面收官（2026-11-27，分支 `codex/v2.0.2`，HEAD `7a1dafbe`）**：**W0–C9 全卡 DONE**——C1–C7+C5b（U1 热修/XML 主题清零/安全区统一/黑底清理/黄橙清零/残项清零/音乐头部/书籍库头部）+ C8 D6 台账（`docs/design/COLOR_ICON_INVENTORY.md`，留档裁定全执行+漏网 31 处归极光）+ C9 回归（media.* 交互态清零、发布门全绿、K60 四主题/7 态/像素取证达标、D1–D5 对账表回写）；**测试服 TLS `-0x7280` C9 复测未复现，降级观察**；**发布（并 master→bump→tag→Release）待用户授权** | `docs/V202_TASKS.md` · `docs/V202_DESIGN.md` |
+| UI 重构/热修 → 2.0.2 | 🟢 **发布执行中（2026-11-27 用户四步授权，分支 `codex/v2.0.2`，发布点 `d7ff30a7`）**：W0–C9 全卡 DONE + 顺带两小卡销项（守卫 `a437931b` / FilterChip×3 `c72c93ea`）；bump 2.0.2/code 9（`94ba1303`）+ RELEASE_NOTES；发布门复跑绿（assembleRelease 6m33s + MPV JNI 8/41）；**分支已推、master 快进对齐 `312209a6..d7ff30a7`、tag `v2.0.2` 已推**；残步=Release 双 APK 上传→SHA-256 复核→K60 升级 E2E→§7 回写 | `docs/V202_TASKS.md` · `docs/V202_DESIGN.md` |
 
 ## 4. 当前焦点（2026-11-27）
 
-1. **2.0.2 代码面收官（分支 `codex/v2.0.2`，HEAD `7a1dafbe`）**：**W0–C9 全卡 DONE**——C1–C7+C5b（详见 V202_TASKS 卡行）；C8 D6 台账 `9422ddeb`/`e2500d81`/`eb174d31`/`ef7ee573`：`docs/design/COLOR_ICON_INVENTORY.md` 落地（43 token 槽+137 图标+23 条残留登记），留档裁定全执行（安全区×3/规则外点位/死资源/双层留白×7），台账审计揪出漏网 31 处交互态 media.* 全归极光；C9 `a194b73a`/`4addc350`/`7a1dafbe`：media.* 交互态清零（仅剩身份位 4+静态徽标 1+书页标注 1+白名单）、阅读器进度归极光、发布门全绿（assembleRelease+MPV JNI 合约 PASS+全模块 2987 单测 0 败）、K60 四主题/7 态/像素取证达标（琥珀 0.000%、浅色对比 5.16:1 AA）、D1–D5 对账表回写。**发布待用户授权**（纪律：先并 master 对齐→bump→tag `v2.0.2`→Release→K60 升级 E2E）。
+1. **2.0.2 发布执行中（2026-11-27 用户四步授权，分支 `codex/v2.0.2`，发布点 `d7ff30a7`）**：W0–C9 DONE + 卡A 守卫 `a437931b` + 卡B FilterChip×3 `c72c93ea` + bump `94ba1303`（2.0.2/code 9）；发布门复跑绿；master 快进对齐、tag `v2.0.2` 已推。残步：双 APK 构建 → apksigner 指纹验证 → gh Release（极光幕 / Aurorama v2.0.2，双资产 + RELEASE_NOTES）→ 发布后 SHA-256 复核 → K60 `install -r` E2E（versionName 2.0.2(9) + 更新页 AVAILABLE + notes 渲染）→ RELEASE_PLAN §7 回写。
 2. **测试服 TLS `-0x7280`：C9 复测未复现**（播放 00:12/24:25 在走 + 17.4MB FLAC 下载全通），KNOWN_ISSUE 降级观察。
 3. **2.0.1 已发布（2026-11-26，用户授权）**：tag `v2.0.1`（@`d463e64b`）+ master 对齐 `312209a6` + GitHub Release 双 APK（SHA-256 复核一致）；K60 升级 E2E ✅。
 4. **留档观察项**：R11 破坏性删测试服条目未授权跳过；KNOWN_ISSUE=K60 首播偶发卡 BUFFERING 重进即恢复、测试服高码率转码能力不足（服务端）；M3 FilterChip 残留×3 与死资源 12 个删除列后续小卡（详见 V202_TASKS 留档行）。
