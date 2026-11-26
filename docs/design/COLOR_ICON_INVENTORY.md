@@ -1,6 +1,6 @@
 # Cinefin 颜色 / 图标台账（2.0.2 · D6）
 
-> **状态（2026-11-26 · C8b 生成）**：本表是 2.0.2 主题 / 配色的**核对清单**，只记录代码真实现状，不含设计提案。今后改主题、改配色、增删图标，先对表再动代码；表中「死资源」只留档不删除（2.0.2 负责人裁定）。
+> **状态（2026-11-26 · C8b 生成，C8c 勘误 + 灰度裁定执行）**：本表是 2.0.2 主题 / 配色的**核对清单**，只记录代码真实现状，不含设计提案。今后改主题、改配色、增删图标，先对表再动代码；表中「死资源」只留档不删除（2.0.2 负责人裁定）。
 >
 > **扫描口径**：在仓库根目录执行（排除 `build/`、`graphify-out/`）——
 >
@@ -228,8 +228,8 @@ mediaColorsFor(ContentDomain, CinefinColors)
 
 - 资源总数 **137**：core 96 + music 10 + player 9（+ `drawable-nodpi/ic_music_placeholder.png` 1）+ settings 19 + film 1 + tv 1（冻结端）。
 - 「Kotlin / XML 引用文件数」= 生产源码（剔除 `src/test`、`build/`）中命中 `R.drawable.<name>` / `@drawable/<name>` 的文件数；同名资源按名字合并计数。
-- tint 状态分桶见文档开头口径说明；`XML` = 只被布局 / 主题 XML 引用（无 Kotlin 消费），`死资源` = 生产源码零引用，`（链路）` = 引用只在死布局 / 死 level-list 内部（见 B7）。
-- 「token tint」= 显式 tint 且非写死色，其中既有 `colors.*`（语义 token，合规）也有 `media.*`（域媒体色）；后者是否落在身份位由 A5 口径判定，现存 15 处 `tint/color = media.*` 的逐条分类见 C 节 #20。
+- tint 状态分桶见文档开头口径说明；`XML` = 只被布局 / 主题 XML 引用（无 Kotlin 消费），`死资源` = 生产源码零引用（布局引用需按 ViewBinding 生成类名复核，见 B7）。
+- 「token tint」= 显式 tint 且非写死色，其中既有 `colors.*`（语义 token，合规）也有 `media.*`（域媒体色）；后者是否落在身份位由 A5 口径判定。C8c 裁定后仅余 4 处 `tint/color = media.*`（3 处身份位 + 1 处静态字幕轨徽标），逐点见 C 节 #20。
 - **死资源只标记不删除**（`ic_filter` / `header_gradient` 已在 C8a 删除，本表不留行）。
 
 ### B2 core 模块（96 个）
@@ -298,38 +298,38 @@ mediaColorsFor(ContentDomain, CinefinColors)
 | `ic_smartphone` | core | 1 | 0 | 未 tint | music:presentation/MusicNowPlayingScreen.kt |
 | `ic_sparkles` | core | 0 | 0 | 死资源 |  |
 | `ic_speaker` | core | 9 | 1 | 未 tint | phone:presentation/player/PlayerControlOverlay.kt |
-| `ic_speed_forward` | core | 0 | 1 | XML（链路） | app/phone/src/main/res/layout/activity_player.xml |
+| `ic_speed_forward` | core | 0 | 1 | XML | app/phone/src/main/res/layout/activity_player.xml |
 | `ic_star` | core | 5 | 0 | 混合：token 3 / 未 tint 2 | phone:presentation/film/components/FavoritesCard.kt |
 | `ic_stat_aurorama` | core | 1 | 0 | 未 tint | phone:playback/CinefinMediaNotificationProvider.kt |
-| `ic_sun` | core | 0 | 0 | 死资源（链路） |  |
-| `ic_sun_0` | core | 0 | 0 | 死资源（链路） |  |
-| `ic_sun_12` | core | 0 | 0 | 死资源（链路） |  |
-| `ic_sun_25` | core | 0 | 0 | 死资源（链路） |  |
-| `ic_sun_37` | core | 0 | 0 | 死资源（链路） |  |
-| `ic_sun_50` | core | 0 | 0 | 死资源（链路） |  |
-| `ic_sun_62` | core | 0 | 0 | 死资源（链路） |  |
-| `ic_sun_75` | core | 0 | 0 | 死资源（链路） |  |
-| `ic_sun_87` | core | 0 | 0 | 死资源（链路） |  |
-| `ic_sun_level` | core | 0 | 1 | XML（链路） | app/phone/src/main/res/layout/activity_player.xml |
+| `ic_sun` | core | 0 | 1 | XML（level-list → activity_player） |  |
+| `ic_sun_0` | core | 0 | 1 | XML（level-list → activity_player） |  |
+| `ic_sun_12` | core | 0 | 1 | XML（level-list → activity_player） |  |
+| `ic_sun_25` | core | 0 | 1 | XML（level-list → activity_player） |  |
+| `ic_sun_37` | core | 0 | 1 | XML（level-list → activity_player） |  |
+| `ic_sun_50` | core | 0 | 1 | XML（level-list → activity_player） |  |
+| `ic_sun_62` | core | 0 | 1 | XML（level-list → activity_player） |  |
+| `ic_sun_75` | core | 0 | 1 | XML（level-list → activity_player） |  |
+| `ic_sun_87` | core | 0 | 1 | XML（level-list → activity_player） |  |
+| `ic_sun_level` | core | 0 | 1 | XML | app/phone/src/main/res/layout/activity_player.xml |
 | `ic_trash` | core | 6 | 0 | 混合：token 1 / 未 tint 6 | phone:presentation/film/downloads/DownloadRows.kt |
 | `ic_tv` | core | 2 | 0 | 未 tint | phone:presentation/film/components/LibraryPlaceholderIcons.kt |
 | `ic_unlock` | core | 2 | 1 | token tint | phone:presentation/player/PlayerControlOverlay.kt |
 | `ic_user` | core | 7 | 0 | 写死色 2 处 | phone:presentation/film/components/HomeHeader.kt |
-| `ic_user_color_on_primary` | core | 0 | 0 | 死资源（链路） |  |
+| `ic_user_color_on_primary` | core | 0 | 0 | 死资源（随 user_placeholder 失效） |  |
 | `ic_video` | core | 2 | 0 | 未 tint | phone:presentation/local/LocalLibraryScreens.kt |
 | `ic_view_grid` | core | 1 | 0 | 未 tint | phone:presentation/film/components/LibraryContentHeader.kt |
 | `ic_view_list` | core | 2 | 0 | 未 tint | phone:presentation/film/components/LibraryContentHeader.kt |
-| `ic_volume` | core | 0 | 0 | 死资源（链路） |  |
-| `ic_volume_0` | core | 0 | 0 | 死资源（链路） |  |
-| `ic_volume_50` | core | 0 | 0 | 死资源（链路） |  |
-| `ic_volume_level` | core | 0 | 1 | XML（链路） | app/phone/src/main/res/layout/activity_player.xml |
+| `ic_volume` | core | 0 | 1 | XML（level-list → activity_player） |  |
+| `ic_volume_0` | core | 0 | 1 | XML（level-list → activity_player） |  |
+| `ic_volume_50` | core | 0 | 1 | XML（level-list → activity_player） |  |
+| `ic_volume_level` | core | 0 | 1 | XML | app/phone/src/main/res/layout/activity_player.xml |
 | `ic_x` | core | 2 | 0 | 混合：token 1 / 未 tint 1 | phone:presentation/film/components/DownloaderCard.kt |
 | `overlay_background` | core | 0 | 2 | XML | app/phone/src/main/res/layout/activity_player.xml |
 | `person_placeholder` | core | 0 | 0 | 死资源 |  |
-| `progress_scale_drawable` | core | 0 | 1 | XML（链路） | app/phone/src/main/res/layout/activity_player.xml |
+| `progress_scale_drawable` | core | 0 | 1 | XML | app/phone/src/main/res/layout/activity_player.xml |
 | `ripple_background` | core | 0 | 0 | 死资源 |  |
 | `rounded_corner` | core | 0 | 1 | XML | app/phone/src/main/res/layout/exo_locked_controls.xml |
-| `transparent_circle` | core | 0 | 1 | XML（链路） | app/phone/src/main/res/layout/activity_player.xml |
+| `transparent_circle` | core | 0 | 1 | XML | app/phone/src/main/res/layout/activity_player.xml |
 | `transparent_circle_background` | core | 0 | 1 | XML | app/phone/src/main/res/layout/exo_main_controls.xml |
 | `user_placeholder` | core | 0 | 0 | 死资源 |  |
 
@@ -398,18 +398,18 @@ mediaColorsFor(ContentDomain, CinefinColors)
 
 **直接零引用（9 个，core）**：`bg_rounded_rect_12dp`、`button_setup_background`、`ic_coffee`、`ic_github`、`ic_minus_fat`、`ic_sparkles`、`person_placeholder`、`ripple_background`、`user_placeholder`。
 
-**链式死资源（引用链只连到死布局 / 死 drawable）**：
+**链式死资源（引用链只连到死 drawable）**：
 
-- `user_placeholder.xml` → 唯一引用 `ic_user_color_on_primary`（1 个）。
-- `app/phone/src/main/res/layout/activity_player.xml` **全仓零引用**（`grep -r "activity_player"` 无命中，且文件名不是 media3 默认布局名），其链上 17 个资源只在死布局内被引用：`ic_speed_forward`、`ic_sun_level`、`ic_sun`、`ic_sun_0/12/25/37/50/62/75/87`、`ic_volume_level`、`ic_volume`、`ic_volume_0/50`、`progress_scale_drawable`、`transparent_circle`。
+- `user_placeholder.xml` 全仓零引用 → 其唯一引用的 `ic_user_color_on_primary`（1 个）随链失效。
 
 **其它模块死资源**：music `ic_music_recent`、player `ic_player_more`。
 
-合计 **29 / 137** 为死资源（core 27、music 1、player 1），全部只做「死资源-留档」标记，不删除。
+合计 **12 / 137** 为死资源（core 10、music 1、player 1），全部只做「死资源-留档」标记，不删除。
 
-> **说明：exo_* 布局不算死资源。** `exo_player_view.xml` / `exo_player_control_view.xml` 是 media3 `PlayerView` / `PlayerControlView` 的默认布局名，由库内按 `R.layout.exo_*` 取用，源码 grep 不会出现字符串；`exo_main_controls.xml` / `exo_locked_controls.xml` 被它们 `<include>`。因此 `circle_background`、`ic_picture_in_picture`、`transparent_circle_background`、`rounded_corner`、`overlay_background` 均为**活资源**。
->
-> **`activity_player.xml` 是 2.0.2 之前遗留的自绘播放布局**，与 D5「核查死资源 activity_player.xml」同一点位；本卡只登记，删除需负责人另行授权（涉及 17 个链式资源）。
+> **判活口径（2026-11-26 C8c 勘误）**：布局是否存活不能只按文件名 grep——ViewBinding / DataBinding 的引用点是生成类 `<帕斯卡类名>Binding`。
+> - `app/phone/src/main/res/layout/activity_player.xml` → `PlayerActivity.kt:56` import、`:185` 声明、`:350` `ActivityPlayerBinding.inflate()`，**存活**；其链上的 `ic_speed_forward`、`ic_sun_level`（level-list）、`ic_sun`、`ic_sun_0/12/25/37/50/62/75/87`、`ic_volume_level`（level-list）、`ic_volume`、`ic_volume_0/50`、`progress_scale_drawable`、`transparent_circle` 因此全部**存活**。
+> - `exo_player_view.xml` / `exo_player_control_view.xml` 是 media3 `PlayerView` / `PlayerControlView` 的默认布局名，由库内按 `R.layout.exo_*` 取用，源码里不出现字符串；`exo_main_controls.xml` / `exo_locked_controls.xml` 被 `exo_player_control_view.xml` `<include>`。因此 `circle_background`、`ic_picture_in_picture`、`transparent_circle_background`、`rounded_corner`、`overlay_background` 均为**活资源**。
+> - 现仓内仅 `app/phone` 有 `res/layout`（5 个文件），已逐个按「文件名 → 帕斯卡 + `Binding`」复核：只有 `activity_player` 有生成类，其余 4 个按上述媒体库默认名 / `<include>` 判活。
 
 **跨模块同名资源（8 组）**：`ic_play`、`ic_info`、`ic_music`、`ic_server`、`ic_server_off`、`ic_speaker`、`ic_user`、`ic_download` 在 `core` 与 `settings` 各有一份；其中 7 组两份内容不同（仅 `ic_user` 完全一致）。AAPT 资源合并后同配置只保留一份，**哪一份生效取决于模块依赖顺序，本次未做链接级实证** → 列入 C 节 C9 视觉复核。
 
@@ -440,7 +440,30 @@ mediaColorsFor(ContentDomain, CinefinColors)
 | 17 | `CinefinComponentPreviews.kt` 残余读 `LocalMediaColors` | C8b | **DONE** | 两处占位底改 `colors.surfaceContainerHigh`（仅 @Preview），守卫 c 钉住 |
 | 18 | 跨模块同名 drawable ×8 组 | C8b | **登记 / C9 复核** | 见 B7；未做链接级实证 |
 | 19 | 原始 token 遗留：§2.1 深色阶 13 个、§2.4 浅色阶 14 个、`ChromeTranslucency` / `RailTranslucency` / `NavUnselectedIconAlpha` / `LumenScrim` / `NavSurfaceDark` / `NavSurfaceLight` 零引用 | C8b | **留档** | 属色板历史层，删除需评估主题 id 兼容；本卡不动 |
-| 20 | 剩余 15 处 `tint / color / background = media.*`（C8b 台账抽查新发现，**不在 C5b 那 4 个点位内**） | C8b | **登记 / 待负责人裁定** | 身份位 3 处（`BookCoverPlaceholder.kt:35` 占位图标、`CinefinCard.kt:388` 域徽标文字、`MusicModeScreen.kt:2483` 占位音符图标）；交互 / 状态强调 12 处：`PlayerContentPanel.kt:332`（选中勾）、`:609`（「当前在播」pill 用 `media.base` 底 + `onBase` 字）、`PlayerControlOverlay.kt:2585`（睡目标签）、`:3302`（菜单行图标）、`:3342`（解锁图标）、`:3541`（选中勾）、`:4307`（字幕徽标文字）、`MusicModeScreen.kt:1729`（勾选）、`:3500`（行尾计数）、`:3792`（正在播放标题）、`:4004`（正在播放标签）、`:4081`（「重试」按钮文字） |
+| 20 | 15 处 `tint / color / background = media.*`（C8b 台账抽查新发现） | C8b→C8c | **已裁定（2026-11-26）：12 处归极光 / 1 处按先例保留，DONE（本 commit）** | 身份位 3 处合规不动；逐点处置见下表 |
+| 21 | 同状态姊妹点位 19 处（C8c 执行时审计发现，**不在 #20 裁定清单内**） | C8c | **登记 / 待裁定** | `PlayerControlOverlay.kt` 16 处：`:2019` / `:3198` 焦点环、`:2332`–`:2339` 主 / 次 chip、`:3179` / `:3191` / `:3236` / `:3253` / `:3269` 画质面板选中行、`:5021` / `:5022` / `:5038` 面板列表选中行、`:5185` / `:5191` / `:5209` 另一列表选中行；`PlayerSettingsPanel.kt:529` / `:532` / `:535` 设置行选中。均属选中 / 焦点态，与 #20 同一把尺，但未获本卡授权，**本次未改** |
+
+### C-20 处置明细（2026-11-26 C8c）
+
+点位行号为 C8b 上报时（`e2500d81`）的行号，C8c 改动后整体有位移；以组件名 / 语义定位为准。
+
+| # | 点位 | 分类 | 处置 |
+| --- | --- | --- | --- |
+| 1 | `PlayerContentPanel.kt:332` 选集行选中勾 | 选中勾 | 归极光：勾 `colors.aurora1`；同行「选中底色 / 描边 / 集号文字」一并归极光（16% / 45% / aurora1），不留半套 |
+| 2 | `PlayerContentPanel.kt:609/614`「正在播放」角标 | 激活态 | 归极光：角标底 `colors.aurora1` + 文字 `colors.onAurora`；同卡片选中底 / 描边 / 集号文字一并归极光 |
+| 3 | `PlayerControlOverlay.kt:2585` 睡目标签 | 激活态 | 归极光：`colors.aurora1`（与视频页睡眠定时图标同口径） |
+| 4 | `PlayerControlOverlay.kt:3302` 跳过片头 chip 图标 | 交互控件 | 归极光：`colors.aurora1`；玻璃底 / 描边维持 D4 口径 |
+| 5 | `PlayerControlOverlay.kt:3342` 解锁键图标 | 交互控件 | 归极光：图标 `colors.aurora1`，键底 / 描边同步归极光（16% / 45%） |
+| 6 | `PlayerControlOverlay.kt:3541` 面板选中勾 | 选中勾 | 归极光：勾与选中行底 / 描边 / 标题一并归极光 |
+| 7 | `PlayerControlOverlay.kt:4307` 字幕轨徽标 | **静态信息徽标** | **保留现状**：主 / 次 / 原生字幕轨标，无选中 / 激活态，按 `CinefinSourceBadge` 先例保留域媒体色（代码内已加分类注记） |
+| 8 | `MusicModeScreen.kt:1729` 菜单勾选 | 选中勾 | 归极光：`navSelectedContent(colors)`（深色 = aurora1 / 浅色 = auroraInk，保证浅色主题 AA） |
+| 9 | `MusicModeScreen.kt:3500` 菜单行尾文字 | 文字强调 | 归极光：`navSelectedContent(colors)` |
+| 10 | `MusicModeScreen.kt:3792` 队列「正在播放」 | 激活态 | 归极光：`navSelectedContent`；同行序号 `:3782` 一并归极光 |
+| 11 | `MusicModeScreen.kt:4004` 接下来播放「正在播放」 | 激活态 | 归极光：`navSelectedContent`；同行标题 `:3986` 一并归极光 |
+| 12 | `MusicModeScreen.kt:4081`「重试」按钮文字 | 操作强调 | 归极光：`navSelectedContent(colors)` |
+| — | `BookCoverPlaceholder.kt:35` 占位图标 tint | 身份位 | 合规不动 |
+| — | `CinefinCard.kt:388` 域徽标文字 | 身份位 | 合规不动 |
+| — | `MusicModeScreen.kt:2483` 占位音符图标 | 身份位 | 合规不动 |
 
 ---
 

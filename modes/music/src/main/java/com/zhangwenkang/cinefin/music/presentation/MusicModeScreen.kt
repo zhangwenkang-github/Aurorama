@@ -139,6 +139,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.DownloadSnackbarDur
 import com.zhangwenkang.cinefin.core.presentation.components.LibrarySelectorChip
 import com.zhangwenkang.cinefin.core.presentation.components.LibrarySelectorOption
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinLibraryGutter
+import com.zhangwenkang.cinefin.core.presentation.components.navSelectedContent
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckContent
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckDialog
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckEnvironment
@@ -1711,7 +1712,6 @@ private fun MusicToolbarMenuItem(
     checked: Boolean = false,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     DropdownMenuItem(
         text = {
             Text(
@@ -1726,7 +1726,8 @@ private fun MusicToolbarMenuItem(
                     Icon(
                         painter = painterResource(CoreR.drawable.ic_check),
                         contentDescription = null,
-                        tint = media.bright,
+                        // 2.0.2 D5 批②：菜单勾选属状态强调，归极光系（与多选勾同口径）。
+                        tint = navSelectedContent(colors),
                         modifier = Modifier.size(20.dp),
                     )
                 trailingText != null ->
@@ -3470,7 +3471,6 @@ private fun SongContextAction(
     trailing: String? = null,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     Row(
         modifier =
             Modifier.fillMaxWidth()
@@ -3497,7 +3497,8 @@ private fun SongContextAction(
             Text(
                 text = trailing,
                 style = CinefinType.LabelSmall,
-                color = media.bright,
+                // 2.0.2 D5 批②：菜单行尾强调文字归极光系。
+                color = navSelectedContent(colors),
                 maxLines = 1,
             )
         }
@@ -3779,7 +3780,9 @@ internal fun QueueListBody(
                             Text(
                                 text = (index + 1).toString().padStart(2, '0'),
                                 style = CinefinType.MonoDataSmall,
-                                color = if (isCurrent) media.bright else colors.onSurfaceFaint,
+                                color =
+                                    if (isCurrent) navSelectedContent(colors)
+                                    else colors.onSurfaceFaint,
                             )
                         }
                     },
@@ -3789,7 +3792,8 @@ internal fun QueueListBody(
                                 Text(
                                     text = "正在播放",
                                     style = CinefinType.BodySmall,
-                                    color = media.bright,
+                                    // 2.0.2 D5 批②：正在播放态归极光系。
+                                    color = navSelectedContent(colors),
                                 )
                                 Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
                             }
@@ -3900,7 +3904,6 @@ private fun UpNextRow(
     unavailable: Boolean = false,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     val thresholdPx = with(LocalDensity.current) { QueueSwipeRemoveThreshold.toPx() }
     var translationX by remember(title, position) { mutableFloatStateOf(0f) }
     var rowWidthPx by remember(title, position) { mutableIntStateOf(0) }
@@ -3983,7 +3986,7 @@ private fun UpNextRow(
                 color =
                     when {
                         unavailable -> colors.onSurfaceFaint
-                        isCurrent -> media.bright
+                        isCurrent -> navSelectedContent(colors)
                         else -> colors.onSurfaceVariant
                     },
                 maxLines = 1,
@@ -4001,7 +4004,7 @@ private fun UpNextRow(
                 Text(
                     text = "正在播放",
                     style = CinefinType.BodySmall,
-                    color = media.bright,
+                    color = navSelectedContent(colors),
                 )
             } else if (enabled) {
                 CinefinIconButton(onClick = onRemove) { tint ->
@@ -4057,7 +4060,6 @@ private fun MusicSourceLoadErrorNotice(
     onDismiss: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     Row(
         modifier =
             Modifier.fillMaxWidth()
@@ -4078,7 +4080,8 @@ private fun MusicSourceLoadErrorNotice(
         Text(
             text = "重试",
             style = CinefinType.LabelMedium,
-            color = media.bright,
+            // 2.0.2 D5 批②：重试属操作强调，归极光系。
+            color = navSelectedContent(colors),
             modifier = Modifier.clickable(onClick = onRetry).padding(CinefinSpacing.Space2),
         )
         Text(

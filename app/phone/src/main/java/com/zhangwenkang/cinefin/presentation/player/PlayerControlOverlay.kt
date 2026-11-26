@@ -2394,7 +2394,6 @@ private fun PlayerBottomBar(
     onHeightChanged: (Int) -> Unit = {},
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     // W67b：结束时刻压在亮画面上——按 Lumen Meta 阴影描边保证可读（§8.7 播放器控件）
     val endTimeStyle = CinefinType.MonoDataSmall.lumenTextShadow(LumenTextShadow.Meta)
     Column(
@@ -2582,7 +2581,8 @@ private fun PlayerBottomBar(
                 Text(
                     text = stringResource(PlayerR.string.player_controls_label_sleep),
                     style = MaterialTheme.typography.labelSmall,
-                    color = media.bright,
+                    // 2.0.2 D5 批②：睡眠定时属激活态强调，归极光（与视频页睡眠定时图标同口径）。
+                    color = colors.aurora1,
                 )
             }
             Spacer(Modifier.width(CinefinSpacing.Space2))
@@ -3281,10 +3281,10 @@ private fun SkipSegmentChip(
     /*
      * W20（§6.1 提示条样式统一）：与顶栏徽标（PlayerOverlayBadge）/ 面板胶囊（PanelChip）共用同一套
      * 中性描边 token 与玻璃底（2.0.2 D4：图上控件唯一垫层 = `colors.glass` + `glassBorder`，含文字 chip 维持 58% 填充），
-     * 只把图标留给媒体强调色；旧实现用 media.outline 描边，在亮画面上比其它覆盖层控件更抢眼。
+     * 图标归极光（2.0.2 D5 批②：跳过片头属交互控件，域媒体色退出）；旧实现用 media.outline 描边，
+     * 在亮画面上比其它覆盖层控件更抢眼。
      */
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     val shape = CinefinShapes.Full
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -3299,7 +3299,7 @@ private fun SkipSegmentChip(
         Icon(
             painter = painterResource(CoreR.drawable.ic_skip_forward),
             contentDescription = null,
-            tint = media.bright,
+            tint = colors.aurora1,
             modifier = Modifier.size(18.dp),
         )
         Spacer(Modifier.width(CinefinSpacing.Space2))
@@ -3319,7 +3319,7 @@ private fun LockedOverlay(
     onRectChanged: (left: Float, top: Float, right: Float, bottom: Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val media = LocalMediaColors.current
+    val colors = LocalCinefinColors.current
     Box(
         contentAlignment = Alignment.Center,
         modifier =
@@ -3328,8 +3328,12 @@ private fun LockedOverlay(
                 .padding(end = CinefinSpacing.Space3)
                 .size(size)
                 .clip(CinefinShapes.Xl)
-                .background(media.container)
-                .border(1.dp, media.outline, CinefinShapes.Xl)
+                .background(colors.aurora1.copy(alpha = CinefinTokens.MediaContainerAlpha))
+                .border(
+                    1.dp,
+                    colors.aurora1.copy(alpha = CinefinTokens.MediaOutlineAlpha),
+                    CinefinShapes.Xl,
+                )
                 .onGloballyPositioned { coordinates ->
                     val rect = coordinates.boundsInRoot()
                     onRectChanged(rect.left, rect.top, rect.right, rect.bottom)
@@ -3339,7 +3343,8 @@ private fun LockedOverlay(
         Icon(
             painter = painterResource(CoreR.drawable.ic_unlock),
             contentDescription = stringResource(PlayerR.string.player_controls_unlock),
-            tint = media.bright,
+            // 2.0.2 D5 批②：解锁键属交互控件，整块（底 / 描边 / 图标）归极光。
+            tint = colors.aurora1,
             modifier = Modifier.size(iconSize),
         )
     }
@@ -3454,7 +3459,6 @@ internal fun PanelRow(
     trailing: (@Composable () -> Unit)? = null,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     val shape = CinefinShapes.Button
     /*
      * 错峰入场（VIDEO-31）：每项 fadeIn 150ms + 上浮 8dp，delay = 序号 × 40ms（上限 8 项）。
@@ -3484,11 +3488,19 @@ internal fun PanelRow(
                 .heightIn(min = 52.dp)
                 .clip(shape)
                 .background(
-                    if (selected && enabled) media.container else colors.surfaceContainerLow
+                    if (selected && enabled) {
+                        colors.aurora1.copy(alpha = CinefinTokens.MediaContainerAlpha)
+                    } else {
+                        colors.surfaceContainerLow
+                    }
                 )
                 .border(
                     1.dp,
-                    if (selected && enabled) media.outline else colors.outlineVariant,
+                    if (selected && enabled) {
+                        colors.aurora1.copy(alpha = CinefinTokens.MediaOutlineAlpha)
+                    } else {
+                        colors.outlineVariant
+                    },
                     shape,
                 )
                 .clickable(enabled = enabled, onClick = onClick)
@@ -3518,7 +3530,7 @@ internal fun PanelRow(
                 color =
                     when {
                         !enabled -> colors.onSurfaceFaint
-                        selected -> media.bright
+                        selected -> colors.aurora1
                         else -> colors.onSurface
                     },
                 maxLines = 1,
@@ -3538,7 +3550,7 @@ internal fun PanelRow(
             Icon(
                 painter = painterResource(CoreR.drawable.ic_check),
                 contentDescription = null,
-                tint = media.base,
+                tint = colors.aurora1,
                 modifier = Modifier.size(20.dp),
             )
         }
@@ -4290,6 +4302,7 @@ private fun SubtitleTextBadge(label: String) {
 
 @Composable
 private fun SubtitleAssignmentBadge(assignment: PlayerViewModel.SubtitleAssignment) {
+    // 2.0.2 D6 裁定：纯静态信息徽标（主 / 次 / 原生轨标，无选中或激活态），按 CinefinSourceBadge 先例保留域媒体色。
     val media = LocalMediaColors.current
     val label =
         when (assignment) {

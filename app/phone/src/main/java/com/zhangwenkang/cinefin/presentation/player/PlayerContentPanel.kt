@@ -63,6 +63,7 @@ import com.zhangwenkang.cinefin.R as AppR
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
@@ -280,7 +281,6 @@ private fun PlayerContentRow(
     trailing: (@Composable () -> Unit)? = null,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier =
@@ -288,10 +288,23 @@ private fun PlayerContentRow(
                 .fillMaxWidth()
                 .padding(horizontal = CinefinSpacing.Space2, vertical = 3.dp)
                 .clip(CinefinShapes.Button)
-                .background(if (selected) media.container else Color.Transparent)
+                .background(
+                    if (selected) {
+                        colors.aurora1.copy(alpha = CinefinTokens.MediaContainerAlpha)
+                    } else {
+                        Color.Transparent
+                    }
+                )
                 .then(
-                    if (selected) Modifier.border(1.dp, media.outline, CinefinShapes.Button)
-                    else Modifier
+                    if (selected) {
+                        Modifier.border(
+                            1.dp,
+                            colors.aurora1.copy(alpha = CinefinTokens.MediaOutlineAlpha),
+                            CinefinShapes.Button,
+                        )
+                    } else {
+                        Modifier
+                    }
                 )
                 .clickable(onClick = onClick)
                 .padding(CinefinSpacing.Space2),
@@ -312,7 +325,7 @@ private fun PlayerContentRow(
             Text(
                 text = episodeLabel(index, entry),
                 style = MaterialTheme.typography.labelMedium,
-                color = if (selected) media.bright else colors.onSurfaceVariant,
+                color = if (selected) colors.aurora1 else colors.onSurfaceVariant,
             )
             Spacer(Modifier.height(2.dp))
             Text(
@@ -325,11 +338,11 @@ private fun PlayerContentRow(
         }
         if (selected) {
             Spacer(Modifier.width(CinefinSpacing.Space2))
-            // 选中指示用图标而不是独立色点（§2.6 第 1 条：禁止色点 / 色块）
+            // 选中指示用图标而不是独立色点（§2.6 第 1 条：禁止色点 / 色块）；2.0.2 D5 批②：选中态归极光。
             Icon(
                 painter = painterResource(CoreR.drawable.ic_check),
                 contentDescription = null,
-                tint = media.base,
+                tint = colors.aurora1,
                 modifier = Modifier.size(18.dp),
             )
         }
@@ -543,7 +556,7 @@ internal fun PlayerBottomContent(
     }
 }
 
-/** 竖屏选集：横滑卡片，卡片里放集号与标题；当前集用朱砂描边标出 */
+/** 竖屏选集：横滑卡片，卡片里放集号与标题；当前集用极光描边标出（2.0.2 D5 批②） */
 @Composable
 private fun PlayerEpisodeCards(
     entries: List<QueueEntry>,
@@ -552,7 +565,6 @@ private fun PlayerEpisodeCards(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     if (entries.isEmpty()) {
         Text(
             text = stringResource(PlayerR.string.player_controls_queue_empty),
@@ -582,17 +594,27 @@ private fun PlayerEpisodeCards(
                 modifier =
                     Modifier.width(184.dp)
                         .clip(shape)
-                        .background(if (selected) media.container else colors.surfaceContainerHigh)
+                        .background(
+                            if (selected) {
+                                colors.aurora1.copy(alpha = CinefinTokens.MediaContainerAlpha)
+                            } else {
+                                colors.surfaceContainerHigh
+                            }
+                        )
                         .then(
                             if (selected) {
-                                Modifier.border(1.dp, media.outline, shape)
+                                Modifier.border(
+                                    1.dp,
+                                    colors.aurora1.copy(alpha = CinefinTokens.MediaOutlineAlpha),
+                                    shape,
+                                )
                             } else {
                                 Modifier
                             }
                         )
                         .clickable { onSelect(index) }
             ) {
-                // 缩略图铺满卡片上半部分（16:9），正在播放的集角上压一个媒体色角标
+                // 缩略图铺满卡片上半部分（16:9），正在播放的集角上压一个极光角标（2.0.2 D5 批②）
                 Box(modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
                     if (!entry.artworkUri.isNullOrBlank()) {
                         AsyncImage(
@@ -606,12 +628,12 @@ private fun PlayerEpisodeCards(
                         Text(
                             text = stringResource(PlayerR.string.player_controls_now_playing),
                             style = MaterialTheme.typography.labelSmall,
-                            color = media.onBase,
+                            color = colors.onAurora,
                             modifier =
                                 Modifier.align(Alignment.BottomStart)
                                     .padding(CinefinSpacing.Space2)
                                     .clip(CinefinShapes.Xs)
-                                    .background(media.base)
+                                    .background(colors.aurora1)
                                     .padding(
                                         horizontal = CinefinSpacing.Space2,
                                         vertical = 2.dp,
@@ -623,7 +645,7 @@ private fun PlayerEpisodeCards(
                     Text(
                         text = episodeLabel(index, entry),
                         style = MaterialTheme.typography.labelMedium,
-                        color = if (selected) media.bright else colors.onSurfaceVariant,
+                        color = if (selected) colors.aurora1 else colors.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(CinefinSpacing.Space1))
                     Text(
