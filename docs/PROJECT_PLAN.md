@@ -2,7 +2,7 @@
 
 > **新会话第一步读这里**，再读所在波次/线文档的顶部状态块，最后查记忆库 `MEMORY.md`。
 > 本文件只放项目级事实与各线一句话状态；过程日志与历史细节在 `docs/archive/`（按需读取，不主动加载）。
-> 最后更新：2026-11-26　分支 `codex/v2.0.2`
+> 最后更新：2026-11-27　分支 `codex/v2.0.2`
 
 ## 1. 项目是什么
 
@@ -39,15 +39,15 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 连接层 | 🟢 W31 完成；遗留 `fix/w31-trust-session-reuse` 分支待合并 | `docs/ARCHITECTURE.md` §5.4 |
 | 投屏/同步观看 | ⛔ 投屏未开始（LATER）；SyncPlay 为 SHOULD（W4 评估） | `docs/V2_REQUIREMENTS.md` §9.5 |
 | 维护/缺陷修复 → 2.0.1 | 🟢 **已发布**（2026-11-26，用户授权）：分支 `codex/v2.0.1`、tag `v2.0.1`（@`d463e64b`）、master 强推对齐 `312209a6`、GitHub Release 双 APK（发布后重下载 SHA-256 复核一致）；K60 升级 E2E：AVAILABLE+更新说明渲染 ✅ | `docs/V201_TASKS.md` |
-| UI 重构/热修 → 2.0.2 | 🟡 **进行中**（2026-11-26，分支 `codex/v2.0.2`，HEAD `a517ef6b`）：**W0–C7 + C5b DONE**（C1 U1 热修 `a3ed8f5d`、C2 XML 主题清零 `2440ccf6`、C3 安全区统一 `83569904`、C4 黑底清理 `06f03d83`、C5 黄橙清零 `f419bc1f`、C5b 残项清零 `d5444007`、C6 音乐头部重排 `ac40302a`、C7 书籍/库头部+最近阅读入流 `a517ef6b`；门禁逐卡+合态复跑全绿，K60/Pad 取证全达标）；**下一卡 C8**=D6 颜色/图标台账；余 C8–C9 | `docs/V202_TASKS.md` · `docs/V202_DESIGN.md` |
+| UI 重构/热修 → 2.0.2 | 🟢 **代码面收官（2026-11-27，分支 `codex/v2.0.2`，HEAD `7a1dafbe`）**：**W0–C9 全卡 DONE**——C1–C7+C5b（U1 热修/XML 主题清零/安全区统一/黑底清理/黄橙清零/残项清零/音乐头部/书籍库头部）+ C8 D6 台账（`docs/design/COLOR_ICON_INVENTORY.md`，留档裁定全执行+漏网 31 处归极光）+ C9 回归（media.* 交互态清零、发布门全绿、K60 四主题/7 态/像素取证达标、D1–D5 对账表回写）；**测试服 TLS `-0x7280` C9 复测未复现，降级观察**；**发布（并 master→bump→tag→Release）待用户授权** | `docs/V202_TASKS.md` · `docs/V202_DESIGN.md` |
 
-## 4. 当前焦点（2026-11-26）
+## 4. 当前焦点（2026-11-27）
 
-1. **2.0.2 进行中（分支 `codex/v2.0.2`，HEAD `a517ef6b`）**：**W0–C7 + C5b DONE**——C1 U1 热修 `a3ed8f5d`、C2 XML 主题清零 `2440ccf6`、C3 安全区统一 `83569904`（rememberSafePadding 下沉 core+cinefinSafeTop()）、C4 黑底清理 `06f03d83`（垫层全走 glass/scrim28%+glassBorder+新守卫）、C5 黄橙清零 `f419bc1f`（21 点裁定，Pad 琥珀 0）、C5b 残项清零 `d5444007`（详情页/按钮/卡片选中态归极光）、C6 音乐头部重排 `ac40302a`（CinefinLibraryTabs+36dp 播放全部行，K60 起播回归）、C7 书籍/库头部+最近阅读入流 `a517ef6b`（删独立工具行、复用 CinefinLibraryTabs、headerContent 改 grid item 随滚动，K60 滚动取证+回归全过）；门禁逐卡全绿；**下一卡 C8**=D6 颜色/图标台账 + 守卫单测补齐。**测试服 TLS `-0x7280`：2026-11-26 用户排查服务端无异常，播放链路动态态补验继续受阻（疑客户端侧/mpv TLS 栈或链路中间环节）**。
-2. **2.0.1 已发布（2026-11-26，用户授权）**：tag `v2.0.1`（@`d463e64b`）+ master 对齐 `312209a6` + GitHub Release 双 APK（SHA-256 复核一致）；K60 升级 E2E ✅。
-3. **U1 已修（C1，`a3ed8f5d`）**：transfer 缺失时经 `beginDownload` 重建；修复效益自 2.0.2 起算（旧版更新器坏，2.0.0/2.0.1 用户需手动装一次 2.0.2）。
-4. **留档观察项**：「关自动旋转横置不转」用户手动验证通过（2026-11-26）核销；R11 破坏性删测试服条目未授权跳过；KNOWN_ISSUE=K60 首播偶发卡 BUFFERING 重进即恢复、测试服高码率转码能力不足（服务端）。
-5. **环境事实**：多设备在线装机用 `assembleLibreDebug` + `adb -s <id> install -r`；**Android 15 禁止 release 包同包降级**（`install -d` 仅对 debuggable 生效，真机升级 E2E 只能前向或用 debug 包等效）；全模块单测注意 `:core`/`:app:phone` 是 `testLibreDebugUnitTest`、`:data`/`:modes:film`/`:modes:music`/`:settings` 是 `testDebugUnitTest`；ktfmt 修正任务名是 `ktfmtFormat`（全仓任务，并发卡用「快照→格式化→只保留自己文件」隔离法）；发布门须显式加跑 `verifyMpvJniReleaseContract`；GitHub 上传双资产偶发 502 拆「先建 Release 再分次传」可解；**并发子代理共用工作区会互踩 Gradle 增量编译缓存**（等他方构建结束重跑即恢复）；**Gradle 强制重跑用 `--rerun-tasks`（`--rerun` 对指定任务不生效）**；**MIUI 手势导航下屏幕最外侧 ~24dp 应用收不到触摸事件**；**Jellyfin 查询缺字段不报错只返回 null**；**Jellyfin 歌单条目操作必须用 PlaylistItemId 而非媒体 itemId**（误用返回 204 但不生效）；**播放器容器高≠画面区高**（W4-T22：竖屏容器下半截是常驻选集区，命中区/居中一律按画面区算或实测回传）；**测试 JVM 全局 `Dispatchers.Main` 被 Unsafe 覆写必须 @AfterClass 还原（W5 单测污染根因）**；设备当前登录 jellyfin-test 可写测试服（生产服写验证一律先 dump 抽屉确认服务器）。
+1. **2.0.2 代码面收官（分支 `codex/v2.0.2`，HEAD `7a1dafbe`）**：**W0–C9 全卡 DONE**——C1–C7+C5b（详见 V202_TASKS 卡行）；C8 D6 台账 `9422ddeb`/`e2500d81`/`eb174d31`/`ef7ee573`：`docs/design/COLOR_ICON_INVENTORY.md` 落地（43 token 槽+137 图标+23 条残留登记），留档裁定全执行（安全区×3/规则外点位/死资源/双层留白×7），台账审计揪出漏网 31 处交互态 media.* 全归极光；C9 `a194b73a`/`4addc350`/`7a1dafbe`：media.* 交互态清零（仅剩身份位 4+静态徽标 1+书页标注 1+白名单）、阅读器进度归极光、发布门全绿（assembleRelease+MPV JNI 合约 PASS+全模块 2987 单测 0 败）、K60 四主题/7 态/像素取证达标（琥珀 0.000%、浅色对比 5.16:1 AA）、D1–D5 对账表回写。**发布待用户授权**（纪律：先并 master 对齐→bump→tag `v2.0.2`→Release→K60 升级 E2E）。
+2. **测试服 TLS `-0x7280`：C9 复测未复现**（播放 00:12/24:25 在走 + 17.4MB FLAC 下载全通），KNOWN_ISSUE 降级观察。
+3. **2.0.1 已发布（2026-11-26，用户授权）**：tag `v2.0.1`（@`d463e64b`）+ master 对齐 `312209a6` + GitHub Release 双 APK（SHA-256 复核一致）；K60 升级 E2E ✅。
+4. **留档观察项**：R11 破坏性删测试服条目未授权跳过；KNOWN_ISSUE=K60 首播偶发卡 BUFFERING 重进即恢复、测试服高码率转码能力不足（服务端）；M3 FilterChip 残留×3 与死资源 12 个删除列后续小卡（详见 V202_TASKS 留档行）。
+5. **环境事实**：多设备在线装机用 `assembleLibreDebug` + `adb -s <id> install -r`；**Android 15 禁止 release 包同包降级**（`install -d` 仅对 debuggable 生效，真机升级 E2E 只能前向或用 debug 包等效）；全模块单测注意 `:core`/`:app:phone` 是 `testLibreDebugUnitTest`、`:data`/`:modes:film`/`:modes:music`/`:settings` 是 `testDebugUnitTest`；ktfmt 修正任务名是 `ktfmtFormat`（全仓任务，并发卡用「快照→格式化→只保留自己文件」隔离法）；发布门须显式加跑 `verifyMpvJniReleaseContract`；GitHub 上传双资产偶发 502 拆「先建 Release 再分次传」可解；**并发子代理共用工作区会互踩 Gradle 增量编译缓存**（等他方构建结束重跑即恢复）；**Gradle 强制重跑用 `--rerun-tasks`（`--rerun` 对指定任务不生效）**；**MIUI 手势导航下屏幕最外侧 ~24dp 应用收不到触摸事件**；**Jellyfin 查询缺字段不报错只返回 null**；**Jellyfin 歌单条目操作必须用 PlaylistItemId 而非媒体 itemId**（误用返回 204 但不生效）；**播放器容器高≠画面区高**（W4-T22：竖屏容器下半截是常驻选集区，命中区/居中一律按画面区算或实测回传）；**测试 JVM 全局 `Dispatchers.Main` 被 Unsafe 覆写必须 @AfterClass 还原（W5 单测污染根因）**；**layout XML 判死必须查 databinding 生成类（文件名 grep 不到 ≠ 死资源，C8b 教训）**；设备当前登录 jellyfin-test 可写测试服（生产服写验证一律先 dump 抽屉确认服务器）。
 
 ### 下会话开工提示词
 
@@ -56,11 +56,14 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
    工作区：F:/Develop/code_data/work_tree/Aurorama/v2-merge-141（分支 codex/v2.0.2）。
 2. 开工读序（固定）：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V202_TASKS.md 状态块
    → 记忆库 MEMORY.md（读序外文件按需，不通读）。
-3. 现状（≤4 行）：HEAD 以 git log 为准；W0–C7+C5b DONE（C1–C7 逐卡+合态门禁全绿，K60/Pad 取证达标；
-   留档：测试服 TLS 服务端排查无异常仍不通、C3 裁定×3、C5b 规则外点位×4、C7 ic_filter 死 drawable 均列 C8）；下一卡 C8=D6 台账。
-4. 本会话任务（按额度 1–N 卡）：【槽：卡号+一句话目标；按依赖序 C8→C9】。
-5. 设计分权（固定一行）：设计以 docs/V202_DESIGN.md 为准（含 2026-11-26 垫层减重裁定+C5/C5b media.*映射口径），deepseek 零设计权。
-6. 门禁与纪律（固定引用）：见 AGENTS.md 质量门/红线；adb 取证派子代理，负责人复核证据关键行。
+3. 现状（≤4 行）：HEAD 以 git log 为准；W0–C9 全卡 DONE（media.* 交互态清零、发布门全绿、
+   K60 四主题/7 态/像素取证达标、对账表回写；测试服 TLS -0x7280 复测未复现降级观察）；
+   发布（并 master→bump→tag→Release）待用户授权。
+4. 本会话任务（按额度 1–N 卡）：【槽：R1 发布卡=并 master 对齐→版本 bump→tag v2.0.2→GitHub
+   Release→K60 升级 E2E（逐步需用户授权）；顺带 ReaderControlLayer 防回退守卫；余量可做
+   M3 FilterChip 统一小卡（SearchBar/LyricsSheet/MusicEffectsSheet→CinefinFilterChip）】。
+5. 设计分权（固定一行）：设计以 docs/V202_DESIGN.md + docs/design/COLOR_ICON_INVENTORY.md 为准，deepseek 零设计权。
+6. 门禁与纪律（固定引用）：见 AGENTS.md 质量门/红线/发布纪律（发布前先并 master）；adb 取证派子代理，负责人复核证据关键行。
 7. 交接（固定一行）：收口按 AGENTS.md 五件事，提示词按统一标准填槽更新。
 ```
 
