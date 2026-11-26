@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -181,12 +182,14 @@ fun LumenSkeletonOverlay(
  * 冷启动过渡页（W6-VIS D24）：`MainViewModel` 解析登录态期间显示的品牌页。
  *
  * 背景铺曜石黑（A 稿 `--bg`），中心是品牌印记 + 应用名 + 一条呼吸感进度线；登录态就绪后主界面以 220ms 淡入接上，第一帧到主界面之间不再有"纯黑板"的空白期。
+ *
+ * 2.0.2 D1：内容按 `safeDrawingPadding()` 排布（状态栏 ∪ 挖孔），背景仍铺满整屏不留边。
  */
 @Composable
 fun ColdStartSplash(modifier: Modifier = Modifier) {
     val colors = LocalCinefinColors.current
     Box(
-        modifier = modifier.fillMaxSize().background(colors.surface),
+        modifier = modifier.fillMaxSize().background(colors.surface).safeDrawingPadding(),
         contentAlignment = Alignment.Center,
     ) {
         Column(

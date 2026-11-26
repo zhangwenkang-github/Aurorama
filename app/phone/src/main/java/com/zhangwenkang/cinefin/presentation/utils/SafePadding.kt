@@ -1,50 +1,13 @@
 package com.zhangwenkang.cinefin.presentation.utils
 
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
-import androidx.window.core.layout.WindowSizeClass
+import com.zhangwenkang.cinefin.core.presentation.utils.SafePadding
+import com.zhangwenkang.cinefin.core.presentation.utils.rememberSafePadding as coreRememberSafePadding
 
-data class SafePadding(val start: Dp, val top: Dp, val end: Dp, val bottom: Dp)
-
+/**
+ * 2.0.2 D1：实现已下沉 `core`（`core.presentation.utils.rememberSafePadding`），此处保留同名委托， app 侧 23 个文件 / 28
+ * 处调用零改动；新代码请直接引用 core 版本。签名与行为与下沉前完全一致。
+ */
 @Composable
-fun rememberSafePadding(handleStartInsets: Boolean = true): SafePadding {
-    val density = LocalDensity.current
-    val layoutDirection = LocalLayoutDirection.current
-
-    val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
-
-    val safePaddingStart =
-        if (handleStartInsets) {
-            with(density) { WindowInsets.safeDrawing.getLeft(this, layoutDirection).toDp() }
-        } else {
-            // Navigation rail handles safe drawing inset in medium and expanded width
-            when {
-                windowSizeClass.isWidthAtLeastBreakpoint(
-                    WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND
-                ) -> 0.dp
-                windowSizeClass.isWidthAtLeastBreakpoint(
-                    WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND
-                ) -> 0.dp
-                else ->
-                    with(density) { WindowInsets.safeDrawing.getLeft(this, layoutDirection).toDp() }
-            }
-        }
-
-    val safePaddingTop = with(density) { WindowInsets.safeDrawing.getTop(this).toDp() }
-    val safePaddingEnd =
-        with(density) { WindowInsets.safeDrawing.getRight(this, layoutDirection).toDp() }
-    val safePaddingBottom = with(density) { WindowInsets.safeDrawing.getBottom(this).toDp() }
-
-    return SafePadding(
-        start = safePaddingStart,
-        top = safePaddingTop,
-        end = safePaddingEnd,
-        bottom = safePaddingBottom,
-    )
-}
+fun rememberSafePadding(handleStartInsets: Boolean = true): SafePadding =
+    coreRememberSafePadding(handleStartInsets)

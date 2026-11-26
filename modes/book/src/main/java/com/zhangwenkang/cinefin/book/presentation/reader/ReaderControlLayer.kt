@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -52,6 +51,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
+import com.zhangwenkang.cinefin.core.presentation.utils.cinefinSafeTop
 import kotlinx.coroutines.delay
 
 /** 控制层开启动画时长（定稿一 §3 / 定稿八）。 */
@@ -180,7 +180,9 @@ internal fun ReaderControlLayer(
                         .clip(ReaderTopSheetShape)
                         .background(containerColor)
                         .border(1.dp, borderColor, ReaderTopSheetShape)
-                        .statusBarsPadding()
+                        // 2.0.2 D1：进页即沉浸（systemBars 隐藏 → `statusBarsPadding()` 取 0），
+                        // 改用 safeDrawing 顶部口径，挖孔比状态栏高时控制层不被压住。
+                        .cinefinSafeTop()
                         .dragDownToDismiss(onDismiss = onDismissByDrag)
             ) {
                 Row(

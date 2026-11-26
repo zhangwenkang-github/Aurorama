@@ -51,6 +51,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
+import com.zhangwenkang.cinefin.core.presentation.utils.cinefinSafeTop
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.search.SearchAction
 import com.zhangwenkang.cinefin.film.presentation.search.SearchCategory
@@ -211,7 +212,9 @@ fun FilmSearchBar(
                 .freeSearchBarHeight()
                 .padding(start = searchBarPaddingStart, end = searchBarPaddingEnd),
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        // 2.0.2 D1：结果区（范围 chips + 网格）补顶部安全区，状态栏 ∪ 挖孔统一口径。
+        // 若上层（M3 SearchBar 自带 windowInsets）已消费顶部内边距，这里自动为 0，不会双垫。
+        Column(modifier = Modifier.fillMaxSize().cinefinSafeTop()) {
             LazyRow(
                 modifier =
                     Modifier.fillMaxWidth()
