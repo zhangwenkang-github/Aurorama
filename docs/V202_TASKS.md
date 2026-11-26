@@ -1,9 +1,9 @@
 # 2.0.2 任务卡台账
 
 <!-- V202_STATUS_BEGIN -->
-> **当前状态（2026-11-26）**：**W0 开工准备完成**——分支 `codex/v2.0.2` 自 `codex/v2.0.1` tip（`91912da8`）建立；设计定稿落 `docs/V202_DESIGN.md`（用户批准 + 当日补充裁定：黑底清理含播放器控件）；本台账建立；AGENTS.md 台账指针切到本文件；`PROJECT_PLAN.md` 焦点切 2.0.2。
-> **方案依据**：用户五条诉点（音乐/书籍头部重排、最近阅读割裂、图标黑底、黄橙残留、状态栏/挖孔避让）+ 全局盘点（诊断见 `V202_DESIGN.md` §0）+ 2.0.1 裁定遗留 U1 热修。
-> **下一卡**：C1 = U1 更新下载死锁热修（卡内容见下表）。
+> **当前状态（2026-11-26）**：**W0 DONE + C1 DONE**——分支 `codex/v2.0.2`（基线 2.0.1 tip `91912da8`）；设计定稿 `docs/V202_DESIGN.md`（用户批准 + 当日补充裁定：黑底清理含播放器控件）；C1 U1 热修 `a3ed8f5d`：`UpdateRepositoryImpl.download()` 新增 `persistedTransfer()`——transfer 缺失/不匹配时读 `loadDiscoveredRelease()`、`stableUpdateId` 匹配则 `beginDownload` 重建；新增 3 单测（仅 release 无 transfer / 皆无仍 STATE_ERROR / 陈旧 transfer 按新 release 重建）；门禁 :data 533 测 0 败 + ktfmt + assembleLibreDebug 全绿；K60 真机：点击前仅 release.json 无 transfer.json（死锁前置实锤）→ 点击后 transfer.json 重建、83MB 全量落盘、进入校验——**死锁链真机走通**；安装器弹窗未验（debug 包名后缀触发 PACKAGE_MISMATCH，固有限制非缺陷；release 无 AVAILABLE、降版本属红线，以 2.0.1 E2E 证据链佐证）。
+> **下一卡**：C2 = D5 批① XML 主题层清零（卡内容见下表）。
+> **LATER 登记**：`beginDownload` 重建分支不回收旧 release 的 `.part`/`.apk`（既有行为，C1 实测陈旧 1.3.0 part 残留），列 C8 台账残留登记表或后续小卡。
 > **红线**：生产服 `jellyfins.zhangwenkang.com` 永久只读；服务器写只在测试服验证；push/tag/Release 需用户授权。
 <!-- V202_STATUS_END -->
 
@@ -21,7 +21,7 @@
 
 | 卡 | 状态 | 内容 | 验收 |
 |---|---|---|---|
-| C1 | TODO | **U1 更新下载死锁热修**：`UpdateRepositoryImpl.download()` 在 transfer 缺失/不匹配且已存 release 匹配 updateId 时经 `store.beginDownload(release)` 重建后继续（含 READY_FOR_VERIFICATION 短路径）；补「仅 release.json 无 transfer」单测（现有 `UpdateRepositoryTest` 手动预置 transfer 掩盖缺口）；注意 W5 教训：测试改 `Dispatchers.Main` 必须 `@AfterClass` 还原。文件边界：`data/.../update/`（UpdateRepository.kt / UpdateStateStore.kt / UpdateHttpDownloader.kt 只读参考）+ 对应测试 | 新增单测绿 + `:data:testDebugUnitTest` 全绿 + ktfmt + assemble；K60 全链（检查→AVAILABLE→下载进度→系统安装器弹窗）uiautomator/logcat 取证（禁降级/卸载，装机路径先 dumpsys 核实，受阻则上报） |
+| C1 | DONE（`a3ed8f5d`） | **U1 更新下载死锁热修**：`persistedTransfer()`——transfer 缺失/不匹配时读 `loadDiscoveredRelease()`，`stableUpdateId` 匹配则 `beginDownload` 重建后续原流程；READY_FOR_VERIFICATION 短路径与 cancel/check 语义未动；新增 3 单测。留档：安装器弹窗真机未验（debug 包名 PACKAGE_MISMATCH 固有限制）；旧 release `.part` 残留=既有行为，登记 LATER | :data 533 测 0 败 + ktfmt + assemble 绿；K60：死锁前置实锤（仅 release.json）→ 重建 → 83MB 全量落盘 → 进校验 ✅ |
 | C2 | TODO | **D5 批① XML 主题层清零**：`colors.xml` 橙→极光、neutral 阶对齐 bg 阶、删死 token、`themes.xml`/night 同步、window 底色对齐、`activity_player.xml` 死资源核查清理、`player_background`/`player_hud_background` 对齐玻璃色系 | assemble + ktfmt 绿；K60：系统对话框/开关/涟漪无橙、冷启动无闪色、播放器 HUD 正常 |
 | C3 | TODO | **D1 安全区统一**：`rememberSafePadding` 下沉 core + `Modifier.cinefinSafeTop()`；`CinefinPageTopBar` 换 safeDrawing 口径；搜索页/冷启动品牌页补顶部；阅读器控制层挖孔核查 | 单测+assemble 绿；K60 竖屏+横屏各页顶栏不压状态栏/挖孔（uiautomator 坐标取证） |
 | C4 | TODO | **D4 黑底清理**：BaseBadge / ItemTopBar / CinefinSelectIndicator / 播放器图标键背板+缓冲背板+跳过 chip+字幕提示 chip / 桌面歌词写死色 → 全走 glass/glassBorder token；`DesignTokenConsistencyTest` 加 `Color.Black.copy` 守卫 | core+phone 单测绿（含新守卫）；K60：海报徽标/详情返回键/多选圆点/播放器控件无黑块、浅封面可读 |
