@@ -12,7 +12,7 @@
 > **C9 全量回归 + 发布门 DONE**（`a194b73a` / `4addc350` / `7a1dafbe`）：歌词外观/显示预设 chip 归极光（**media.* 交互态清零**：全仓仅剩身份位 4 + 静态字幕轨徽标 1 + 书页标注叠加 1 + 白名单）；阅读器进度条/书签点/thumb 归极光、批注框描边保留域色（与 Epub 批注黄同体系）；发布门全绿（`assembleRelease` + `verifyMpvJniReleaseContract` PASS 8/41 + 全模块 2987 单测 0 败 + ktfmt）；K60：四主题（aurora/light/amoled/dynamic）切换无 FATAL、7 态抽查达标、像素取证深色琥珀 0.000%/浅色选中对比度 5.16:1（AA）、17.4MB FLAC 真实下载进度条=aurora1；D1–D5 逐点对账表已回写（见下「C9 · D1–D5 逐点对账表」）。
 > **测试服 TLS `-0x7280`：C9 复测未复现（播放+下载均通），降级观察。**
 > **下一卡**：发布（需用户授权）——发布纪律：先并 master 对齐 → 版本 bump → tag `v2.0.2` → GitHub Release → K60 升级 E2E。
-> **留档（全部已登记台账 C 节，详见 COLOR_ICON_INVENTORY.md）**：M3 FilterChip 残留×3（`SearchBar`/`LyricsSheet`/`MusicEffectsSheet`，尺寸/描边与 `CinefinFilterChip` 不同款）列后续统一小卡；ReaderControlLayer 防回退守卫（DesignTokenConsistencyTest 补断言）建议发布卡顺带；死资源 12 个只标记未删（删除需单独小卡+回归）；`LumenCardFrame(emphasized=true)` 死分支保留不接线；`beginDownload` 不回收旧 release `.part`/`.apk`=既有行为 LATER；桌面歌词底不透明维持（不新增 window token）；440dp 窄屏计数挤占=D2 既定行为（C9 复核维持）；海报 auroraGradient 进度仅 token 级证据（测试服无可续播海报）；按下态 ripple 无法 uiautomator 捕获（token 级兜底）；书架双空真机分支由单测 `bookshelfShelfHeaderVisible` 兜底；库 chip ≥3 库条件为既有行为；`activity_player.xml` 判活口径=databinding 生成类（台账 B7 已记录，防再误判）。
+> **留档（全部已登记台账 C 节，详见 COLOR_ICON_INVENTORY.md）**：~~M3 FilterChip 残留×3~~ **已销项（`c72c93ea`，统一为 `CinefinFilterChip` + 守卫 g 防复活）**；~~ReaderControlLayer 防回退守卫~~ **已销项（`a437931b`，`DesignTokenConsistencyTest` 新增守卫 f）**；死资源 12 个只标记未删（删除需单独小卡+回归）；`LumenCardFrame(emphasized=true)` 死分支保留不接线；`beginDownload` 不回收旧 release `.part`/`.apk`=既有行为 LATER；桌面歌词底不透明维持（不新增 window token）；440dp 窄屏计数挤占=D2 既定行为（C9 复核维持）；海报 auroraGradient 进度仅 token 级证据（测试服无可续播海报）；按下态 ripple 无法 uiautomator 捕获（token 级兜底）；书架双空真机分支由单测 `bookshelfShelfHeaderVisible` 兜底；库 chip ≥3 库条件为既有行为；`activity_player.xml` 判活口径=databinding 生成类（台账 B7 已记录，防再误判）。
 > **红线**：生产服 `jellyfins.zhangwenkang.com` 永久只读；服务器写只在测试服验证；push/tag/Release 需用户授权。
 <!-- V202_STATUS_END -->
 
@@ -118,7 +118,7 @@
 
 - **拥挤**：D2 后两页头部均为两行，K60 dump 未见控件重叠；下载页「进行中/失败/已完成 + 排序」与「全部/视频/音乐/书籍」两行 chips 在 1080px 宽下无挤压（选中 chip 底 `#D4EBE8` 完整可见）。440dp 窄屏计数挤占 tab 属 D2 既定横滑行为（台账 #12），不再改动。
 - **多余图标**：音乐顶栏已由 5 键收敛为搜索 + ⋮；书籍/库页工具行删除后仅余 排序 / 视图 / 筛选 3 键；`ic_filter` / `header_gradient` 死资源已删且守卫 b 防复活。四主题 + 7 态 dump 未发现重复或空占位图标。
-- **旧样式残留**：全仓 `media.*` 仅剩 4 处身份位 + 1 处静态字幕轨徽标 + 字幕/歌词颜色预设白名单；`FilterChipDefaults` 在歌词两文件已清零（守卫 e）。仍存 4 个文件使用 M3 原生 `FilterChip`（`SearchBar` / `LyricsSheet` / `MusicEffectsSheet`），走主题桥接色但尺寸/描边与 `CinefinFilterChip` 不完全同款 —— 属既有差异，本卡未扩大范围，登记后续统一。
+- **旧样式残留**：全仓 `media.*` 仅剩 4 处身份位 + 1 处静态字幕轨徽标 + 字幕/歌词颜色预设白名单；`FilterChipDefaults` 全仓清零；M3 原生 `FilterChip` 残留×3（`SearchBar` / `LyricsSheet` / `MusicEffectsSheet`）已于发布卡顺带统一为 `CinefinFilterChip`（`c72c93ea`，守卫 g 钉住防复活）。
 - **已裁定（C9 补）**：`ReaderControlLayer` 的 `accent` 归极光（`navSelectedContent`，覆盖进度填充 / 书签点 / thumb）；`PageOverlay` 的 `accent` 保留域媒体色（搜索命中 / 批注框 / 实时框选 = 内容标注身份位，与 Epub 批注黄同类）。
 
 ## LATER 池（本期不做，裁定见 V202_DESIGN.md「明确不做」）
