@@ -39,11 +39,11 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 连接层 | 🟢 W31 完成；遗留 `fix/w31-trust-session-reuse` 分支待合并 | `docs/ARCHITECTURE.md` §5.4 |
 | 投屏/同步观看 | ⛔ 投屏未开始（LATER）；SyncPlay 为 SHOULD（W4 评估） | `docs/V2_REQUIREMENTS.md` §9.5 |
 | 维护/缺陷修复 → 2.0.1 | 🟢 **已发布**（2026-11-26，用户授权）：分支 `codex/v2.0.1`、tag `v2.0.1`（@`d463e64b`）、master 强推对齐 `312209a6`、GitHub Release 双 APK（发布后重下载 SHA-256 复核一致）；K60 升级 E2E：AVAILABLE+更新说明渲染 ✅ | `docs/V201_TASKS.md` |
-| UI 重构/热修 → 2.0.2 | 🟢 **发布执行中（2026-11-27 用户四步授权，分支 `codex/v2.0.2`，发布点 `d7ff30a7`）**：W0–C9 全卡 DONE + 顺带两小卡销项（守卫 `a437931b` / FilterChip×3 `c72c93ea`）；bump 2.0.2/code 9（`94ba1303`）+ RELEASE_NOTES；发布门复跑绿（assembleRelease 6m33s + MPV JNI 8/41）；**分支已推、master 快进对齐 `312209a6..d7ff30a7`、tag `v2.0.2` 已推**；残步=Release 双 APK 上传→SHA-256 复核→K60 升级 E2E→§7 回写 | `docs/V202_TASKS.md` · `docs/V202_DESIGN.md` |
+| UI 重构/热修 → 2.0.2 | 🟢 **已发布（2026-11-27，用户四步一次性授权）**：发布点 `d7ff30a7`（分支 `codex/v2.0.2`）、tag `v2.0.2`、master 快进对齐、GitHub Release 双 APK（发布后 SHA-256 复核一致）；K60 自 2.0.1(8) 升级 E2E ✅（数据保留、四页渲染、FATAL/ANR 空、更新页「已是最新」口径正确）；顺带两小卡销项（守卫 `a437931b` / FilterChip×3 `c72c93ea`） | `docs/V202_TASKS.md` · `docs/V202_DESIGN.md` |
 
 ## 4. 当前焦点（2026-11-27）
 
-1. **2.0.2 发布执行中（2026-11-27 用户四步授权，分支 `codex/v2.0.2`，发布点 `d7ff30a7`）**：W0–C9 DONE + 卡A 守卫 `a437931b` + 卡B FilterChip×3 `c72c93ea` + bump `94ba1303`（2.0.2/code 9）；发布门复跑绿；master 快进对齐、tag `v2.0.2` 已推。残步：双 APK 构建 → apksigner 指纹验证 → gh Release（极光幕 / Aurorama v2.0.2，双资产 + RELEASE_NOTES）→ 发布后 SHA-256 复核 → K60 `install -r` E2E（versionName 2.0.2(9) + 更新页 AVAILABLE + notes 渲染）→ RELEASE_PLAN §7 回写。
+1. **2.0.2 已发布（2026-11-27，用户四步一次性授权）**：发布点 `d7ff30a7`（含 bump `94ba1303` 2.0.2/code 9）；发布门复跑绿；master 快进对齐 `312209a6..d7ff30a7`、tag `v2.0.2` 已推；GitHub Release「极光幕 / Aurorama v2.0.2」双 APK（发布后重下载 SHA-256 复核一致）；K60 升级 E2E ✅（2.0.1(8)→2.0.2(9) 数据保留、四页渲染、FATAL/ANR 空、更新页「已是最新」）；`RELEASE_PLAN.md` §7 已回写。观察项：K60 并存旧 debug 包（未清理，待用户裁定）；更新页网络往返无日志侧证据（UI 文案作证）；测试服 TLS `-0x7280` 降级观察。
 2. **测试服 TLS `-0x7280`：C9 复测未复现**（播放 00:12/24:25 在走 + 17.4MB FLAC 下载全通），KNOWN_ISSUE 降级观察。
 3. **2.0.1 已发布（2026-11-26，用户授权）**：tag `v2.0.1`（@`d463e64b`）+ master 对齐 `312209a6` + GitHub Release 双 APK（SHA-256 复核一致）；K60 升级 E2E ✅。
 4. **留档观察项**：R11 破坏性删测试服条目未授权跳过；KNOWN_ISSUE=K60 首播偶发卡 BUFFERING 重进即恢复、测试服高码率转码能力不足（服务端）；M3 FilterChip 残留×3 与死资源 12 个删除列后续小卡（详见 V202_TASKS 留档行）。
@@ -53,15 +53,14 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ```
 1. 角色与工作区（固定一行）：你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
-   工作区：F:/Develop/code_data/work_tree/Aurorama/v2-merge-141（分支 codex/v2.0.2）。
-2. 开工读序（固定）：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V202_TASKS.md 状态块
+   工作区：【槽：路径】（分支【槽】）。
+2. 开工读序（固定）：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 →【槽：波次文档（新波次台账未建则 docs/V202_TASKS.md）】状态块
    → 记忆库 MEMORY.md（读序外文件按需，不通读）。
-3. 现状（≤4 行）：HEAD 以 git log 为准；W0–C9 全卡 DONE（media.* 交互态清零、发布门全绿、
-   K60 四主题/7 态/像素取证达标、对账表回写；测试服 TLS -0x7280 复测未复现降级观察）；
-   发布（并 master→bump→tag→Release）待用户授权。
-4. 本会话任务（按额度 1–N 卡）：【槽：R1 发布卡=并 master 对齐→版本 bump→tag v2.0.2→GitHub
-   Release→K60 升级 E2E（逐步需用户授权）；顺带 ReaderControlLayer 防回退守卫；余量可做
-   M3 FilterChip 统一小卡（SearchBar/LyricsSheet/MusicEffectsSheet→CinefinFilterChip）】。
+3. 现状（≤4 行）：HEAD 以 git log 为准；2.0.2 已发布（2026-11-27）：tag v2.0.2 @d7ff30a7、
+   master 对齐、Release 双 APK SHA-256 复核一致、K60 升级 E2E 通过；
+   测试服 TLS -0x7280 降级观察；K60 并存旧 debug 包待用户裁定清理。
+4. 本会话任务（1–2 卡）：【槽：2.0.3 候选——留档小卡=死资源 12 个删除+回归（删除需单独小卡）；
+   或新需求按内容归属插卡】。
 5. 设计分权（固定一行）：设计以 docs/V202_DESIGN.md + docs/design/COLOR_ICON_INVENTORY.md 为准，deepseek 零设计权。
 6. 门禁与纪律（固定引用）：见 AGENTS.md 质量门/红线/发布纪律（发布前先并 master）；adb 取证派子代理，负责人复核证据关键行。
 7. 交接（固定一行）：收口按 AGENTS.md 五件事，提示词按统一标准填槽更新。
