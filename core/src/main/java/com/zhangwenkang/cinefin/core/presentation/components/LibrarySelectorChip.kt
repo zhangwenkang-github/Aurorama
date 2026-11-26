@@ -22,7 +22,6 @@ import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import java.util.UUID
 
 /** 库选择候选项（W54-C）：[id] = null 表示「全部库」/「自动」这条不限定项。 */
@@ -36,8 +35,9 @@ data class LibrarySelectorOption(
 /**
  * 顶栏「库选择」（W54-C，用户 2026-10-03 确认；W66 下沉 core）：紧凑 chip 常显当前选择 + 下拉菜单列出「全部库 / 自动」与各库。
  *
- * 选中态走设计系统 §8.3（`CinefinFilterChip`）：未选择 = 中性色，选定某个库 = 当前域媒体色融入控件本体；菜单项行尾用 `ic_check`
- * 标出当前项。三处复用：视频页（全部库 / 各视频库）、书架页（自动 / 各书籍库）、音乐页（全部音乐库 / 各音乐库）。
+ * 选中态走设计系统 §8.3（`CinefinFilterChip`）：未选择 = 中性色，选定某个库 = 极光选中语言（`navSelectedFill` + `aurora1`
+ * 描边）；菜单项行尾用 `ic_check` 以 [navSelectedContent] 标出当前项。三处复用：视频页（全部库 / 各视频库）、书架页（自动 / 各书籍库）、音乐页（全部音乐库
+ * / 各音乐库）。
  */
 @Composable
 fun LibrarySelectorChip(
@@ -50,7 +50,6 @@ fun LibrarySelectorChip(
     maxWidth: Dp = 168.dp,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     var expanded by rememberSaveable { mutableStateOf(false) }
 
     Box(modifier = modifier) {
@@ -105,7 +104,7 @@ fun LibrarySelectorChip(
                             Icon(
                                 painter = painterResource(CoreR.drawable.ic_check),
                                 contentDescription = null,
-                                tint = media.bright,
+                                tint = navSelectedContent(colors),
                                 modifier = Modifier.size(20.dp),
                             )
                         }

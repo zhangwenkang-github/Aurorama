@@ -43,6 +43,7 @@ import androidx.window.core.layout.WindowSizeClass
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
+import com.zhangwenkang.cinefin.core.presentation.components.navSelectedContent
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckDialog
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckEnvironment
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckRules
@@ -54,7 +55,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.core.presentation.theme.auroraGradient
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadState
@@ -67,7 +67,7 @@ import com.zhangwenkang.cinefin.models.isDownloaded
 /**
  * 详情页动作区（W51 重绘）。
  *
- * 布局：第一行 = 播放 / 重播 / 预告（图标键）；第二行 = **下载 / 已播放 / 喜欢** 三枚带标签按钮（同排，Lumen 语义色）。
+ * 布局：第一行 = 播放 / 重播 / 预告（图标键）；第二行 = **下载 / 已播放 / 喜欢** 三枚带标签按钮（同排，选中走极光选中语言）。
  *
  * 下载动作两套语义：
  * - [downloadState] 非空（Show / Season / Episode，W51）：三态（未下载 / 已在队列 / 已下载），点击统一回调
@@ -374,8 +374,8 @@ private fun DetailIconButton(@DrawableRes icon: Int, onClick: () -> Unit) {
 }
 
 /**
- * 详情页带标签动作键（§8.1 Outlined 变形 + 选中态）：48dp 触控高、12dp 圆角、1dp 描边； 未选中 = 中性文字 / 透明底，选中 = 当前域容器 +
- * 强调色描边与内容（Lumen 下自动切极光青）。
+ * 详情页带标签动作键（§8.1 Outlined 变形 + 选中态）：48dp 触控高、12dp 圆角、1dp 描边； 未选中 = 中性文字 / 透明底，选中 = 极光淡色容器 +
+ * 极光描边与内容（2.0.1 定稿 §2 批② 全 App 统一选中语言；2.0.2 §D5 批② 起域色退出选中槽位）。
  */
 @Composable
 private fun DetailLabeledButton(
@@ -386,16 +386,25 @@ private fun DetailLabeledButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
     val contentColor =
         when {
             !enabled -> colors.onSurfaceFaint.copy(alpha = colors.disabledAlpha)
-            selected -> media.bright
+            selected -> navSelectedContent(colors)
             else -> colors.onSurfaceVariant
         }
-    val containerColor = if (selected && enabled) media.container else Color.Transparent
-    val borderColor = if (selected && enabled) media.outline else colors.outline
+    val containerColor =
+        if (selected && enabled) {
+            colors.aurora1.copy(alpha = CinefinTokens.MediaContainerAlpha)
+        } else {
+            Color.Transparent
+        }
+    val borderColor =
+        if (selected && enabled) {
+            colors.aurora1.copy(alpha = CinefinTokens.MediaOutlineAlpha)
+        } else {
+            colors.outline
+        }
     Row(
         modifier =
             modifier
@@ -540,7 +549,7 @@ private fun DetailHeroActionButtons(
 
 /**
  * hero 键（图标上 / 文字下，64dp）：[emphasized] = 播放键（一级 CTA）极光渐变实底 + `onAurora` 内容 + `auroraGlow` 投影（2.0.1
- * 定稿 §2 批②；禁用时回落中性实底）；其余三键 = 1dp 描边 Outlined，选中（已播放 / 收藏 / 已下载）走当前域容器 + 强调色。
+ * 定稿 §2 批②；禁用时回落中性实底）；其余三键 = 1dp 描边 Outlined，选中（已播放 / 收藏 / 已下载）走极光淡色容器 + 极光描边与内容。
  */
 @Composable
 private fun HeroActionKey(
@@ -552,7 +561,6 @@ private fun HeroActionKey(
     modifier: Modifier = Modifier,
     emphasized: Boolean = false,
 ) {
-    val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
     // 一级 CTA（播放）= 极光渐变实底 + onAurora 内容 + auroraGlow 投影；禁用时回落中性实底。
     val gradientFill = emphasized && enabled
@@ -560,19 +568,19 @@ private fun HeroActionKey(
         when {
             !enabled -> colors.onSurfaceFaint.copy(alpha = colors.disabledAlpha)
             emphasized -> colors.onAurora
-            selected -> media.bright
+            selected -> navSelectedContent(colors)
             else -> colors.onSurfaceVariant
         }
     val containerColor =
         when {
             emphasized -> if (enabled) Color.Transparent else colors.onSurface
-            selected && enabled -> media.container
+            selected && enabled -> colors.aurora1.copy(alpha = CinefinTokens.MediaContainerAlpha)
             else -> Color.Transparent
         }
     val borderColor =
         when {
             emphasized -> Color.Transparent
-            selected && enabled -> media.outline
+            selected && enabled -> colors.aurora1.copy(alpha = CinefinTokens.MediaOutlineAlpha)
             else -> colors.outline
         }
     Column(

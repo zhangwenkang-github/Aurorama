@@ -44,7 +44,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
-import com.zhangwenkang.cinefin.core.presentation.theme.MediaColors
 import com.zhangwenkang.cinefin.core.presentation.theme.auroraGradient
 
 internal data class CinefinCardColors(
@@ -55,14 +54,15 @@ internal data class CinefinCardColors(
 internal fun resolveCardColors(
     state: CinefinInteractionState,
     selected: Boolean,
-    media: MediaColors,
     colors: CinefinColors,
 ): CinefinCardColors {
     val container =
         when {
             // 2.0.1 定稿 §2 批②：选中 = 全 App 统一选中语言（极光淡色容器），不再取域媒体色。
             selected -> navSelectedFill(colors)
-            state == CinefinInteractionState.Pressed -> media.container
+            // 2.0.2 §D5 批②：按下状态层同归极光（0.24 按下档），域色退出卡片交互槽位。
+            state == CinefinInteractionState.Pressed ->
+                colors.aurora1.copy(alpha = CinefinTokens.MediaContainerPressedAlpha)
             else -> colors.surfaceContainer
         }
     val border =
@@ -70,7 +70,8 @@ internal fun resolveCardColors(
             selected -> colors.aurora1
             state == CinefinInteractionState.Hover ||
                 state == CinefinInteractionState.Focused ||
-                state == CinefinInteractionState.Pressed -> media.outline
+                state == CinefinInteractionState.Pressed ->
+                colors.aurora1.copy(alpha = CinefinTokens.MediaOutlineAlpha)
             else -> colors.outline
         }
     return CinefinCardColors(container, border)
@@ -79,8 +80,8 @@ internal fun resolveCardColors(
 /**
  * Cinefin 基础卡片（§8.4）：1dp 描边 + 顶部内高光，圆角 16dp，`elevation = 0`。
  *
- * 卡片本身不铺媒体色底；选中 = 极光淡色容器（[navSelectedFill]）+ `aurora1` 描边（全 App 单套选中语义），悬停只改变描边，按下用
- * `Media.Container` 状态层。
+ * 卡片本身不铺媒体色底；选中 = 极光淡色容器（[navSelectedFill]）+ `aurora1` 描边（全 App 单套选中语义），悬停 / 聚焦 / 按下只改变描边，按下用
+ * `aurora1@24%` 状态层。
  */
 @Composable
 fun CinefinCard(
@@ -93,7 +94,6 @@ fun CinefinCard(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
     val hovered by interactionSource.collectIsHoveredAsState()
     val focused by interactionSource.collectIsFocusedAsState()
@@ -105,7 +105,7 @@ fun CinefinCard(
             hovered -> CinefinInteractionState.Hover
             else -> CinefinInteractionState.Default
         }
-    val target = resolveCardColors(state, selected, media, colors)
+    val target = resolveCardColors(state, selected, colors)
     val spec = tween<Color>(durationMillis = CinefinMotion.Fast, easing = CinefinMotion.Standard)
     val containerColor by
         animateColorAsState(
@@ -254,7 +254,7 @@ fun CinefinWideCard(
     }
 }
 
-/** 列表行（§8.4 / §8.5）：双行 88dp / 单行 72dp；当前行用 `Media.Container` 横向渐变， 序号与主文字保持中性，不引入独立色块。 */
+/** 列表行（§8.4 / §8.5）：双行 88dp / 单行 72dp；当前行用 `aurora1@16%` 横向渐变， 序号与主文字保持中性，不引入独立色块。 */
 @Composable
 fun CinefinListRow(
     title: String,
@@ -279,13 +279,13 @@ fun CinefinListRow(
      */
     titleColor: Color? = null,
 ) {
-    val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
+    val currentRowFill = colors.aurora1.copy(alpha = CinefinTokens.MediaContainerAlpha)
     val brush =
         if (isCurrent) {
             Brush.horizontalGradient(
-                0f to media.container,
-                1f to media.container.copy(alpha = 0f),
+                0f to currentRowFill,
+                1f to currentRowFill.copy(alpha = 0f),
             )
         } else {
             null

@@ -39,11 +39,11 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
+import com.zhangwenkang.cinefin.core.presentation.theme.MediaAurora
 import com.zhangwenkang.cinefin.core.presentation.theme.MediaColors
 import com.zhangwenkang.cinefin.core.presentation.theme.auroraGradient
 
-/** 按钮四种变形（§8.1）：媒体色融入底 / 描边 / 文字 / 图标，不做独立色块。 */
+/** 按钮四种变形（§8.1）：极光 / 中性色进入底、描边、文字、图标，不做独立色块。 */
 enum class CinefinButtonVariant {
     Filled,
     Outlined,
@@ -59,10 +59,11 @@ enum class CinefinButtonSize {
 }
 
 /**
- * 按钮色调（§8.1 + 2.0.1 定稿 §2 批②）：
+ * 按钮色调（§8.1 + 2.0.1 定稿 §2 批② + 2.0.2 §D5 批②）：
  * - [Aurora]：**一级 CTA 唯一色调**——100° 极光渐变实底 + `onAurora` 内容 + `auroraGlow` 投影（播放 / 继续播放 / 播放全部 /
  *   传输主键）；
- * - [Media]：当前域媒体色（默认）。2.0.1 起收缩为仅「域身份」场景可用（域徽标等极小面积），**交互 CTA 一律用 [Aurora]**；
+ * - [Media]：默认色调。2.0.2 §D5 批② 起域媒体色已退出按钮交互槽位，本色调解析为**极光实底**（`aurora1` + `onAurora`，无渐变 / 无光晕），即二级
+ *   CTA 与一级 [Aurora] 同一色相、低一档权重；色调名保留只为不动既有调用点；
  * - [Inverse]：反色高对比面，月白底 + 深色内容（A 稿 `.btn.primary`），其余状态、描边、禁用逻辑与 [Media] 一致。
  *
  * [Aurora] 只在 [CinefinButtonVariant.Filled] 下生效；与 Outlined / Text / Icon 组合时回退为 [Media]
@@ -120,10 +121,16 @@ internal data class CinefinButtonColors(
     val border: Color,
 )
 
+/**
+ * 按钮颜色解析（§8.1 五态 × 四变形 × 三色调）。
+ *
+ * 2.0.2 §D5 批② 起域媒体色退出按钮交互槽位：填充底 / 按下层 / 描边 / 内容一律归极光（`aurora1` / `navSelectedContent`）。 [media]
+ * 形参已不参与解析，保留默认值只为不动既有（含守卫测试的命名实参）调用点。
+ */
 internal fun resolveButtonColors(
     variant: CinefinButtonVariant,
     state: CinefinInteractionState,
-    media: MediaColors,
+    @Suppress("UNUSED_PARAMETER") media: MediaColors = MediaAurora,
     colors: CinefinColors,
     tone: CinefinButtonTone = CinefinButtonTone.Media,
 ): CinefinButtonColors {
@@ -163,60 +170,68 @@ internal fun resolveButtonColors(
         return CinefinButtonColors(colors.aurora1, colors.onAurora, Color.Transparent)
     }
 
+    val selectedFill = colors.aurora1.copy(alpha = CinefinTokens.MediaContainerAlpha)
+    val selectedOutline = colors.aurora1.copy(alpha = CinefinTokens.MediaOutlineAlpha)
     return when (variant) {
         CinefinButtonVariant.Filled -> {
-            val base = if (state == CinefinInteractionState.Pressed) media.dim else media.base
+            // 2.0.2 §D5 批②：填充底归极光实色（与 Aurora tone 同色相、无渐变），悬停 / 按下叠状态层。
             val container =
-                if (state == CinefinInteractionState.Hover) {
-                    colors.stateHover.compositeOver(base)
-                } else {
-                    base
+                when (state) {
+                    CinefinInteractionState.Pressed ->
+                        colors.statePressed.compositeOver(colors.aurora1)
+                    CinefinInteractionState.Hover -> colors.stateHover.compositeOver(colors.aurora1)
+                    else -> colors.aurora1
                 }
-            CinefinButtonColors(container, media.onBase, Color.Transparent)
+            CinefinButtonColors(container, colors.onAurora, Color.Transparent)
         }
         CinefinButtonVariant.Outlined -> {
             val container =
                 when (state) {
                     CinefinInteractionState.Hover -> colors.stateHover
-                    CinefinInteractionState.Pressed -> media.container
+                    CinefinInteractionState.Pressed -> selectedFill
                     else -> Color.Transparent
                 }
             val border =
                 when (state) {
                     CinefinInteractionState.Hover,
-                    CinefinInteractionState.Pressed -> media.base
-                    else -> media.outline
+                    CinefinInteractionState.Pressed -> colors.aurora1
+                    else -> selectedOutline
                 }
-            CinefinButtonColors(container, media.bright, border)
+            CinefinButtonColors(container, navSelectedContent(colors), border)
         }
         CinefinButtonVariant.Text -> {
             val container =
                 when (state) {
                     CinefinInteractionState.Hover -> colors.stateHover
-                    CinefinInteractionState.Pressed -> media.container
+                    CinefinInteractionState.Pressed -> selectedFill
                     else -> Color.Transparent
                 }
-            CinefinButtonColors(container, media.bright, Color.Transparent)
+            CinefinButtonColors(container, navSelectedContent(colors), Color.Transparent)
         }
         CinefinButtonVariant.Icon -> {
             val container =
                 when (state) {
                     CinefinInteractionState.Hover -> colors.stateHover
-                    CinefinInteractionState.Pressed -> media.container
+                    CinefinInteractionState.Pressed -> selectedFill
                     else -> Color.Transparent
                 }
-            val content = if (state == CinefinInteractionState.Pressed) media.base else media.bright
+            val content =
+                if (state == CinefinInteractionState.Pressed) {
+                    colors.aurora1
+                } else {
+                    navSelectedContent(colors)
+                }
             CinefinButtonColors(container, content, Color.Transparent)
         }
     }
 }
 
 /**
- * Cinefin 基础按钮（§8.1 + 2.0.1 定稿 §2 批②）。
+ * Cinefin 基础按钮（§8.1 + 2.0.1 定稿 §2 批② + 2.0.2 §D5 批②）。
  *
- * 默认（[CinefinButtonTone.Media]）媒体色直接进入按钮本体：Filled 用 `Media.Base` 底 + `Media.OnBase` 内容，Outlined 用
- * `Media.Outline` 描边 + `Media.Bright` 内容，Text / Icon 用 `Media.Bright` 着色；按下用 `Media.Dim` /
- * `Media.Container`，聚焦为 2dp 外环，禁用统一 38% 不透明度。
+ * 默认（[CinefinButtonTone.Media]）色调全走极光：Filled 用 `aurora1` 实底 + `onAurora` 内容（按下叠 `statePressed` 层），
+ * Outlined 用 `aurora1@45%` 描边 + [navSelectedContent] 内容，Text / Icon 用 [navSelectedContent] 着色、按下铺
+ * `aurora1@16%`，聚焦环恒 `aurora1@60%`，禁用统一 38% 不透明度；域媒体色不再进入按钮本体。
  *
  * 一级 CTA 走 [CinefinButtonTone.Aurora]（仅 Filled）：100° 极光渐变实底 + `onAurora` 内容 + `auroraGlow`
  * 投影（6dp、aurora1 28%），按下 / 悬停直接在渐变上叠状态层；除该投影外组件无其它投影、无独立色块。
@@ -232,7 +247,6 @@ fun CinefinButton(
     enabled: Boolean = true,
     icon: (@Composable (tint: Color) -> Unit)? = null,
 ) {
-    val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
@@ -249,7 +263,7 @@ fun CinefinButton(
 
     val isIconOnly = variant == CinefinButtonVariant.Icon
     val shape = CinefinShapes.Button
-    val target = resolveButtonColors(variant, state, media, colors, tone)
+    val target = resolveButtonColors(variant = variant, state = state, colors = colors, tone = tone)
     val spec = tween<Color>(durationMillis = CinefinMotion.Fast, easing = CinefinMotion.Standard)
     // 极光渐变实底只用于「Aurora + Filled + 可用」；禁用态仍走中性禁用色板（resolveButtonColors 的 Disabled 分支）。
     val auroraFill =
@@ -289,9 +303,8 @@ fun CinefinButton(
         )
     val focusRing =
         if (state == CinefinInteractionState.Focused) {
-            // 交互强调（含焦点环）归极光：Aurora tone 用 `aurora1`，其余色调沿用域媒体色。
-            val focusBase = if (tone == CinefinButtonTone.Aurora) colors.aurora1 else media.base
-            focusBase.copy(alpha = CinefinTokens.FocusRingAlpha)
+            // 交互强调（含焦点环）归极光：任何色调都用 `aurora1` 外环。
+            colors.aurora1.copy(alpha = CinefinTokens.FocusRingAlpha)
         } else {
             Color.Transparent
         }
@@ -379,7 +392,7 @@ fun CinefinIconButton(
     )
 }
 
-/** 焦点环：2dp 外环 `Media.Base@60%` + 1dp 间隙（§5.2）。环绘制在布局边界之外，不参与测量。 */
+/** 焦点环：2dp 外环 `aurora1@60%` + 1dp 间隙（§5.2；2.0.2 §D5 批② 起交互强调归极光）。 */
 private fun Modifier.cinefinFocusRing(color: Color, cornerRadius: Dp): Modifier = drawBehind {
     if (color.alpha == 0f) return@drawBehind
     val strokePx = 2.dp.toPx()
