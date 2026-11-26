@@ -24,11 +24,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
+import com.zhangwenkang.cinefin.core.presentation.components.navSelectedContent
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
@@ -355,6 +355,8 @@ private fun DetailHeroTitleColumn(
  * W76-Q1：头图眉标。
  *
  * [onClick] 为空 = 与 W66 完全一致的纯文本（电影 / 节目 / 季页不变）；非空时整块可点并追加 `›` 提示可深入 ——剧集页据此回到所属季。
+ *
+ * 2.0.2 §D5 批②：眉标属文字强调位，归 `navSelectedContent`（深色主题 = `aurora1`，浅色主题 = `auroraInk`），域媒体色退出。
  */
 @Composable
 private fun HeroEyebrow(
@@ -364,7 +366,7 @@ private fun HeroEyebrow(
     modifier: Modifier = Modifier,
 ) {
     val style = CinefinType.LabelLarge.lumenTextShadow(LumenTextShadow.Meta)
-    val color = LocalMediaColors.current.bright
+    val color = navSelectedContent(LocalCinefinColors.current)
     if (onClick == null) {
         Text(text = text, style = style, color = color, textAlign = textAlign, modifier = modifier)
         return

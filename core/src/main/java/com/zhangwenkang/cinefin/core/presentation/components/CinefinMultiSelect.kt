@@ -36,7 +36,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.core.selection.MultiSelectState
 
 /**
@@ -95,8 +94,8 @@ fun Modifier.cinefinSelectable(
 }
 
 /**
- * §8.5 多选勾选指示（20dp）：选中 = `Media.Base` 填充 + `OnBase` 勾；未选中 = scrim 28%（`PlayerGlassAlpha` 口径）+ 白 24%
- * 描边（2.0.2 D4：纯图标控件垫层不再用手写黑底，选中态环维持 aurora1）。
+ * §8.5 多选勾选指示（20dp）：选中 = `aurora1` 填充 + `onAurora` 勾；未选中 = scrim 28%（`PlayerGlassAlpha` 口径）+ 白 24%
+ * 描边（2.0.2 D4：纯图标控件垫层不再用手写黑底；2.0.2 D5 批②：选中态底与勾归极光，与 C4 定稿的多选圆点口径一致）。
  *
  * 卡片（§8.4「左上角已选圆点」）/ 列表行（§8.5 左侧勾选）共用；仅作指示，点击由整行 / 整卡承担。
  */
@@ -106,7 +105,6 @@ fun CinefinSelectIndicator(
     modifier: Modifier = Modifier,
     size: Dp = 20.dp,
 ) {
-    val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
     Box(
         modifier =
@@ -114,7 +112,7 @@ fun CinefinSelectIndicator(
                 .size(size)
                 .clip(CircleShape)
                 .background(
-                    if (selected) media.base
+                    if (selected) colors.aurora1
                     else colors.scrim.copy(alpha = CinefinTokens.PlayerGlassAlpha)
                 )
                 .then(
@@ -127,7 +125,7 @@ fun CinefinSelectIndicator(
             Icon(
                 painter = painterResource(R.drawable.ic_check),
                 contentDescription = null,
-                tint = media.onBase,
+                tint = colors.onAurora,
                 modifier = Modifier.size(size * 0.6f),
             )
         }

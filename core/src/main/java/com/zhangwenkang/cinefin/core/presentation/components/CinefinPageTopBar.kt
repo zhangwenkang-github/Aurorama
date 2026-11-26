@@ -29,15 +29,19 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.utils.cinefinSafeHorizontal
 import com.zhangwenkang.cinefin.core.presentation.utils.cinefinSafeTop
 
 /**
  * 顶层页面共用顶栏（W8-R3 用户反馈 1）：媒体库 / 音乐 / 书架三页共用同一套尺寸与排版。
  *
- * 统一项：**56dp 内容高 + `cinefinSafeTop()`**（2.0.2 D1：由 `statusBarsPadding()` 改为 `safeDrawing` 顶部口径，即状态栏
- * ∪ 挖孔；音乐页原先 72dp 且不带状态栏内边距，顶栏键会被系统状态栏压住，这里根治）、 44dp 图标键（图标 24dp，与首页 `HomeTopBar` 同一语言）、页边距随窗口分级 20
- * / 24 / 32 / 48dp、**一级页面左侧入口 = `ic_logo` app 图标 + `content-desc="打开侧栏"`**（W46：与首页 / 音乐 / 书架 /
- * 媒体库四页统一；二级页面仍用返回键）、标题排版 = 主标题（`TitleLarge`）+ 计数副标题（`BodySmall`）。顶栏不画分隔线，保持干净层次。
+ * 统一项：**56dp 内容高 + `cinefinSafeTop()` + `cinefinSafeHorizontal()`**、44dp 图标键（图标 24dp，与首页
+ * `HomeTopBar` 同一语言）、页边距随窗口分级 20 / 24 / 32 / 48dp、**一级页面左侧入口 = `ic_logo` app 图标 +
+ * `content-desc="打开侧栏"`** （W46：与首页 / 音乐 / 书架 / 媒体库四页统一；二级页面仍用返回键）、标题排版 = 主标题（`TitleLarge`）+
+ * 计数副标题（`BodySmall`）。 顶栏不画分隔线，保持干净层次。
+ *
+ * 2.0.2 D1：安全区由 `statusBarsPadding()` 改为 `safeDrawing` 口径——顶部 = 状态栏 ∪ 挖孔（音乐页原先 72dp 且不带状态栏内边距，
+ * 顶栏键会被状态栏压住，这里根治）；水平侧自吃 Start / End，横屏 ROT90 / ROT270 下搜索 / ⋮ 不压进侧挖孔，调用点无需传参。
  */
 @Composable
 fun CinefinPageTopBar(
@@ -59,6 +63,7 @@ fun CinefinPageTopBar(
             modifier
                 .fillMaxWidth()
                 .cinefinSafeTop()
+                .cinefinSafeHorizontal()
                 .height(56.dp)
                 .padding(start = gutter, end = gutter),
         verticalAlignment = Alignment.CenterVertically,

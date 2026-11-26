@@ -67,7 +67,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.core.presentation.theme.rememberReduceMotionEnabled
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
@@ -565,7 +564,6 @@ private fun CinefinDrawerItem(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
@@ -576,7 +574,6 @@ private fun CinefinDrawerItem(
             neutral = item.neutral,
             hovered = hovered,
             pressed = pressed,
-            media = media,
             colors = colors,
         )
     val content =

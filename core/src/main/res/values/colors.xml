@@ -20,6 +20,8 @@
     <color name="secondary_container_dark">#2a2b2e</color>
     <color name="on_secondary_container_dark">#e8e2d9</color>
 
+    <!-- Surface：窗口底色（浅色页底，与 Compose `AuroraLightSurface` 同值，消冷启动闪色） -->
+    <color name="surface_light">#FAFAFB</color>
 
     <!-- 墨色阶：极光幕的底色分层 -->
     <color name="neutral_1000">#04070D</color>

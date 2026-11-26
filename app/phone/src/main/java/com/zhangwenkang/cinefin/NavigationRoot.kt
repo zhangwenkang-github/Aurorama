@@ -98,6 +98,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinThemes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.rememberReduceMotionEnabled
+import com.zhangwenkang.cinefin.core.presentation.utils.cinefinSafeStart
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadBadgeViewModel
 import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidBoxSet
@@ -1985,9 +1986,12 @@ private fun CinefinSideNavigation(
         modifier =
             // W42：折叠 72dp；W46 展开 168dp；W65：展开改自适应（clamp(30%, 200, 240)dp），折叠轨不变。
             // W3-T2（K1）：底色 = 页面底 bg1 实底（不做实时 blur），只留右缘 1dp glassBorder 发丝线。
-            Modifier.width((if (expanded) expandedWidthDp else RAIL_COLLAPSED_WIDTH_DP).dp)
-                .fillMaxHeight()
+            // 2.0.2 D1：贴左缘的侧轨自吃 `safeDrawing` Start——横屏 ROT270（挖孔落到左侧）时条目不再压进挖孔；
+            // 底色铺在 inset 外层，挖孔一条窄带仍是侧轨底，不会露页面色。内容页统一 `handleStartInsets = false`，不会双层避让。
+            Modifier.fillMaxHeight()
                 .background(colors.surface)
+                .cinefinSafeStart()
+                .width((if (expanded) expandedWidthDp else RAIL_COLLAPSED_WIDTH_DP).dp)
                 .drawBehind {
                     val stroke = 1.dp.toPx()
                     drawRect(

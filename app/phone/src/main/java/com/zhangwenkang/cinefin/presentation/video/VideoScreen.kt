@@ -61,7 +61,6 @@ import com.zhangwenkang.cinefin.core.presentation.dummy.dummyCollections
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
 import com.zhangwenkang.cinefin.film.presentation.detail.MediaBatchPrecheck
@@ -379,7 +378,7 @@ private fun VideoScreenLayout(
                 TopBarAction(
                     icon = FilmR.drawable.ic_video_sleep,
                     contentDescription = stringResource(FilmR.string.video_sleep_timer),
-                    tint = if (sleepTimerState.active) LocalMediaColors.current.bright else null,
+                    tint = if (sleepTimerState.active) LocalCinefinColors.current.aurora1 else null,
                     onClick = { showSleepTimer = true },
                 )
                 // W75 #13：全页搜索入口——与媒体库页顶栏同款图标，点击进入现有搜索流程。

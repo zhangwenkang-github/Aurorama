@@ -67,3 +67,18 @@ fun rememberSafePadding(handleStartInsets: Boolean = true): SafePadding {
 @Composable
 fun Modifier.cinefinSafeTop(): Modifier =
     this.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
+
+/**
+ * 水平安全区（2.0.2 D1）：`safeDrawing` 的 Start + End 边，供贴窗口左右边缘的组件自吃。
+ *
+ * 横屏 ROT90 / ROT270 下侧挖孔分别落在右 / 左，两条边都要避让。与 `rememberSafePadding()` 同源（同为 `safeDrawing`）， 差别是它按
+ * inset 方式**消费**：嵌套子组件再读水平 inset 时为 0，组件与页面各自避让时不会叠成双层留白。
+ */
+@Composable
+fun Modifier.cinefinSafeHorizontal(): Modifier =
+    this.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
+
+/** 起始边安全区（2.0.2 D1）：`safeDrawing` 的 Start 边，供侧轨等贴左缘容器避让侧挖孔。 */
+@Composable
+fun Modifier.cinefinSafeStart(): Modifier =
+    this.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Start))

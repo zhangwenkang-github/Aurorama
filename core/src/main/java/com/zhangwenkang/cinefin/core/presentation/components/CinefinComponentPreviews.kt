@@ -44,11 +44,11 @@ private fun PreviewIcon(tint: Color) {
     }
 }
 
+/** 导航图标选中色：与 App 侧 `navIconTint` 同口径（选中 = [navSelectedContent]，其余 `OnSurfaceVariant`）。 */
 @Composable
 private fun navIconTint(selected: Boolean): Color {
-    val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
-    return if (selected) media.bright else colors.onSurfaceVariant
+    return if (selected) navSelectedContent(colors) else colors.onSurfaceVariant
 }
 
 private fun previewNavItems(): List<CinefinNavItem> =
@@ -115,7 +115,8 @@ private fun CinefinButtonDomainsPreview() {
                 CinefinTheme(domain = domain, surfaceBackground = false) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            text = "${domain.name} · 当前域媒体色",
+                            // 2.0.2 §D5 批②：按钮交互槽位已归极光，域媒体色不再参与按钮本体。
+                            text = "${domain.name} · 按钮统一极光",
                             style = CinefinType.LabelMedium,
                             color = LocalCinefinColors.current.onSurfaceVariant,
                         )
@@ -138,7 +139,6 @@ private fun stateLabel(state: CinefinInteractionState): String =
 
 @Composable
 private fun ButtonStateMatrixContent() {
-    val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
     Column(
         modifier = Modifier.fillMaxSize().padding(20.dp),
@@ -152,7 +152,8 @@ private fun ButtonStateMatrixContent() {
         CinefinButtonVariant.entries.forEach { variant ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CinefinInteractionState.entries.forEach { state ->
-                    val resolved = resolveButtonColors(variant, state, media, colors)
+                    val resolved =
+                        resolveButtonColors(variant = variant, state = state, colors = colors)
                     val shape = CinefinShapes.Button
                     val focused = state == CinefinInteractionState.Focused
                     Box(
@@ -164,7 +165,10 @@ private fun ButtonStateMatrixContent() {
                                     width = if (focused) 2.dp else 1.dp,
                                     color =
                                         if (focused) {
-                                            media.base.copy(alpha = CinefinTokens.FocusRingAlpha)
+                                            // 2.0.2 §D5 批②：交互强调（含焦点环）归极光。
+                                            colors.aurora1.copy(
+                                                alpha = CinefinTokens.FocusRingAlpha
+                                            )
                                         } else {
                                             resolved.border
                                         },
@@ -222,8 +226,11 @@ private fun CardPreviewContent() {
             title = "当前播放",
             secondary = "影视域 · 琥珀",
             isCurrent = true,
-            trailing = { PreviewIcon(media.bright) },
+            // 当前条目强调走极光（与 App 侧歌曲行 `titleColor = aurora1` / 收藏图标同口径）。
+            titleColor = colors.aurora1,
+            trailing = { PreviewIcon(colors.aurora1) },
             leading = {
+                // 域身份位：缩略图占位沿用域媒体色。
                 Box(
                     modifier =
                         Modifier.size(46.dp).clip(CinefinShapes.Xs).background(media.container)

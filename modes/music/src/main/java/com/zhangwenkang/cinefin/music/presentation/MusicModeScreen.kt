@@ -152,6 +152,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.core.presentation.theme.auroraGradient
+import com.zhangwenkang.cinefin.core.presentation.utils.cinefinSafeHorizontal
 import com.zhangwenkang.cinefin.core.selection.MultiSelectState
 import com.zhangwenkang.cinefin.music.R
 import com.zhangwenkang.cinefin.music.data.MusicAlbum
@@ -535,7 +536,10 @@ fun MusicModeScreen(
     ) {
         val colors = LocalCinefinColors.current
         Box(modifier = modifier.fillMaxSize().background(colors.surface)) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            // 2.0.2 D1：音乐页此前完全不吃安全区，横屏侧挖孔会压住顶栏右侧动作键与内容。
+            // 水平向自吃 `safeDrawing`（Start + End，ROT90 / ROT270 两侧都覆盖）；按 inset 消费，
+            // 内层 `CinefinPageTopBar` 再读水平 inset 为 0，不会双层留白。
+            Column(modifier = Modifier.fillMaxSize().cinefinSafeHorizontal()) {
                 MusicHeader(
                     state = state,
                     sleepState = sleepState,

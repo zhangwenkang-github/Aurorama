@@ -23,9 +23,9 @@
         <item name="colorSecondaryContainer">@color/secondary_container_dark</item>
         <item name="colorOnSecondaryContainer">@color/on_secondary_container_dark</item>
 
-        <!-- Surface：日间窗口底色与 Compose 页底（light surface #FAFAFB）同色，消冷启动闪色 -->
-        <item name="android:colorBackground">#FAFAFB</item>
-        <item name="android:windowBackground">#FAFAFB</item>
+        <!-- Surface：日间窗口底色与 Compose 页底（light surface）同色，消冷启动闪色；值走 colors.xml token，不写字面量 -->
+        <item name="android:colorBackground">@color/surface_light</item>
+        <item name="android:windowBackground">@color/surface_light</item>
         <item name="colorSurface">@color/neutral_950</item>
         <item name="colorSurfaceContainer">?attr/colorSurface</item>
         <item name="colorSurfaceContainerLow">?attr/colorSurface</item>

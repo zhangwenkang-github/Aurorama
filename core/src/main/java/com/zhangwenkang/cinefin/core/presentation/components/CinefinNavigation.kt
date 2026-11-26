@@ -41,10 +41,9 @@ import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
-import com.zhangwenkang.cinefin.core.presentation.theme.MediaColors
 import com.zhangwenkang.cinefin.core.presentation.theme.auroraGradient
 import com.zhangwenkang.cinefin.utils.DownloadControlPlaneRules
 
@@ -144,7 +143,6 @@ fun CinefinNavigationItem(
     /** 条目圆角（与外壳一致；K1 定稿 `CinefinShapes.Button`）。 */
     shape: Shape = CinefinShapes.Button,
 ) {
-    val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
@@ -155,7 +153,6 @@ fun CinefinNavigationItem(
             neutral = item.neutral,
             hovered = hovered,
             pressed = pressed,
-            media = media,
             colors = colors,
         )
     val content =
@@ -382,18 +379,21 @@ fun CinefinCountBadge(
     }
 }
 
-/** 导航条目底色：K1 离散选中语言（选中 = `aurora1` 低透明度 pill）；按压 / 悬停沿用既有状态层。 */
+/**
+ * 导航条目底色：K1 离散选中语言（选中 = `aurora1` 低透明度 pill）；悬停沿用既有状态层；按下 = 极光按下档 `aurora1@24%`（2.0.2 §D5
+ * 批②：域媒体色退出导航交互槽位；与 `CinefinCard` / `CinefinFilterChip` 的按下层同款）。
+ */
 @Composable
 internal fun navItemContainerColor(
     selected: Boolean,
     neutral: Boolean,
     hovered: Boolean,
     pressed: Boolean,
-    media: MediaColors = LocalMediaColors.current,
     colors: CinefinColors = LocalCinefinColors.current,
 ): Color =
     when {
-        pressed && (selected || !neutral) -> media.containerPressed
+        pressed && (selected || !neutral) ->
+            colors.aurora1.copy(alpha = CinefinTokens.MediaContainerPressedAlpha)
         pressed -> colors.statePressed
         selected -> navSelectedFill(colors)
         hovered -> colors.stateHover
