@@ -37,6 +37,7 @@
 - 服务器写测试只用用户指定的独立可写测试服务器；凭据位置 `F:\Develop\codex_work\Documents\Codex\资源.txt`，值不得进仓库/日志/报告/记忆。
 - 设备：禁止 `pm clear`/卸载/降级；禁止改系统设置。K60=`8e875894`，Pad=`43af8627`。
 - push/tag/Release 需用户授权（本次 1.4.1 与 v2-integration 已授权除外）。
+- **发布纪律（2026-11-26 用户拍板）**：新版发布前必须先把发布分支合并/对齐回 master 主分支，再打 tag、建 Release。
 
 ## 环境
 

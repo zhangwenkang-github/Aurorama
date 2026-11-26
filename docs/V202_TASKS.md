@@ -1,9 +1,11 @@
 # 2.0.2 任务卡台账
 
 <!-- V202_STATUS_BEGIN -->
-> **当前状态（2026-11-26）**：**W0 DONE + C1 DONE**——分支 `codex/v2.0.2`（基线 2.0.1 tip `91912da8`）；设计定稿 `docs/V202_DESIGN.md`（用户批准 + 当日补充裁定：黑底清理含播放器控件）；C1 U1 热修 `a3ed8f5d`：`UpdateRepositoryImpl.download()` 新增 `persistedTransfer()`——transfer 缺失/不匹配时读 `loadDiscoveredRelease()`、`stableUpdateId` 匹配则 `beginDownload` 重建；新增 3 单测（仅 release 无 transfer / 皆无仍 STATE_ERROR / 陈旧 transfer 按新 release 重建）；门禁 :data 533 测 0 败 + ktfmt + assembleLibreDebug 全绿；K60 真机：点击前仅 release.json 无 transfer.json（死锁前置实锤）→ 点击后 transfer.json 重建、83MB 全量落盘、进入校验——**死锁链真机走通**；安装器弹窗未验（debug 包名后缀触发 PACKAGE_MISMATCH，固有限制非缺陷；release 无 AVAILABLE、降版本属红线，以 2.0.1 E2E 证据链佐证）。
-> **下一卡**：C2 = D5 批① XML 主题层清零（卡内容见下表）。
-> **LATER 登记**：`beginDownload` 重建分支不回收旧 release 的 `.part`/`.apk`（既有行为，C1 实测陈旧 1.3.0 part 残留），列 C8 台账残留登记表或后续小卡。
+> **当前状态（2026-11-26）**：**W0 + C1 + C2 DONE**——分支 `codex/v2.0.2`（基线 2.0.1 tip `91912da8`）；设计定稿 `docs/V202_DESIGN.md`（用户批准 + 补充裁定×2：黑底清理含播放器控件、图标垫层减重）；C1 U1 热修 `a3ed8f5d`：`UpdateRepositoryImpl.download()` 新增 `persistedTransfer()`——transfer 缺失/不匹配时 `stableUpdateId` 匹配则 `beginDownload` 重建；3 单测；K60 死锁链真机走通（重建→83MB 全量落盘→进校验）；安装器弹窗未验（debug 包名固有限制）。C2 XML 主题层清零 `2440ccf6`：橙→极光青全档（primary/container/on* day+night）、neutral_1000–800 对齐 Compose bg 阶、8 死 token 删除（gold_300/yellow/blue_*/green_* 全仓 XML+Kotlin 双向 grep 零引用）、day/night colorBackground+windowBackground 对齐 Compose 页底（消冷启动闪色）、播放器 XML 色对齐玻璃系（`player_background` 经核为叠视频半透明层，保 `AA` 改 `#AA0A101C`）；`activity_player.xml` 经核有 databinding 引用保留；门禁 assembleLibreDebug + ktfmtCheck + :core 单测全绿；K60：冷启动帧 `#080D17` 93.5%、旧橙命中 0.000%、Switch 开态 `#3DE8C2`、播放器 HUD 20 控件正常 ✅。
+> **下一卡**：C3 = D1 安全区统一（卡内容见下表）。
+> **用户确认（2026-11-26）**：「关自动旋转横置不转」手动验证通过，观察项核销。
+> **补充裁定（2026-11-26 用户，图标垫层减重）**：D4 纯图标控件垫层 = scrim 28%（`PlayerGlassAlpha` 口径）+ `glassBorder` 细描边；含文字徽章维持 `glass` 58%（详见 V202_DESIGN.md D4）。
+> **LATER 登记**：`beginDownload` 重建分支不回收旧 release 的 `.part`/`.apk`（既有行为，C1 实测陈旧 1.3.0 part 残留），列 C8 台账残留登记表或后续小卡；`header_gradient.xml` 死 drawable（全仓零引用，C2 发现）与 windowBackground 字面量 token 化，列 C8/D6 台账；测试服 TLS `-0x7280` 致 C2 播放链路未通，播放器动态态（进度条/HUD 动态、Exo「重试」文字色=批②点位）待测试服恢复补验。
 > **红线**：生产服 `jellyfins.zhangwenkang.com` 永久只读；服务器写只在测试服验证；push/tag/Release 需用户授权。
 <!-- V202_STATUS_END -->
 
@@ -22,9 +24,9 @@
 | 卡 | 状态 | 内容 | 验收 |
 |---|---|---|---|
 | C1 | DONE（`a3ed8f5d`） | **U1 更新下载死锁热修**：`persistedTransfer()`——transfer 缺失/不匹配时读 `loadDiscoveredRelease()`，`stableUpdateId` 匹配则 `beginDownload` 重建后续原流程；READY_FOR_VERIFICATION 短路径与 cancel/check 语义未动；新增 3 单测。留档：安装器弹窗真机未验（debug 包名 PACKAGE_MISMATCH 固有限制）；旧 release `.part` 残留=既有行为，登记 LATER | :data 533 测 0 败 + ktfmt + assemble 绿；K60：死锁前置实锤（仅 release.json）→ 重建 → 83MB 全量落盘 → 进校验 ✅ |
-| C2 | TODO | **D5 批① XML 主题层清零**：`colors.xml` 橙→极光、neutral 阶对齐 bg 阶、删死 token、`themes.xml`/night 同步、window 底色对齐、`activity_player.xml` 死资源核查清理、`player_background`/`player_hud_background` 对齐玻璃色系 | assemble + ktfmt 绿；K60：系统对话框/开关/涟漪无橙、冷启动无闪色、播放器 HUD 正常 |
+| C2 | DONE（`2440ccf6`） | **D5 批① XML 主题层清零**：`colors.xml` 橙→极光、neutral 阶对齐 bg 阶、删死 token、`themes.xml`/night 同步、window 底色对齐、`activity_player.xml` 死资源核查（有 databinding 引用→保留）、`player_background`/`player_hud_background` 对齐玻璃色系 | assemble + ktfmt + :core 单测绿 ✅；K60：冷启动 `#080D17`/旧橙 0.000%、Switch 开态 `#3DE8C2`、HUD 20 控件正常 ✅；留档：测试服 TLS 未通，动态态补验 |
 | C3 | TODO | **D1 安全区统一**：`rememberSafePadding` 下沉 core + `Modifier.cinefinSafeTop()`；`CinefinPageTopBar` 换 safeDrawing 口径；搜索页/冷启动品牌页补顶部；阅读器控制层挖孔核查 | 单测+assemble 绿；K60 竖屏+横屏各页顶栏不压状态栏/挖孔（uiautomator 坐标取证） |
-| C4 | TODO | **D4 黑底清理**：BaseBadge / ItemTopBar / CinefinSelectIndicator / 播放器图标键背板+缓冲背板+跳过 chip+字幕提示 chip / 桌面歌词写死色 → 全走 glass/glassBorder token；`DesignTokenConsistencyTest` 加 `Color.Black.copy` 守卫 | core+phone 单测绿（含新守卫）；K60：海报徽标/详情返回键/多选圆点/播放器控件无黑块、浅封面可读 |
+| C4 | TODO | **D4 黑底清理**：BaseBadge（58% 文字徽章）/ ItemTopBar / CinefinSelectIndicator / 播放器图标键背板+缓冲背板+跳过 chip+字幕提示 chip（纯图标控件 scrim 28%+glassBorder，2026-11-26 用户补充裁定）/ 桌面歌词写死色 → 全走 glass/glassBorder token；`DesignTokenConsistencyTest` 加 `Color.Black.copy` 守卫 | core+phone 单测绿（含新守卫）；K60：海报徽标/详情返回键/多选圆点/播放器控件无黑块、浅封面可读 |
 | C5 | TODO | **D5 批② Compose 黄橙清零**：加载圈/进度条/选中态归极光，`DownloadRows` 等逐点裁定，`LumenSurface` 光晕改极光系；`UI_DESIGN_SYSTEM.md` 域色表勘误 | 单测+assemble 绿；K60 首页/详情/下载/搜索无黄橙违和（文本+抽查像素取证） |
 | C6 | TODO | **D2 音乐头部重排**：core 新建 `CinefinLibraryTabs`；音乐页两行收敛（顶栏图标收 ⋮、标签行 + 库 chip + ⋮、播放全部降 36dp 紧凑工具行）；`MusicPrimaryToolbarLayout` 及其单测更新/退役 | core+music 单测绿；K60：5 tab 横滑/选中指示条/⋮菜单全项/播放全部起播回归 |
 | C7 | TODO | **D2 书籍/库头部 + D3 最近阅读入流**：书籍/库页两行收敛（删独立工具行）；最近阅读/本地书籍改 grid header item 随滚动；`LibraryScreen` headerContent 插槽机制改 grid item；视频库页连带统一；W6 基线文档更新 | app/phone 单测绿；K60：书架滚动时最近阅读随动、空态零占位、tab/排序/视图切换回归 |

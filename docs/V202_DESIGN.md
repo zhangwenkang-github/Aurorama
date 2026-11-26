@@ -3,6 +3,7 @@
 > 状态：定稿（2026-11-26，用户批准方案 + 当日补充裁定）｜分支 `codex/v2.0.2`（基线 `codex/v2.0.1` tip `91912da8`）
 > 性质：**设计决策文档**。deepseek 子代理按本文件实现，零设计自由裁量；与代码冲突时以本文件为准。
 > 补充裁定（2026-11-26 用户）：黑底清理范围**包括播放器控件**（D4 已并入）。
+> 补充裁定（2026-11-26 用户，图标垫层减重）：图上**纯图标控件**（无文字 glyph：返回/⋮/多选圆点/播放器图标键）垫层 = 更透玻璃（scrim 28%，即 `PlayerGlassAlpha` 口径）+ `glassBorder` 细描边；**含文字徽章**（`BaseBadge` 等）维持 `glass` 58% 填充保文字对比。**不取消填充**——纯描边框不出图标笔画，浅/复杂封面上 glyph 仍会糊。
 > 总原则一句话：**域色 = 身份，极光 = 行动，玻璃 = 图上控件唯一垫层**（沿用 2.0.1 定稿，新增玻璃裁定）。
 
 ## 0. 诊断依据（已全部在 2.0.1 代码核实）
@@ -41,9 +42,9 @@
 
 裁定：图上控件/徽标需要垫层保可读性，但**一律走 `colors.glass` + `glassBorder`，全仓禁止新写 `Color.Black.copy`**；既有手写黑底全部清除：
 
-- `BaseBadge` 默认容器 黑62% → `glass`（评分徽标维持极光淡色 pill 不动）。
-- `ItemTopBar.OverlayIconAction` 黑60% → `glass` + `glassBorder`。
-- `CinefinSelectIndicator` 未选中 黑55% → `glass` + 白 24% 描边。
+- `BaseBadge` 默认容器 黑62% → `glass`（58% 填充：文字徽章需保文字对比；评分徽标维持极光淡色 pill 不动）。
+- `ItemTopBar.OverlayIconAction` 黑60% → 纯图标控件减重：scrim 28%（`PlayerGlassAlpha` 口径）+ `glassBorder` 细描边（2026-11-26 用户补充裁定）。
+- `CinefinSelectIndicator` 未选中 黑55% → scrim 28% + 白 24% 描边（选中态环维持 aurora1）。
 - **播放器控制层（2026-11-26 用户补充裁定纳入）**：
   - `PlayerIconButton` 手写玻璃 28%/44% → 读 `glass`/`glassBorder` token；
   - 缓冲转圈背板 黑45%、跳过片段 chip 黑80%、字幕提示 chip `0x66000000` → 同口径 token 化；

@@ -39,14 +39,14 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 连接层 | 🟢 W31 完成；遗留 `fix/w31-trust-session-reuse` 分支待合并 | `docs/ARCHITECTURE.md` §5.4 |
 | 投屏/同步观看 | ⛔ 投屏未开始（LATER）；SyncPlay 为 SHOULD（W4 评估） | `docs/V2_REQUIREMENTS.md` §9.5 |
 | 维护/缺陷修复 → 2.0.1 | 🟢 **已发布**（2026-11-26，用户授权）：分支 `codex/v2.0.1`、tag `v2.0.1`（@`d463e64b`）、master 强推对齐 `312209a6`、GitHub Release 双 APK（发布后重下载 SHA-256 复核一致）；K60 升级 E2E：AVAILABLE+更新说明渲染 ✅ | `docs/V201_TASKS.md` |
-| UI 重构/热修 → 2.0.2 | 🟡 **进行中**（2026-11-26 开工，分支 `codex/v2.0.2`）：W0 DONE（分支+设计定稿+台账）、C1 U1 热修 DONE（`a3ed8f5d`，K60 死锁链走通）；下一卡 C2=XML 主题层清零；范围=音乐/书籍头部轻量标签化、最近阅读入流、图标黑底改主题玻璃（含播放器控件）、黄橙清零、状态栏/挖孔全局避让、颜色+图标台账 | `docs/V202_TASKS.md` · `docs/V202_DESIGN.md` |
+| UI 重构/热修 → 2.0.2 | 🟡 **进行中**（2026-11-26 开工，分支 `codex/v2.0.2`）：W0 DONE、C1 U1 热修 DONE（`a3ed8f5d`，K60 死锁链走通）、**C2 DONE**（`2440ccf6`，XML 主题层清零：橙→极光、neutral 阶对齐、8 死 token 删除、窗口底色消闪色；K60 旧橙 0.000%/HUD 正常）；下一卡 C3=D1 安全区统一；范围=音乐/书籍头部轻量标签化、最近阅读入流、图标黑底改主题玻璃（含播放器控件、纯图标控件垫层减重 28%+细描边）、黄橙清零、状态栏/挖孔全局避让、颜色+图标台账 | `docs/V202_TASKS.md` · `docs/V202_DESIGN.md` |
 
 ## 4. 当前焦点（2026-11-26）
 
-1. **2.0.2 进行中（分支 `codex/v2.0.2`）**：W0 DONE（定稿 `V202_DESIGN.md` 含用户补充裁定：黑底清理含播放器控件；台账 `V202_TASKS.md` W0+C1–C9）；**C1 U1 热修 DONE**（`a3ed8f5d`，:data 533 测 0 败，K60 死锁链真机走通；安装器弹窗=debug 包名固有限制未验）；下一卡 C2=XML 主题层清零。
+1. **2.0.2 进行中（分支 `codex/v2.0.2`）**：W0 DONE（定稿 `V202_DESIGN.md` 含用户补充裁定×2：黑底清理含播放器控件、纯图标控件垫层减重 28%+细描边）；**C1 U1 热修 DONE**（`a3ed8f5d`，K60 死锁链真机走通）；**C2 DONE**（`2440ccf6`，XML 主题层清零，K60 冷启动无闪色/旧橙 0.000%/HUD 正常；留档：测试服 TLS 未通，播放器动态态补验）；**下一卡 C3**=D1 安全区统一。
 2. **2.0.1 已发布（2026-11-26，用户授权）**：tag `v2.0.1`（@`d463e64b`）+ master 对齐 `312209a6` + GitHub Release 双 APK（SHA-256 复核一致）；K60 升级 E2E ✅。
 3. **U1 已修（C1，`a3ed8f5d`）**：transfer 缺失时经 `beginDownload` 重建；修复效益自 2.0.2 起算（旧版更新器坏，2.0.0/2.0.1 用户需手动装一次 2.0.2）。
-4. **留档观察项**：「关自动旋转横置不转」需用户手动验一次（SCREEN_ORIENTATION_USER 契约兜底）；R11 破坏性删测试服条目未授权跳过；KNOWN_ISSUE=K60 首播偶发卡 BUFFERING 重进即恢复、测试服高码率转码能力不足（服务端）。
+4. **留档观察项**：「关自动旋转横置不转」用户手动验证通过（2026-11-26）核销；R11 破坏性删测试服条目未授权跳过；KNOWN_ISSUE=K60 首播偶发卡 BUFFERING 重进即恢复、测试服高码率转码能力不足（服务端）。
 5. **环境事实**：多设备在线装机用 `assembleLibreDebug` + `adb -s <id> install -r`；**Android 15 禁止 release 包同包降级**（`install -d` 仅对 debuggable 生效，真机升级 E2E 只能前向或用 debug 包等效）；全模块单测注意 `:core`/`:app:phone` 是 `testLibreDebugUnitTest`、`:data`/`:modes:film`/`:modes:music`/`:settings` 是 `testDebugUnitTest`；ktfmt 修正任务名是 `ktfmtFormat`（全仓任务，并发卡用「快照→格式化→只保留自己文件」隔离法）；发布门须显式加跑 `verifyMpvJniReleaseContract`；GitHub 上传双资产偶发 502 拆「先建 Release 再分次传」可解；**并发子代理共用工作区会互踩 Gradle 增量编译缓存**（等他方构建结束重跑即恢复）；**Gradle 强制重跑用 `--rerun-tasks`（`--rerun` 对指定任务不生效）**；**MIUI 手势导航下屏幕最外侧 ~24dp 应用收不到触摸事件**；**Jellyfin 查询缺字段不报错只返回 null**；**Jellyfin 歌单条目操作必须用 PlaylistItemId 而非媒体 itemId**（误用返回 204 但不生效）；**播放器容器高≠画面区高**（W4-T22：竖屏容器下半截是常驻选集区，命中区/居中一律按画面区算或实测回传）；**测试 JVM 全局 `Dispatchers.Main` 被 Unsafe 覆写必须 @AfterClass 还原（W5 单测污染根因）**；设备当前登录 jellyfin-test 可写测试服（生产服写验证一律先 dump 抽屉确认服务器）。
 
 ### 下会话开工提示词
@@ -56,11 +56,11 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
    工作区：F:/Develop/code_data/work_tree/Aurorama/v2-merge-141（分支 codex/v2.0.2）。
 2. 开工读序（固定）：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V202_TASKS.md 状态块
    → 记忆库 MEMORY.md（读序外文件按需，不通读）。
-3. 现状（≤4 行）：HEAD 以 git log 为准；W0 DONE（分支+定稿+台账）；【槽：残项去向，无则省】。
-4. 本会话任务（按额度 1–N 卡）：【槽：卡号+一句话目标；按依赖序 C1→C2→C3→C4/C5→C6→C7→C8→C9】。
-5. 设计分权（固定一行）：设计以 docs/V202_DESIGN.md 为准，deepseek 零设计权。
+3. 现状（≤4 行）：HEAD 以 git log 为准；W0/C1/C2 DONE（C1=a3ed8f5d U1 热修、C2=2440ccf6 XML 主题层清零，
+   K60 取证全绿；留档：测试服 TLS 未通，播放器动态态补验）；下一卡 C3=D1 安全区统一。
+4. 本会话任务（按额度 1–N 卡）：【槽：卡号+一句话目标；按依赖序 C3→C4/C5→C6→C7→C8→C9】。
+5. 设计分权（固定一行）：设计以 docs/V202_DESIGN.md 为准（含 2026-11-26 图标垫层减重裁定），deepseek 零设计权。
 6. 门禁与纪律（固定引用）：见 AGENTS.md 质量门/红线；adb 取证派子代理，负责人复核证据关键行。
-   【「关自动旋转横置不转」仍待用户手动关自动旋转验一次（勿用 adb 改系统设置）】
 7. 交接（固定一行）：收口按 AGENTS.md 五件事，提示词按统一标准填槽更新。
 ```
 
