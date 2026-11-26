@@ -2867,7 +2867,6 @@ private fun NowPlayingBar(
 ) {
     val currentItem = item ?: return
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     // 恢复态（重启后未点播放）没有播放器会话，位置与时长回落到快照 / 曲库元数据
     val currentMs = if (isRestored) currentItem.playbackPosition else positionMs
     val totalMs = durationMs.takeIf { it > 0L } ?: fallbackDurationMs
@@ -3592,7 +3591,6 @@ internal fun QueueListBody(
     onUndoRemove: ((Int, PlayerItem) -> Unit)? = null,
 ) {
     val colors = LocalCinefinColors.current
-    val media = LocalMediaColors.current
     val density = LocalDensity.current
     val rowHeightPx = with(density) { QueueRowHeight.toPx() }
     val swipeThresholdPx = with(density) { QueueSwipeRemoveThreshold.toPx() }

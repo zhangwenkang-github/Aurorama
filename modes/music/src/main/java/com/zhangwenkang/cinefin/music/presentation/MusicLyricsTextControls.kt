@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -17,10 +15,10 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.isUnspecified
 import androidx.compose.ui.unit.sp
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinFilterChip
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsFontScale
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsLineSpacing
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsTextSettings
@@ -85,18 +83,14 @@ private fun LyricsSettingsRow(label: String, content: @Composable () -> Unit) {
     }
 }
 
+/** 显示预设 chip = 交互强调，走全 App 统一选中语言（极光）；域媒体色不进入交互槽。 */
 @Composable
 private fun LyricsSettingsChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    val media = LocalMediaColors.current
-    FilterChip(
+    CinefinFilterChip(
+        text = label,
         selected = selected,
         onClick = onClick,
-        label = { Text(label) },
-        colors =
-            FilterChipDefaults.filterChipColors(
-                selectedContainerColor = media.container,
-                selectedLabelColor = media.bright,
-            ),
+        compact = true,
     )
 }
 

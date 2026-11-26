@@ -598,6 +598,30 @@ class DesignTokenConsistencyTest {
     }
 
     /**
+     * 2.0.2 D6 守卫 e（C9）：歌词外观 / 显示预设 chip 属交互强调，统一委托 `CinefinFilterChip`（极光选中语言）； 不得回退到
+     * `FilterChipDefaults` 自造选中色——域媒体色只留给歌词高亮本身（白名单）。
+     */
+    @Test
+    fun `d6 歌词预设 chip 不自造选中色`() {
+        val files =
+            listOf(
+                "modes/music/src/main/java/com/zhangwenkang/cinefin/music/presentation/MusicLyricsPage.kt",
+                "modes/music/src/main/java/com/zhangwenkang/cinefin/music/presentation/MusicLyricsTextControls.kt",
+            )
+        files.forEach { path ->
+            val source = findSource(path)
+            assertFalse(
+                "$path 不得用 FilterChipDefaults 自造选中色（走 CinefinFilterChip 极光口径）",
+                source.contains("FilterChipDefaults"),
+            )
+            assertTrue(
+                "$path 的预设 chip 应委托 CinefinFilterChip",
+                source.contains("CinefinFilterChip("),
+            )
+        }
+    }
+
+    /**
      * 跨模块扫描的基准目录：从 `user.dir`（Gradle test 工作目录 = 模块目录）向上找仓库根 （含 `settings.gradle.kts`），保证 `:core` /
      * `:app:phone` 等不同模块下运行时定位一致。
      */

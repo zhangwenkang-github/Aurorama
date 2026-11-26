@@ -24,8 +24,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.ModalBottomSheet
@@ -63,6 +61,7 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinFilterChip
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
@@ -303,18 +302,14 @@ private fun LyricsDisplaySettingsSheet(
     }
 }
 
+/** 外观预设 chip = 交互强调，走全 App 统一选中语言（极光）；域媒体色只留给歌词高亮本身。 */
 @Composable
 private fun LyricsDisplayChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    val media = LocalMediaColors.current
-    FilterChip(
+    CinefinFilterChip(
+        text = label,
         selected = selected,
         onClick = onClick,
-        label = { Text(label) },
-        colors =
-            FilterChipDefaults.filterChipColors(
-                selectedContainerColor = media.container,
-                selectedLabelColor = media.bright,
-            ),
+        compact = true,
     )
 }
 
