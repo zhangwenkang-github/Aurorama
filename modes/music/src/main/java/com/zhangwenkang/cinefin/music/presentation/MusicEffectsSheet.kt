@@ -14,7 +14,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -24,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinFilterChip
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSlider
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSwitch
 import com.zhangwenkang.cinefin.player.local.audio.MUSIC_EQUALIZER_GAIN_STEP_DB
@@ -120,10 +120,10 @@ fun MusicEffectsSheet(
             ) {
                 items(MusicEqualizerPreset.entries.size) { index ->
                     val item = MusicEqualizerPreset.entries[index]
-                    FilterChip(
+                    CinefinFilterChip(
+                        text = item.label,
                         selected = preset == item,
                         onClick = { onSelectPreset(item) },
-                        label = { Text(item.label) },
                     )
                 }
             }
@@ -148,10 +148,10 @@ fun MusicEffectsSheet(
             ) {
                 items(ReplayGainMode.entries.size) { index ->
                     val item = ReplayGainMode.entries[index]
-                    FilterChip(
+                    CinefinFilterChip(
+                        text = item.label,
                         selected = replayGainMode == item,
                         onClick = { onSelectReplayGain(item) },
-                        label = { Text(item.label) },
                     )
                 }
             }
@@ -242,10 +242,10 @@ fun MusicEffectsSheet(
             ) {
                 items(MUSIC_PLAYBACK_SPEEDS.size) { index ->
                     val speed = MUSIC_PLAYBACK_SPEEDS[index]
-                    FilterChip(
+                    CinefinFilterChip(
+                        text = formatPlaybackSpeed(speed),
                         selected = playbackSpeed == speed,
                         onClick = { onSelectPlaybackSpeed(speed) },
-                        label = { Text(formatPlaybackSpeed(speed)) },
                     )
                 }
             }

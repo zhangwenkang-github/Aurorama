@@ -22,7 +22,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -37,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinFilterChip
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayLanguage
@@ -147,24 +147,24 @@ private fun LyricsLanguageBar(
     ) {
         items(state.languages.size) { index ->
             val language = state.languages[index]
-            FilterChip(
+            CinefinFilterChip(
+                text = language.label,
                 selected = state.display.language == language,
                 onClick = { onSelectLanguage(language) },
-                label = { Text(language.label) },
             )
         }
         item {
-            FilterChip(
+            CinefinFilterChip(
+                text = "双语对照",
                 selected = state.display.bilingual,
                 onClick = onToggleBilingual,
-                label = { Text("双语对照") },
             )
         }
         item {
-            FilterChip(
+            CinefinFilterChip(
+                text = "跟随滚动",
                 selected = state.display.follow,
                 onClick = onToggleFollow,
-                label = { Text("跟随滚动") },
             )
         }
     }

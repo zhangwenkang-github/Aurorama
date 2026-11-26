@@ -647,6 +647,35 @@ class DesignTokenConsistencyTest {
     }
 
     /**
+     * 2.0.2 D6 守卫 g（留档小卡）：全仓不再保留 M3 原生 `FilterChip`——搜索范围 / 歌词语言 / 音乐效果三处 chip 统一委托
+     * `CinefinFilterChip`（极光选中语言、40dp 视觉高、48dp 热区、12dp 圆角）；不得回退主题桥接色或自造选中色。
+     */
+    @Test
+    fun `d6 FilterChip 残留三文件统一委托 CinefinFilterChip`() {
+        val files =
+            listOf(
+                "app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/film/components/SearchBar.kt",
+                "modes/music/src/main/java/com/zhangwenkang/cinefin/music/presentation/LyricsSheet.kt",
+                "modes/music/src/main/java/com/zhangwenkang/cinefin/music/presentation/MusicEffectsSheet.kt",
+            )
+        files.forEach { path ->
+            val source = findSource(path)
+            assertFalse(
+                "$path 不得再 import M3 原生 FilterChip",
+                source.contains("androidx.compose.material3.FilterChip"),
+            )
+            assertFalse(
+                "$path 不得用 FilterChipDefaults 自造选中色（走 CinefinFilterChip 极光口径）",
+                source.contains("FilterChipDefaults"),
+            )
+            assertTrue(
+                "$path 的 chip 应委托 CinefinFilterChip",
+                source.contains("CinefinFilterChip("),
+            )
+        }
+    }
+
+    /**
      * 跨模块扫描的基准目录：从 `user.dir`（Gradle test 工作目录 = 模块目录）向上找仓库根 （含 `settings.gradle.kts`），保证 `:core` /
      * `:app:phone` 等不同模块下运行时定位一致。
      */

@@ -444,6 +444,7 @@ mediaColorsFor(ContentDomain, CinefinColors)
 | 21 | 同状态姊妹点位（C8c 登记 19 处） | C8c→C8d | **已裁定（2026-11-26）全部归极光：DONE** | 19 处中 16 处转换、3 处实为字幕颜色预设（白名单，不改）；审计另补 1 处漏登的播放器 Tab。逐点见 C-21 明细 |
 | 22 | 歌词外观 / 显示预设 chip 选中态 4 行（`MusicLyricsPage` / `MusicLyricsTextControls`） | C8d→C9 | **DONE（负责人裁定：交互强调，非白名单）** | 两处 chip 改委托 `CinefinFilterChip(compact = true)`：选中 = aurora1@16% 容器 + aurora1 描边 + `navSelectedContent` 文字；K60 像素：选中 chip 容器 `#0E272C`（深色）/`#D4EBE8`（浅色）+ `#3DE8C2` 20.1% 命中，未选中 0%；守卫 e 钉住 |
 | 23 | 阅读器 `accent` 贯穿阅读进度条 / 书签点 / thumb / 书页批注叠加 | C9→C9补 | **DONE（负责人裁定：拆分处置，本 commit）** | `ReaderControlLayer.kt` → `navSelectedContent(colors)`（深色 aurora1 / 浅色 auroraInk），组件签名不变；`PageOverlay.kt` 保留 `media.base`（搜索命中 / 批注框 / 框选 = 内容标注身份位）+ 分类注记注释。该书页叠加层的 `MediaColors` 由 `ReaderSettings.mediaColors()` 供给：深色阅读主题 = `MediaBook` 书域蓝、纸色 / 护眼 = `PaperAccent` `#A8843C`（D5 明示白名单「阅读护眼纸色」），故保留域色与白名单口径一致。章节点实际由 `contentColor@36%` 绘制，非 accent 驱动，未改 |
+| 24 | M3 原生 `FilterChip` 残留 ×3（`SearchBar` / `LyricsSheet` / `MusicEffectsSheet`） | 2.0.2 留档小卡 | **DONE（本卡 commit）** | 三处 chip 统一委托 `CinefinFilterChip`（`selected` / `onClick` / `label` → `text`，无 leadingIcon / enabled 调用点，未删 M3 特性参数；`FilterChipDefaults` 三文件本就零使用）：选中 = aurora1@16% 容器 + aurora1 描边 + `navSelectedContent` 文字；尺寸随组件（视觉高 40dp / 热区 48dp / 圆角 12dp），替代 M3 默认 32dp 规格；守卫 g（`d6 FilterChip 残留三文件统一委托 CinefinFilterChip`）钉住 |
 
 ### C-20 处置明细（2026-11-26 C8c）
 

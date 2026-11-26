@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items as lazyRowItems
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBar
@@ -46,6 +45,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinFilterChip
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinListRow
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
@@ -225,10 +225,10 @@ fun FilmSearchBar(
                 horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
             ) {
                 lazyRowItems(SearchScopes, key = { it.first.name }) { (scope, titleRes) ->
-                    FilterChip(
+                    CinefinFilterChip(
+                        text = stringResource(titleRes),
                         selected = state.scope == scope,
                         onClick = { onAction(SearchAction.ChangeScope(scope)) },
-                        label = { Text(stringResource(titleRes)) },
                     )
                 }
             }
