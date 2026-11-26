@@ -7,6 +7,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animate
@@ -28,6 +29,9 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -42,7 +46,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -96,7 +99,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -125,18 +127,18 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinBackToDefaul
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinBatchBar
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
-import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonTone
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinLibraryTabs
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinListRow
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
-import com.zhangwenkang.cinefin.core.presentation.components.CinefinSegmentedControl
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSleepTimerOptions
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
 import com.zhangwenkang.cinefin.core.presentation.components.DownloadSnackbarDuration
 import com.zhangwenkang.cinefin.core.presentation.components.LibrarySelectorChip
 import com.zhangwenkang.cinefin.core.presentation.components.LibrarySelectorOption
+import com.zhangwenkang.cinefin.core.presentation.components.cinefinLibraryGutter
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckContent
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckDialog
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckEnvironment
@@ -149,6 +151,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
+import com.zhangwenkang.cinefin.core.presentation.theme.auroraGradient
 import com.zhangwenkang.cinefin.core.selection.MultiSelectState
 import com.zhangwenkang.cinefin.music.R
 import com.zhangwenkang.cinefin.music.data.MusicAlbum
@@ -180,33 +183,10 @@ internal object MusicSongActionsAccessibility {
 /** 队列行高（拖动换算基准）：面板内所有行等高，拖动位移才能按整数行对齐。 */
 private val QueueRowHeight = 72.dp
 
-internal data class MusicPrimaryToolbarVisibility(
-    val showsSource: Boolean,
-    val showsPlayAll: Boolean,
-) {
-    val hasToolbar: Boolean
-        get() = showsSource || showsPlayAll
-
-    companion object {
-        fun forState(
-            offline: Boolean,
-            songCount: Int,
-            detailPresent: Boolean,
-            batchMode: Boolean,
-        ): MusicPrimaryToolbarVisibility {
-            val toolbarRequested = !detailPresent && !batchMode
-            return MusicPrimaryToolbarVisibility(
-                showsSource = toolbarRequested && !offline,
-                showsPlayAll = toolbarRequested && songCount > 0,
-            )
-        }
-    }
-}
-
 /**
  * 音乐模式入口（W1 R2 最小闭环，W2 R2 扩到四维浏览 + 队列面板，W3 R3 接入 App 主题）。
  *
- * 浏览：建议 / 歌曲 / 专辑 / 艺术家 / 歌单五个分段（2.0.1 §4.1），点歌追加队尾并起播（详情层把该曲起到列表尾补齐）；
+ * 浏览：建议 / 歌曲 / 专辑 / 艺术家 / 歌单五个标签（2.0.2 D2 起为轻量文本标签行），点歌追加队尾并起播（详情层把该曲起到列表尾补齐）；
  * 队列：底栏「队列」按钮打开面板，支持点歌跳转、长按拖拽排序、移除与「下一首播放」； 通知栏与锁屏由播放会话服务承载（music → Media3 单 MediaSession）。
  *
  * 路由注册由 R3 在 `NavigationRoot.kt` 统一提交（见 [MusicModeRoute]）。
@@ -578,45 +558,55 @@ fun MusicModeScreen(
                     OfflineMusicNotice(songCount = state.songs.size)
                 }
                 if (state.detail == null) {
-                    // W66b：库选择 chip 移到 Tab 行右侧（紧凑、只显示当前库名）；顶栏恢复标题 + 三图标键。
+                    // 2.0.2 D2：头部收敛为两行——①56dp 顶栏（搜索 + ⋮）②标签行（轻量文本标签 + 库选择 chip + ⋮）。
                     val toolbarVisibility =
                         MusicPrimaryToolbarVisibility.forState(
+                            tab = state.tab,
                             offline = state.offline,
                             songCount = state.songs.size,
                             detailPresent = false,
                             batchMode = batchSelection.selectionMode,
                         )
-                    MusicPrimaryToolbarSection(
-                        showToolbar = toolbarVisibility.hasToolbar,
-                        tabs = {
-                            MusicTabsRow(
-                                selected = state.tab,
-                                onSelect = viewModel::selectTab,
-                                libraryLabel = state.selectedMusicLibraryName,
-                                libraryOptions = state.musicLibraries,
-                                librarySelectedId = state.selectedMusicLibraryId,
-                                showLibrarySelector =
-                                    onExitTemporaryLibrary == null &&
-                                        state.musicLibraries.size >= 3,
-                                onSelectMusicLibrary = viewModel::selectMusicLibrary,
-                            )
-                        },
-                        toolbar = {
-                            MusicToolbarRow(
-                                state = state,
-                                visibility = toolbarVisibility,
+                    MusicTabsRow(
+                        selected = state.tab,
+                        onSelect = viewModel::selectTab,
+                        libraryLabel = state.selectedMusicLibraryName,
+                        libraryOptions = state.musicLibraries,
+                        librarySelectedId = state.selectedMusicLibraryId,
+                        showLibrarySelector =
+                            onExitTemporaryLibrary == null && state.musicLibraries.size >= 3,
+                        onSelectMusicLibrary = viewModel::selectMusicLibrary,
+                        // 批量多选态由批量条接管（与旧工具行一致：多选时不提供筛选/排序入口）。
+                        showMenu = !batchSelection.selectionMode,
+                        menu = {
+                            MusicToolbarOverflowMenu(
+                                sourceFilter = state.sourceFilter,
+                                showSourceBadge = state.showSourceBadge,
+                                showsSourceOptions = toolbarVisibility.showsSource,
+                                sortKey = state.songSortKey,
+                                sortAscending = state.songSortAscending,
+                                favoritesOnly = state.songsFavoritesOnly,
+                                pageSize = state.songPageSize,
+                                showsSongOptions = state.tab == MusicTab.SONGS,
                                 onSelectSource = viewModel::setSourceFilter,
                                 onToggleBadge = viewModel::setShowSourceBadge,
                                 onSelectSortKey = viewModel::setSongSortKey,
                                 onSetSortAscending = viewModel::setSongSortAscending,
                                 onToggleFavoritesOnly = viewModel::setSongsFavoritesOnly,
                                 onSelectPageSize = viewModel::setSongPageSize,
-                                onPlayAll = { viewModel.playAll() },
-                                onShuffleAll = { viewModel.playAll(shuffle = true) },
                             )
                         },
                     )
-                    Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
+                    // 2.0.2 D2：头部与内容区间距统一 Space5。
+                    Spacer(modifier = Modifier.height(CinefinSpacing.Space5))
+                    if (toolbarVisibility.showsPlayAll) {
+                        // 「播放全部 + 随机」：内容区上方 36dp 紧凑工具行（仅歌曲 / 专辑 tab）。
+                        MusicPlayAllRow(
+                            onPlayAll = { viewModel.playAll() },
+                            onShuffleAll = { viewModel.playAll(shuffle = true) },
+                        )
+                        Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
+                    }
                 }
 
                 val loadErrorMessage = state.loadErrorMessage
@@ -1415,7 +1405,6 @@ private fun MusicHeader(
     onBatchExit: () -> Unit,
 ) {
     val detail = state.detail
-    val media = LocalMediaColors.current
     // W59：专辑 Tab 的多选计数以专辑卡数为准（与 VM 的专辑多选作用域一致）。
     val visibleSongCount =
         when {
@@ -1486,37 +1475,6 @@ private fun MusicHeader(
             if (onExitTemporaryLibrary != null && detail == null) {
                 CinefinBackToDefaultChip(onClick = onExitTemporaryLibrary)
             }
-            CinefinIconButton(onClick = onOpenFavorites) { tint ->
-                Icon(
-                    painter =
-                        painterResource(
-                            if (detail is MusicDetail.Favorites) {
-                                CoreR.drawable.ic_bookmark_filled
-                            } else {
-                                CoreR.drawable.ic_bookmark
-                            }
-                        ),
-                    contentDescription = "收藏",
-                    tint = tint,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-            CinefinIconButton(onClick = onOpenRecent) { tint ->
-                Icon(
-                    painter = painterResource(R.drawable.ic_music_recent),
-                    contentDescription = "最近播放",
-                    tint = tint,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-            CinefinIconButton(onClick = onOpenSleep) { tint ->
-                Icon(
-                    painter = painterResource(R.drawable.ic_music_sleep),
-                    contentDescription = "睡眠定时",
-                    tint = if (sleepState.active) media.bright else tint,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
             // W75 #13：全页搜索入口（与视频页 / 书架 / 库内容页同口径）。
             CinefinIconButton(onClick = onSearchClick) { tint ->
                 Icon(
@@ -1526,52 +1484,80 @@ private fun MusicHeader(
                     modifier = Modifier.size(22.dp),
                 )
             }
+            // 2.0.2 D2：收藏 / 最近播放 / 睡眠定时收进 ⋮，顶栏右侧只留搜索 + ⋮。
+            MusicTopBarOverflowMenu(
+                favoritesOpen = detail is MusicDetail.Favorites,
+                sleepActive = sleepState.active,
+                onOpenFavorites = onOpenFavorites,
+                onOpenRecent = onOpenRecent,
+                onOpenSleep = onOpenSleep,
+            )
         },
     )
 }
 
+/**
+ * 2.0.2 D2：顶栏「⋮」溢出菜单——收纳原顶栏三个图标键（收藏 / 最近播放 / 睡眠定时）。
+ *
+ * 行为沿用 W53 / W59 的图标键（收藏页、最近播放页、睡眠定时面板），只换入口，不再占顶栏宽度。
+ */
 @Composable
-private fun MusicPrimaryToolbarSection(
-    showToolbar: Boolean,
-    tabs: @Composable () -> Unit,
-    toolbar: @Composable () -> Unit,
+private fun MusicTopBarOverflowMenu(
+    favoritesOpen: Boolean,
+    sleepActive: Boolean,
+    onOpenFavorites: () -> Unit,
+    onOpenRecent: () -> Unit,
+    onOpenSleep: () -> Unit,
 ) {
-    val density = LocalDensity.current
-    Layout(
-        content = {
-            tabs()
-            if (showToolbar) {
-                toolbar()
+    val colors = LocalCinefinColors.current
+    var expanded by remember { mutableStateOf(false) }
+    val closeMenu: () -> Unit = { expanded = false }
+    Box {
+        CinefinIconButton(onClick = { expanded = true }) { tint ->
+            Box(modifier = Modifier.clearAndSetSemantics { contentDescription = "更多选项" }) {
+                Text(text = "⋮", style = CinefinType.TitleMedium, color = tint)
             }
-        },
-        modifier = Modifier.fillMaxWidth(),
-    ) { measurables, constraints ->
-        val tabsPlaceable = measurables.first().measure(constraints.copy(minHeight = 0))
-        val toolbarPlaceable =
-            if (showToolbar) {
-                measurables.getOrNull(1)?.measure(constraints.copy(minHeight = 0))
-            } else {
-                null
-            }
-        val plan =
-            MusicPrimaryToolbarLayout.measurePrimary(
-                tabs = MusicMeasuredBox(tabsPlaceable.width, tabsPlaceable.height),
-                toolbar =
-                    toolbarPlaceable?.let { placeable ->
-                        MusicMeasuredBox(placeable.width, placeable.height)
-                    },
-                density = density,
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = closeMenu,
+            shape = CinefinShapes.Card,
+            containerColor = colors.surfaceContainerHighest,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
+        ) {
+            MusicToolbarMenuItem(
+                text = "收藏",
+                checked = favoritesOpen,
+                onClick = {
+                    closeMenu()
+                    onOpenFavorites()
+                },
             )
-        layout(plan.widthPx, plan.heightPx) {
-            tabsPlaceable.placeRelative(plan.tabsPlacement.xPx, plan.tabsPlacement.yPx)
-            val toolbarPlacement = plan.toolbarPlacement
-            if (toolbarPlaceable != null && toolbarPlacement != null) {
-                toolbarPlaceable.placeRelative(toolbarPlacement.xPx, toolbarPlacement.yPx)
-            }
+            MusicToolbarMenuItem(
+                text = "最近播放",
+                onClick = {
+                    closeMenu()
+                    onOpenRecent()
+                },
+            )
+            MusicToolbarMenuItem(
+                text = "睡眠定时",
+                checked = sleepActive,
+                onClick = {
+                    closeMenu()
+                    onOpenSleep()
+                },
+            )
         }
     }
 }
 
+/**
+ * 2.0.2 D2：音乐页第二行 = 轻量文本标签行（[CinefinLibraryTabs]）+ 库选择 chip（compact）+ ⋮（排序 / 来源 / 每页数量）。
+ *
+ * 窄屏 5 个标签靠横滑兜底（不再压缩成 44dp 重容器分段控件）；批量多选态隐藏 ⋮（批量条接管，避免出现空菜单）。
+ */
 @Composable
 private fun MusicTabsRow(
     selected: MusicTab,
@@ -1581,16 +1567,15 @@ private fun MusicTabsRow(
     librarySelectedId: UUID?,
     showLibrarySelector: Boolean,
     onSelectMusicLibrary: (UUID?) -> Unit,
+    showMenu: Boolean,
+    menu: @Composable () -> Unit,
 ) {
     Row(
-        modifier =
-            Modifier.padding(horizontal = CinefinSpacing.Space4)
-                .widthIn(max = 640.dp)
-                .fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().height(44.dp).padding(end = cinefinLibraryGutter()),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
     ) {
-        CinefinSegmentedControl(
+        CinefinLibraryTabs(
             items = MusicTab.entries,
             selected = selected,
             onSelect = onSelect,
@@ -1605,7 +1590,7 @@ private fun MusicTabsRow(
             },
             modifier = Modifier.weight(1f),
         )
-        // W66b：库选择 chip 放 Tab 行右侧（紧凑、只显示当前库名、超长省略）；单库 / 临时库视图隐藏。
+        // W66b：库选择 chip 放标签行右侧（紧凑、只显示当前库名、超长省略）；单库 / 临时库视图隐藏。
         if (showLibrarySelector) {
             LibrarySelectorChip(
                 label = libraryLabel ?: ALL_MUSIC_LIBRARIES_LABEL,
@@ -1615,71 +1600,93 @@ private fun MusicTabsRow(
                 maxWidth = 132.dp,
             )
         }
+        if (showMenu) {
+            menu()
+        }
     }
 }
 
+/** 2.0.2 D2：紧凑工具行行高（「播放全部」38 → 36dp）。 */
+private val PlayAllRowHeight = 36.dp
+
 /**
- * W3-T14：音乐页工具行（一层，§4.1）——左「⋮」溢出菜单（来源筛选 / 来源徽标 / 排序 / 筛选（收藏）/ 每页数量）， 右「播放全部」一级 CTA（`CinefinButton`
- * Aurora tone 渐变）+「随机」图标键（仅歌曲 Tab、列表非空时）。
+ * 2.0.2 D2：内容区上方的 36dp 紧凑工具行——右对齐「播放全部」（极光渐变、去投影）+「随机」图标键。
  *
- * 批量多选态由调用方整行隐藏（批量条接管）；离线时不显示来源筛选项（单一本地来源），排序 / 每页数量仍可用。
+ * 仅歌曲 / 专辑 Tab 显示（见 [MusicPrimaryToolbarVisibility.forState]）；排序 / 来源 / 每页数量已上移到标签行「⋮」。
  */
 @Composable
-private fun MusicToolbarRow(
-    state: MusicModeViewModel.UiState,
-    visibility: MusicPrimaryToolbarVisibility,
-    onSelectSource: (MusicItemSourceFilter) -> Unit,
-    onToggleBadge: (Boolean) -> Unit,
-    onSelectSortKey: (MusicSongSortKey) -> Unit,
-    onSetSortAscending: (Boolean) -> Unit,
-    onToggleFavoritesOnly: (Boolean) -> Unit,
-    onSelectPageSize: (Int) -> Unit,
+private fun MusicPlayAllRow(
     onPlayAll: () -> Unit,
     onShuffleAll: () -> Unit,
 ) {
     Row(
         modifier =
-            Modifier.padding(horizontal = CinefinSpacing.Space4)
-                .widthIn(max = 640.dp)
-                .fillMaxWidth(),
+            Modifier.fillMaxWidth()
+                .height(PlayAllRowHeight)
+                .padding(horizontal = CinefinSpacing.Space4),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
     ) {
-        MusicToolbarOverflowMenu(
-            sourceFilter = state.sourceFilter,
-            showSourceBadge = state.showSourceBadge,
-            showsSourceOptions = visibility.showsSource,
-            sortKey = state.songSortKey,
-            sortAscending = state.songSortAscending,
-            favoritesOnly = state.songsFavoritesOnly,
-            pageSize = state.songPageSize,
-            showsSongOptions = state.tab == MusicTab.SONGS,
-            onSelectSource = onSelectSource,
-            onToggleBadge = onToggleBadge,
-            onSelectSortKey = onSelectSortKey,
-            onSetSortAscending = onSetSortAscending,
-            onToggleFavoritesOnly = onToggleFavoritesOnly,
-            onSelectPageSize = onSelectPageSize,
-        )
         Spacer(modifier = Modifier.weight(1f))
-        if (visibility.showsPlayAll) {
-            // W3-T14 · §4.1：一级 CTA 用 T09 批② 的 Aurora tone（极光渐变实底 + onAurora 内容 + glow）
-            CinefinButton(
-                text = "播放全部",
-                onClick = onPlayAll,
-                size = CinefinButtonSize.Small,
-                variant = CinefinButtonVariant.Filled,
-                tone = CinefinButtonTone.Aurora,
+        MusicPlayAllCta(text = "播放全部", onClick = onPlayAll)
+        CinefinIconButton(
+            onClick = onShuffleAll,
+            modifier = Modifier.size(PlayAllRowHeight),
+        ) { tint ->
+            Icon(
+                painter = painterResource(R.drawable.ic_music_shuffle),
+                contentDescription = "随机播放",
+                tint = tint,
+                modifier = Modifier.size(20.dp),
             )
-            CinefinIconButton(onClick = onShuffleAll) { tint ->
-                Icon(
-                    painter = painterResource(R.drawable.ic_music_shuffle),
-                    contentDescription = "随机播放",
-                    tint = tint,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
         }
+    }
+}
+
+/**
+ * 紧凑工具行的一级 CTA「播放全部」（2.0.2 D2）：36dp 高、100° 极光渐变实底 + `onAurora` 内容。
+ *
+ * 与 `CinefinButton`（Aurora tone）同源取色与状态层，但**去投影**、压低到 36dp——共享按钮最小 38dp 且带 `auroraGlow`
+ * 投影，表达不了紧凑工具行。
+ */
+@Composable
+private fun MusicPlayAllCta(text: String, onClick: () -> Unit) {
+    val colors = LocalCinefinColors.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val stateLayer by
+        animateColorAsState(
+            targetValue =
+                when {
+                    pressed -> colors.statePressed
+                    hovered -> colors.stateHover
+                    else -> Color.Transparent
+                },
+            animationSpec =
+                tween(durationMillis = CinefinMotion.Fast, easing = CinefinMotion.Standard),
+            label = "playAllState",
+        )
+    Row(
+        modifier =
+            Modifier.height(PlayAllRowHeight)
+                .clip(CinefinShapes.Button)
+                .auroraGradient(colors)
+                .background(stateLayer)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                )
+                .padding(horizontal = CinefinSpacing.Space4),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = text,
+            style = CinefinType.LabelMedium,
+            color = colors.onAurora,
+            maxLines = 1,
+        )
     }
 }
 
