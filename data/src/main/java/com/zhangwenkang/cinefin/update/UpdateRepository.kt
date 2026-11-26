@@ -39,11 +39,7 @@ class UpdateRepositoryImpl(
         onProgress: (Long) -> Unit,
     ): UpdateDownloadResult {
         val transfer =
-            when (val loaded = store.loadTransfer()) {
-                is UpdateStateReadResult.Present -> loaded.value.takeIf { it.updateId == updateId }
-                is UpdateStateReadResult.Invalid,
-                UpdateStateReadResult.Absent -> null
-            }
+            persistedTransfer(updateId)
                 ?: return UpdateDownloadResult.Failed(
                     UpdateFailureCode.STATE_ERROR,
                     "transfer state is absent or does not match updateId",
@@ -60,6 +56,38 @@ class UpdateRepositoryImpl(
             }
         }
         return downloader.download(transfer.release, onProgress)
+    }
+
+    /**
+     * 下载器只在 [store.beginDownload] 之后才能工作，而 beginDownload 的唯一其他调用点就在下载器内部。 因此这里必须能从已持久化的 release
+     * 状态重建 transfer，否则「检查更新 → 下载」必然死锁。
+     */
+    private fun persistedTransfer(updateId: String): UpdateTransferState? {
+        when (val loaded = store.loadTransfer()) {
+            is UpdateStateReadResult.Present ->
+                loaded.value
+                    .takeIf { it.updateId == updateId }
+                    ?.let {
+                        return it
+                    }
+            is UpdateStateReadResult.Invalid,
+            UpdateStateReadResult.Absent -> Unit
+        }
+        val release =
+            when (val loaded = store.loadDiscoveredRelease()) {
+                is UpdateStateReadResult.Present ->
+                    loaded.value.release.takeIf { stableUpdateId(it) == updateId }
+                is UpdateStateReadResult.Invalid,
+                UpdateStateReadResult.Absent -> null
+            } ?: return null
+        if (store.beginDownload(release) is UpdateStateWriteResult.Failure) {
+            return null
+        }
+        return when (val reloaded = store.loadTransfer()) {
+            is UpdateStateReadResult.Present -> reloaded.value.takeIf { it.updateId == updateId }
+            is UpdateStateReadResult.Invalid,
+            UpdateStateReadResult.Absent -> null
+        }
     }
 
     override suspend fun cancel(updateId: String): UpdateCancelResult =

@@ -187,6 +187,90 @@ class UpdateRepositoryTest {
         assertEquals(listOf<Byte>(7, 8, 9), observedPart)
     }
 
+    @Test
+    fun downloadRebuildsTransferFromPersistedReleaseWhenTransferIsAbsent() = runBlocking {
+        val store = UpdateStateStore(temporaryFolder.newFolder(), clock = { 1_000L })
+        val release = releaseIdentity()
+        store.saveDiscoveredRelease(release, 1_000L)
+        var downloadedRelease: UpdateReleaseIdentity? = null
+        val repository =
+            repository(
+                store,
+                UpdateDownloadExecutor { requested, _ ->
+                    downloadedRelease = requested
+                    val rebuilt = (store.loadTransfer() as UpdateStateReadResult.Present).value
+                    assertEquals(stableUpdateId(requested), rebuilt.updateId)
+                    assertEquals(UpdateTransferPhase.DOWNLOADING, rebuilt.phase)
+                    UpdateDownloadResult.ReadyForVerification(
+                        updateId = rebuilt.updateId,
+                        completeFile = File("unused.apk"),
+                        bytesWritten = requested.assetSize,
+                    )
+                },
+            )
+
+        val result = repository.download(stableUpdateId(release))
+
+        assertEquals(release, downloadedRelease)
+        assertEquals(
+            stableUpdateId(release),
+            (result as UpdateDownloadResult.ReadyForVerification).updateId,
+        )
+    }
+
+    @Test
+    fun downloadFailsWithStateErrorWhenNoPersistedStateMatchesTheUpdateId() = runBlocking {
+        val emptyStore = UpdateStateStore(temporaryFolder.newFolder(), clock = { 1_000L })
+        val emptyResult = repository(emptyStore, unexpectedDownloader()).download("0".repeat(64))
+        assertEquals(
+            UpdateFailureCode.STATE_ERROR,
+            (emptyResult as UpdateDownloadResult.Failed).failureCode,
+        )
+        assertTrue(emptyStore.loadTransfer() is UpdateStateReadResult.Absent)
+
+        val otherReleaseStore = UpdateStateStore(temporaryFolder.newFolder(), clock = { 1_000L })
+        otherReleaseStore.saveDiscoveredRelease(releaseIdentity(), 1_000L)
+        val mismatchedResult =
+            repository(otherReleaseStore, unexpectedDownloader()).download("0".repeat(64))
+        assertEquals(
+            UpdateFailureCode.STATE_ERROR,
+            (mismatchedResult as UpdateDownloadResult.Failed).failureCode,
+        )
+        assertTrue(otherReleaseStore.loadTransfer() is UpdateStateReadResult.Absent)
+    }
+
+    @Test
+    fun transferForAnotherReleaseIsRebuiltFromMatchingPersistedRelease() = runBlocking {
+        val store = UpdateStateStore(temporaryFolder.newFolder(), clock = { 1_000L })
+        val stale = releaseIdentity(version = "1.3.0")
+        val current = releaseIdentity()
+        store.beginDownload(stale, 1_000L)
+        store.saveDiscoveredRelease(current, 1_000L)
+        val staleTransfer = (store.loadTransfer() as UpdateStateReadResult.Present).value
+        store.partFile(staleTransfer).writeBytes(byteArrayOf(1, 2, 3))
+        var downloadedRelease: UpdateReleaseIdentity? = null
+        val repository =
+            repository(
+                store,
+                UpdateDownloadExecutor { requested, _ ->
+                    downloadedRelease = requested
+                    UpdateDownloadResult.ReadyForVerification(
+                        updateId = stableUpdateId(requested),
+                        completeFile = File("unused.apk"),
+                        bytesWritten = requested.assetSize,
+                    )
+                },
+            )
+
+        val result = repository.download(stableUpdateId(current))
+
+        assertEquals(current, downloadedRelease)
+        val rebuilt = (store.loadTransfer() as UpdateStateReadResult.Present).value
+        assertEquals(stableUpdateId(current), rebuilt.updateId)
+        assertEquals(UpdateTransferPhase.DOWNLOADING, rebuilt.phase)
+        assertTrue(result is UpdateDownloadResult.ReadyForVerification)
+    }
+
     private fun repository(
         store: UpdateStateStore,
         executor: UpdateDownloadExecutor,
@@ -207,16 +291,14 @@ class UpdateRepositoryTest {
             downloader = executor,
         )
 
-    private fun releaseIdentity() =
+    private fun releaseIdentity(version: String = "1.4.0") =
         UpdateReleaseIdentity(
-            releaseTag = "v1.4.0",
-            version = "1.4.0",
-            assetName = "Aurorama-1.4.0-arm64-v8a.apk",
+            releaseTag = "v$version",
+            version = version,
+            assetName = "Aurorama-$version-arm64-v8a.apk",
             assetSize = 8L,
             assetDigest = "sha256:0123456789abcdef",
-            downloadUrl =
-                "https://github.com/zhangwenkang-github/Aurorama/releases/download/" +
-                    "v1.4.0/Aurorama-1.4.0-arm64-v8a.apk",
+            downloadUrl = releaseAssetUrl(version, "Aurorama-$version-arm64-v8a.apk"),
         )
 
     private fun unexpectedDownloader() = UpdateDownloadExecutor { _, _ ->
