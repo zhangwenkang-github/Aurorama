@@ -38,17 +38,18 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
 | 连接层 | 🟢 W31 完成；遗留 `fix/w31-trust-session-reuse` 分支待合并 | `docs/ARCHITECTURE.md` §5.4 |
 | 投屏/同步观看 | ⛔ 投屏未开始（LATER）；SyncPlay 为 SHOULD（W4 评估） | `docs/V2_REQUIREMENTS.md` §9.5 |
-| 维护/缺陷修复 → 2.0.1 | 🟡 **W4 播放器收尾已收官**（2026-11-26）：分支 `codex/v2.0.1`；W1–W3 + W4 T21–T23 全 DONE（HEAD=`29f3efdc`）；RELEASE_NOTES_v2.0.1 首条已立；余 W5（LATER 池裁定→全量回归→发布） | `docs/V201_TASKS.md` |
+| 维护/缺陷修复 → 2.0.1 | 🟡 **W5 收口就绪待发布**（2026-11-26）：分支 `codex/v2.0.1` HEAD=`f589fad4`；LATER 池 23 项裁定、T24 清理卡 DONE、回归四组全绿、发布门 5/5 绿（单测 3583/0 + 签名双 APK + JNI 契约 + 验签指纹一致 + 双机覆盖冒烟）；版本 2.0.1/code 8；余 push/tag/Release（待用户授权）+ 发布后升级 E2E | `docs/V201_TASKS.md` |
 
-## 4. 当前焦点（2026-11-25）
+## 4. 当前焦点（2026-11-26）
 
-1. **2.0.1（分支 `codex/v2.0.1`）**：计划经用户两轮审批通过——21 项需求/bug + 2.0.0 遗留，波次 W0→W5（修复快线→设计基础→音乐重塑→播放器收尾→回归发布），台账 `docs/V201_TASKS.md`（23 卡全登记）。**W0–W4 已全收官，当前=W5 收口与发布**（LATER 池裁定→全量回归→版本 bump→签名双 APK→push/tag/Release 待用户授权）。工作流七条已制度化进 `AGENTS.md`。
-2. **W0 已收官（2026-11-24）**：分支+台账+AGENTS.md；W0-D1 设计审计（22 条偏差）；W0-D2 设计定稿；W0-D3 master 对齐 v2.0.0（`312209a6`，远端推送待授权）。
+1. **2.0.1（分支 `codex/v2.0.1`）**：W0–W5 全部收官，**发布就绪待授权**——LATER 池 23 项裁定回写；T24 清理卡 DONE（`74762dc2`+`941b7d57`）；全量回归四组全绿（`qa/w5-regression/`）；发布门 5/5 绿（10 模块单测 3583/0/0/0、ktfmt、签名双 APK arm64 78.92MiB/universal 169.14MiB、`verifyMpvJniReleaseContract` 8c/41m、验签指纹 `e449c4aa…e155ff`、双机覆盖冒烟 0 FATAL/ANR，`qa/w5-release/`）；HEAD=`f589fad4`（版本 2.0.1/code 8 在 `fa5eed4e`）。**余：push+tag `v2.0.1`+GitHub Release（用户授权）→ 发布后验证（资产 SHA-256 复核 + K60 应用内升级 E2E）→ RELEASE_PLAN §6 补行 → 全文档收口**。台账 `docs/V201_TASKS.md`。
+2. **W0 已收官（2026-11-24）**：分支+台账+AGENTS.md；W0-D1 设计审计（22 条偏差）；W0-D2 设计定稿；W0-D3 master 对齐 v2.0.0（`312209a6`，远端推送待授权，随 2.0.1 发布一并推）。
 3. **W1 修复快线已收官（2026-11-25）**：T01–T08 全 DONE（更新链路/管理员入口×2/logo/图片缓存/静默刷新/多选下移/跨季误下载/搜索音乐导航）。
 4. **W2 设计基础已收官（2026-11-25）**：T09 主题还原三批全 DONE（批① `0d3aa49a`+`b17eaa24`；批② `c9cb41c9`；批③ `cd9d6ad0`）；T10 图标规范 `78df3ed7`；T11 抽屉左缘热区 `e3bafa2e`；T12 滑杆垂直手势优先 `ddf91d75`；T13 设置面板去重 `22988cf2`（串流码率无宿主暂留→T23）。
-5. **W3 音乐重塑全波次已收官（2026-11-25）**：a 组 T14 `8aa7d705`+`2cd7f0cd`、T15 `00eb1cdf`+`748d76c0`、T16 `5efbf784`；T17 `4e391eb5`+`8c283888`（点单曲=追加队尾并起播、快照就近迁移、RELEASE_NOTES_v2.0.1 首条）；b 组 T18 `6e71a8b8`、T20 `f7c1e8b2`、T19 `d29bd6b0`（修 PlaylistItemId 误用 bug）；K60/Pad 取证全绿（`F:/Develop/code_data/qa/w3-t14..t20/`）。留档裁定项见台账 LATER 池。
-6. **W4 播放器收尾全波次已收官（2026-11-26）**：T21 `8d5f8213`（竖屏顶栏 safeDrawing 下移出挖孔区，横屏零副作用）、T22 `4b7392c4`（竖屏锁定可解锁——根因=命中区按容器 height/2 取中点、竖屏下半截是选集区，改实测矩形回传；锁/解锁键统一 spec 档位；旋转 FULL_SENSOR→USER+manifest 同步）、T23 `29f3efdc`（串流码率迁设置→播放器子页+删播放器内码率面板，底栏 6 键→5 键）。HEAD=`29f3efdc`；留档：jellyfin-test 拒连（码率联动 W5 补）、「关自动旋转横置不转」红线内未验（W5 请用户手动验）、configureInsets 死代码与码率字符串/图标清理，详见台账 LATER 池。
-7. **环境事实**：多设备在线装机用 `assembleLibreDebug` + `adb -s <id> install -r`；全模块单测注意 `:core`/`:app:phone` 是 `testLibreDebugUnitTest`、`:data`/`:modes:film`/`:modes:music`/`:settings` 是 `testDebugUnitTest`；ktfmt 修正任务名是 `ktfmtFormat`（全仓任务，并发卡用「快照→格式化→只保留自己文件」隔离法）；发布门须显式加跑 `verifyMpvJniReleaseContract`；GitHub 上传双资产偶发 502 拆「先建 Release 再分次传」可解；**并发子代理共用工作区会互踩 Gradle 增量编译缓存**（等他方构建结束重跑即恢复）；**MIUI 手势导航下屏幕最外侧 ~24dp 应用收不到触摸事件**；**Jellyfin 查询缺字段不报错只返回 null**；**Jellyfin 歌单条目操作必须用 PlaylistItemId 而非媒体 itemId**（误用返回 204 但不生效）；**播放器容器高≠画面区高**（W4-T22：竖屏容器下半截是常驻选集区，命中区/居中一律按画面区算或实测回传）；设备当前登录 jellyfin-test 可写测试服（生产服写验证一律先 dump 抽屉确认服务器）。
+5. **W3 音乐重塑全波次已收官（2026-11-25）**：a 组 T14 `8aa7d705`+`2cd7f0cd`、T15 `00eb1cdf`+`748d76c0`、T16 `5efbf784`；T17 `4e391eb5`+`8c283888`（点单曲=追加队尾并起播、快照就近迁移）；b 组 T18 `6e71a8b8`、T20 `f7c1e8b2`、T19 `d29bd6b0`（修 PlaylistItemId 误用 bug）；K60/Pad 取证全绿（`F:/Develop/code_data/qa/w3-t14..t20/`）。
+6. **W4 播放器收尾全波次已收官（2026-11-26）**：T21 `8d5f8213`、T22 `4b7392c4`（竖屏锁定解锁根因=容器高≠画面区中点）、T23 `29f3efdc`（码率迁设置页，底栏 6→5 键）。
+7. **W5 回归裁定留档**：「关自动旋转横置不转」需用户手动验一次（红线内未验，SCREEN_ORIENTATION_USER 契约兜底）；R11 破坏性删测试服条目未授权跳过（单测作证）；R-B1「搜索已下载分区行只起播不开详情」= T08 定稿刻意口径非缺陷；KNOWN_ISSUE 观察=K60 首播偶发卡 BUFFERING 重进即恢复、测试服高码率转码能力不足（服务端）。
+8. **环境事实**：多设备在线装机用 `assembleLibreDebug` + `adb -s <id> install -r`；全模块单测注意 `:core`/`:app:phone` 是 `testLibreDebugUnitTest`、`:data`/`:modes:film`/`:modes:music`/`:settings` 是 `testDebugUnitTest`；ktfmt 修正任务名是 `ktfmtFormat`（全仓任务，并发卡用「快照→格式化→只保留自己文件」隔离法）；发布门须显式加跑 `verifyMpvJniReleaseContract`；GitHub 上传双资产偶发 502 拆「先建 Release 再分次传」可解；**并发子代理共用工作区会互踩 Gradle 增量编译缓存**（等他方构建结束重跑即恢复）；**Gradle 强制重跑用 `--rerun-tasks`（`--rerun` 对指定任务不生效）**；**MIUI 手势导航下屏幕最外侧 ~24dp 应用收不到触摸事件**；**Jellyfin 查询缺字段不报错只返回 null**；**Jellyfin 歌单条目操作必须用 PlaylistItemId 而非媒体 itemId**（误用返回 204 但不生效）；**播放器容器高≠画面区高**（W4-T22：竖屏容器下半截是常驻选集区，命中区/居中一律按画面区算或实测回传）；**测试 JVM 全局 `Dispatchers.Main` 被 Unsafe 覆写必须 @AfterClass 还原（W5 单测污染根因）**；设备当前登录 jellyfin-test 可写测试服（生产服写验证一律先 dump 抽屉确认服务器）。
 
 ### 下会话开工提示词
 
@@ -57,18 +58,19 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
    工作区：F:/Develop/code_data/work_tree/Aurorama/v2-merge-141（分支 codex/v2.0.1）。
 2. 开工读序（固定）：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V201_TASKS.md 状态块
    → 记忆库 MEMORY.md（读序外文件按需，不通读）。
-3. 现状（≤4 行）：HEAD 以 git log 为准；W0–W4 全收官（W4 三卡 T21 `8d5f8213`/T22 `4b7392c4`/
-   T23 `29f3efdc` 全 DONE，HEAD=29f3efdc+docs 收口提交）；master=`312209a6`（远端推送待授权）；
-   RELEASE_NOTES_v2.0.1.md 已有 T17 首条；全部留档裁定项见台账 LATER 池（W4 新增 6 项）。
-4. 本会话任务（1–2 卡）：W5 收口与发布——先 LATER 池逐条裁定（2.0.1 修 / DEFERRED 2.0.2 /
-   不修，裁定结果回写台账）→ 全量回归（T9 R1–R12 + W1–W4 新增用例 + W4 留档验证项：
-   jellyfin-test 恢复后补码率联动流验证与收藏 toggle 测试服验证、Pad 锁定几何、
-   横屏 Compact 复测、服务器歌单移出曲目 E2E、T01 真实升级 E2E 需 rc）→ 版本 bump 2.0.1
-   + RELEASE_NOTES 补齐 + 签名双 APK + `verifyMpvJniReleaseContract` → push/tag/Release
-   【push/tag/Release 必须当场取得用户授权】。回归面大，裁定先行、回归分组派单。
+3. 现状（≤4 行）：HEAD 以 git log 为准；W0–W5 全收官，发布门 5/5 绿（单测 3583/0、签名双 APK、
+   JNI 契约、验签指纹 e449c4aa…e155ff、双机覆盖冒烟），版本 2.0.1/code 8；
+   master=`312209a6`；签名双 APK 在 app/phone/build/outputs/apk/libre/release/（构建于 fa5eed4e，
+   HEAD 仅多一个测试代码提交 f589fad4，产品代码一致）。
+4. 本会话任务（1–2 卡）：发布执行——【取得用户授权后】push codex/v2.0.1 + master、
+   打 tag v2.0.1、建 GitHub Release 传双 APK（正文=docs/RELEASE_NOTES_v2.0.1.md；
+   502 则先建 Release 再分次传）→ 发布后验证（下载资产 SHA-256 复核本地构建；
+   K60 应用内 2.0.0→2.0.1 升级 E2E：检查更新→AVAILABLE→更新说明渲染→下载→安装；
+   需先在 K60 装回 release 2.0.0）→ RELEASE_PLAN.md §6 补 2.0.1 行 → 台账/PROJECT_PLAN 收口
+   【spike 时限：升级 E2E 若 GitHub Release 上架后 App 轮询不到，查明原因再处理，不硬改】。
 5. 设计分权（固定一行）：设计以 docs/V201_DESIGN_FINAL.md + docs/V2_DESIGN.md §3 为准，deepseek 零设计权。
 6. 门禁与纪律（固定引用）：见 AGENTS.md 质量门/红线；adb 取证派子代理，负责人复核证据关键行。
-   【发布门必跑 verifyMpvJniReleaseContract；「关自动旋转横置不转」可请用户手动关自动旋转验一次（勿用 adb 改系统设置）；回归前确认 jellyfin-test 是否恢复（2026-11-26 曾 443 拒连）】
+   【「关自动旋转横置不转」可请用户手动关自动旋转验一次（勿用 adb 改系统设置）】
 7. 交接（固定一行）：收口按 AGENTS.md 五件事，提示词按统一标准填槽更新。
 ```
 

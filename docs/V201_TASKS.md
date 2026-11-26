@@ -1,9 +1,9 @@
 # 2.0.1 任务卡台账
 
 <!-- V201_STATUS_BEGIN -->
-> **当前状态（2026-11-26）**：**W5 收口进行中——LATER 池 23 项已逐条裁定回写；T24 清理卡 DONE（`74762dc2`+`941b7d57`）；全量回归四组全绿**（R-A 测试服写路径 / R-B1 K60 T9 矩阵+横屏 Compact+W1–W4 抽验 / R-B2 Pad 写补偿+搜索+书籍 / R-C Pad 几何，证据 `F:/Develop/code_data/qa/w5-regression/`；R10 360dp 与 R11 破坏性项按红线/授权 SKIP 且有单测担保）；版本 bump 2.0.1/code 8 + RELEASE_NOTES 补齐。分支 `codex/v2.0.1`；master=`312209a6`（远端推送待授权）。
-> **下一卡**：发布门——全模块单测+ktfmtCheck+`assembleLibreRelease`（universal 双 APK）+`verifyMpvJniReleaseContract`+apksigner 指纹核验（`e449c4aa…e155ff`）+双机覆盖安装冒烟 → push/tag/Release（用户授权）→ 发布后应用内升级 E2E（T01 AVAILABLE 链路）。
-> **工作流（2026-11-24 用户拍板）**：① 下载类任务分散到功能波次，不设独立下载波次；② adb 取证与简单修复下放子代理，负责人只审证据；③ 负责人任务量按上下文消耗弹性排，不固定卡数；④ 负责人只做规划/复杂排错/设计定稿/证据终审；⑤ 波次按依赖与风险排，不照搬需求编号；⑥ 所有主题必须落卡，收口逐卡核销；⑦ 新需求按内容归属插入最合适波次（可插队任意未开始波次），每波次预留 ~20% 缓冲。
+> **当前状态（2026-11-26）**：**W5 收口——LATER 池 23 项裁定回写；T24 清理卡 DONE（`74762dc2`+`941b7d57`）；全量回归四组全绿**（R-A 测试服写路径 / R-B1 K60 / R-B2 Pad / R-C Pad 几何，证据 `F:/Develop/code_data/qa/w5-regression/`）；**发布门 5/5 全绿**（10 模块单测 3583/0/0/0、ktfmtCheck、签名双 APK arm64 78.92MiB/universal 169.14MiB + verifyMpvJniReleaseContract 8c/41m、apksigner 指纹 `e449c4aa…e155ff` 一致、双机自 2.0.0 覆盖安装冒烟 0 FATAL/ANR，证据 `qa/w5-release/`）；途中修测试隔离污染 `f589fad4`（`DownloadsViewModelDeletionTest` Unsafe 覆写 Main 不还原，整模块三连绿）。版本 2.0.1/code 8（`fa5eed4e`），HEAD=`f589fad4`；master=`312209a6`（远端推送待授权）。
+> **下一卡**：**发布**——push 分支+master、tag `v2.0.1`、GitHub Release 双 APK（粘贴 `docs/RELEASE_NOTES_v2.0.1.md`）→ 发布后验证（下载资产 SHA-256 复核 + K60 应用内 2.0.0→2.0.1 升级 E2E：AVAILABLE/更新说明渲染/下载安装）→ `RELEASE_PLAN.md` §6 历史表补 2.0.1 行 → 全文档收口。
+> **观察项（KNOWN_ISSUE）**：K60 冒烟首播《被狙击的学园》卡 BUFFERING ~5min 重进即恢复（未复现成因）；测试服高码率转码能力不足（服务端个案）。
 > **红线**：生产服 `jellyfins.zhangwenkang.com` 永久只读；服务器写只在测试服验证；push/tag/Release 需用户授权。
 <!-- V201_STATUS_END -->
 
