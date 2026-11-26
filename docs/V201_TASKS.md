@@ -1,8 +1,8 @@
 # 2.0.1 任务卡台账
 
 <!-- V201_STATUS_BEGIN -->
-> **当前状态（2026-11-26）**：**W4 播放器收尾全波次收官**——T21 `8d5f8213`（竖屏顶栏 safeDrawing 下移出挖孔区）、T22 `4b7392c4`（竖屏锁定可解锁：根因=命中区按容器 height/2 取中点，竖屏下半截是选集区，改实测矩形回传；锁/解锁键统一 spec 档位；旋转 FULL_SENSOR→USER+manifest 同步）、T23 `29f3efdc`（串流码率迁设置→播放器子页+删播放器内码率面板，底栏 6 键→5 键）。分支 `codex/v2.0.1` HEAD=`29f3efdc`；master=`312209a6`（远端推送待授权）；设计定稿 `docs/V201_DESIGN_FINAL.md`。
-> **下一卡**：W5 收口与发布——LATER 池裁定 → 全量回归（T9 R1–R12 + 新增用例 + W4 留档验证项）→ 版本 bump 2.0.1 + RELEASE_NOTES + 签名双 APK + `verifyMpvJniReleaseContract` → push/tag/Release（用户授权）。
+> **当前状态（2026-11-26）**：**W5 收口进行中——LATER 池 23 项已逐条裁定回写；T24 清理卡 DONE（`74762dc2`+`941b7d57`）；全量回归四组全绿**（R-A 测试服写路径 / R-B1 K60 T9 矩阵+横屏 Compact+W1–W4 抽验 / R-B2 Pad 写补偿+搜索+书籍 / R-C Pad 几何，证据 `F:/Develop/code_data/qa/w5-regression/`；R10 360dp 与 R11 破坏性项按红线/授权 SKIP 且有单测担保）；版本 bump 2.0.1/code 8 + RELEASE_NOTES 补齐。分支 `codex/v2.0.1`；master=`312209a6`（远端推送待授权）。
+> **下一卡**：发布门——全模块单测+ktfmtCheck+`assembleLibreRelease`（universal 双 APK）+`verifyMpvJniReleaseContract`+apksigner 指纹核验（`e449c4aa…e155ff`）+双机覆盖安装冒烟 → push/tag/Release（用户授权）→ 发布后应用内升级 E2E（T01 AVAILABLE 链路）。
 > **工作流（2026-11-24 用户拍板）**：① 下载类任务分散到功能波次，不设独立下载波次；② adb 取证与简单修复下放子代理，负责人只审证据；③ 负责人任务量按上下文消耗弹性排，不固定卡数；④ 负责人只做规划/复杂排错/设计定稿/证据终审；⑤ 波次按依赖与风险排，不照搬需求编号；⑥ 所有主题必须落卡，收口逐卡核销；⑦ 新需求按内容归属插入最合适波次（可插队任意未开始波次），每波次预留 ~20% 缓冲。
 > **红线**：生产服 `jellyfins.zhangwenkang.com` 永久只读；服务器写只在测试服验证；push/tag/Release 需用户授权。
 <!-- V201_STATUS_END -->
@@ -68,10 +68,12 @@
 
 | 卡 | 状态 | 内容 | 验收 |
 |---|---|---|---|
-| T24 | DONE | 2.0.1 清理卡（本卡单 commit）：① 删 `BasePlayerActivity.configureInsets` 死代码（连同仅它使用的 `View` / `updatePadding` 导入；全仓零调用、零 override）；② 删 `player_controls_bitrate_*` 6 条（`values` / `values-zh-rCN`，仓内无 `values-en`）+ `ic_player_bitrate.xml`，全仓零引用；③ `bottomRowWidthDp` 核对结论=T23 已按 5 键/7 间距改好（`29f3efdc` 内 `6f→5f`、`8f→7f`），估算式 ≥ 布局实际（4 个键内距 + 2×Space2），无需再改；④ 音乐 `UiState.tab` 默认 `ALBUMS→SUGGESTIONS`（tab 无持久化，不动已存选择），同步首屏曲库失败降级口径（建议/专辑→歌单）；⑤ `StoredReleaseState` 降级兜底核对=v2.0.0 `readState` try/catch→`Invalid`，UI `as? Present` 按无更新处理不崩；降级后更新检查返回 STORAGE_ERROR（功能降级，非崩溃），schemaVersion 不升；补 2 条契约单测（旧 json 缺 `releaseNotes`→Present/notes=null；未知字段→Invalid 不抛）。顺带仅修 T23 遗留 1 行 ktfmt（`SettingsViewModel.kt:1476` 纯换行） | 六模块单测 core 530 / phone 618 / data 530 / film 228 / music 496 / settings 9 全绿、ktfmtCheck + assembleLibreDebug 绿；K60：音乐页默认「共 20 条推荐」+「最近添加」段；竖屏底栏 5 键+1×+全屏键 bounds x 19..1060（1080 内）；横屏带字 5 键（音轨/字幕/倍速/解码/详细信息）+退出全屏 x≤2351（2400 内）无溢出，无「码率」节点 |
+| T24 | DONE | 2.0.1 清理卡（`74762dc2` + 跟进 `941b7d57`）：① 删 `BasePlayerActivity.configureInsets` 死代码（连同仅它使用的 `View` / `updatePadding` 导入；全仓零调用、零 override）；② 删 `player_controls_bitrate_*` 6 条（`values` / `values-zh-rCN`，仓内无 `values-en`）+ `ic_player_bitrate.xml`，全仓零引用；③ `bottomRowWidthDp` 核对结论=T23 已按 5 键/7 间距改好（`29f3efdc` 内 `6f→5f`、`8f→7f`），估算式 ≥ 布局实际（4 个键内距 + 2×Space2），无需再改；④ 音乐 `UiState.tab` 默认 `ALBUMS→SUGGESTIONS`（tab 无持久化，不动已存选择），同步首屏曲库失败降级口径（建议/专辑→歌单）；⑤ `StoredReleaseState` 降级兜底核对=v2.0.0 `readState` try/catch→`Invalid`，UI `as? Present` 按无更新处理不崩；降级后更新检查返回 STORAGE_ERROR（功能降级，非崩溃），schemaVersion 不升；补 2 条契约单测（旧 json 缺 `releaseNotes`→Present/notes=null；未知字段→Invalid 不抛）。顺带仅修 T23 遗留 1 行 ktfmt（`SettingsViewModel.kt:1476` 纯换行） | 六模块单测 core 530 / phone 618 / data 530 / film 228 / music 496 / settings 9 全绿、ktfmtCheck + assembleLibreDebug 绿；K60：音乐页默认「共 20 条推荐」+「最近添加」段；竖屏底栏 5 键+1×+全屏键 bounds x 19..1060（1080 内）；横屏带字 5 键（音轨/字幕/倍速/解码/详细信息）+退出全屏 x≤2351（2400 内）无溢出，无「码率」节点 |
 
 - LATER 池裁定（2026-11-26 已裁，见下节）→ 全量回归（T9 R1–R12 + 新增用例 + 留档验证项）→ 版本 bump 2.0.1 + RELEASE_NOTES + 签名双 APK + `verifyMpvJniReleaseContract` → push/tag/Release（用户授权）。
-- T01 移交项：真机 2.0.0→2.0.1-rc 真实升级 E2E（进度可见/安装成功/更新说明渲染取证——AVAILABLE 态只有 rc 才能构造）。
+- **全量回归已绿（2026-11-26，四组子代理，HEAD=`75a5a8ab` 构建）**：R-A 测试服写路径（码率联动两档参数精确跟随+720k 真实转码流解出 / 收藏 toggle POST-DELETE 与服务端一一对应 / 歌单移出曲目 `entryIds` 硬证据，测试服零残留）✅；R-B1 K60（T9 R1–R5/R8/R10 全绿，横屏 Compact 三键单入口+底栏隐藏+安全区 ✅，W1–W4 抽验 7 项全 PASS）✅；R-B2 Pad（R6 三目标断网写补偿 2.6–5.6s 补传清零+服务端回读 / R7 搜索 / R9 书籍通知直达阅读器全 PASS，逐行还原零残留）✅；R-C Pad（横屏锁定↔解锁命中区逐位相同、无挖孔无遮挡、T15/T18 复测绿）✅。证据根 `F:/Develop/code_data/qa/w5-regression/`。R10 批量条 360dp SKIP（需改系统密度，红线；`312209a6..HEAD` 对批量条零改动+契约单测担保）；R11 破坏性删测试服条目本次无授权 SKIP（单测 `SeasonViewModelContentChangeTest` 作证，不阻塞）；R-C 竖屏锁定几何 BLOCKED（Pad 物理横放+全屏强制横屏+注入旋转属红线，竖屏几何已由 K60 在 T22 取证覆盖）。
+- **回归疑点裁定**：R-B1「搜索单曲行未进专辑详情」= 点击的是「已下载」分区行（`OnDownloadedItemClick` → kind=null → 只起播），T08 定稿刻意口径，非缺陷；服务器歌曲卡→专辑详情路径 T08 验收+R-B2 双侧 PASS。
+- T01 移交项：真机 2.0.0→2.0.1 真实升级 E2E——覆盖安装签名连续性随发布门冒烟验证；应用内「检查更新→AVAILABLE→下载→安装」全链路在 Release 上架后做发布后验证（AVAILABLE 态只有线上 rc 才能构造）。
 - 「关自动旋转横置不转」：回归阶段请用户手动关自动旋转验一次（勿用 adb 改系统设置）。
 
 ## 遗留 LATER 池（2026-11-26 W5 已逐条裁定）
@@ -88,10 +90,13 @@
 - T02b policy 补查未节流——低频导航触发，安全语义优先。
 
 **DEFERRED 2.0.2**：A4 旧记录徽标判定（identity 命名空间并案）/ A5 FAILED 态同步（P2）/ A6 下载计数跳变（P2 未复现）/ 对账口径 /「全部继续」/ Pad 库页离线降级 / `PlayerSettingsSnapshot` 冗余字段瘦身 / 建议 tab 真实播放频次（需计数表）/ 专辑·艺术家·歌单 tab 排序 / music 模块文案三 locale / 播放页环境光晕。
+**DEFERRED 2.0.2（W5 回归新增）**：播放器 stall 降级兜底持久化（`pref_player_backend` 被写死 exoplayer，应改会话内降级或加提示，R-A 发现）/ R4 下载中菜单文案漂移（显示「下载中」而非「取消下载」，T15 菜单重构带入，功能正常）/ 书籍下载 App 侧吞吐 2.8–16KB/s 且大文件 Connection reset（既有，2.0.0 量级相近）/ 失败通知书名显示短 id / 阅读器发起下载退出即中断（与后台任务语义不符）/ 删除失败下载后通知不自动取消 / 阅读器在线仍误报「离线暂存 1 条进度」/ 影视详情页已收藏按钮文案不切「取消收藏」（音乐侧正确）/ 下载页首屏统计滞后（重进才刷新）/ 测试服高码率转码能力不足（14GB high10 源 8Mbps 档起播 500，服务端个案非 App 缺陷）。
 
 **W5 回归项（不留档，本次做掉）**：串流码率→实际转码流联动（jellyfin-test 2026-11-26 已恢复 302）/ 收藏 toggle 测试服验证 / 服务器歌单「移出曲目」E2E / Pad 锁定几何+横屏挖孔区控件 / K60 横屏 Compact 播放页复测 /「关自动旋转横置不转」用户手动验。
 
 ## 过程日志（只留最近 ~5 条）
+
+- 2026-11-26：**W5 收口**——LATER 池 23 项裁定（修 6/不修 7/DEFERRED 11+回归 6）；T24 `74762dc2`+`941b7d57`+注释跟进 `75a5a8ab`；回归四组全绿（证据 qa/w5-regression/）；bump 2.0.1/code 8 + RELEASE_NOTES 补齐。
 
 - 2026-11-26：**W5-T24 清理卡 DONE**（本卡单 commit）——删 `configureInsets` 死代码、码率残留资源（6 串+1 图标）、`bottomRowWidthDp` 核对已 5 键/7 间距、音乐默认 tab 改「建议」（含首屏降级分支）、`StoredReleaseState` 降级兜底核对+2 契约单测；顺带修 T23 遗留 1 行 ktfmt。六模块单测全绿，K60 取证绿。
 - 2026-11-26：**W4 全波次收官**——T21 `8d5f8213`（竖屏顶栏 safeDrawing 下移）、T22 `4b7392c4`（锁定解锁根因=容器高≠画面区中点，改实测矩形回传；旋转口径 USER）、T23 `29f3efdc`（码率迁设置页+删播放器内面板，底栏 6→5 键）。HEAD=`29f3efdc`，三卡 K60 取证绿；留档 jellyfin-test 拒连（码率联动 W5 补）等 6 项入 LATER 池。
