@@ -45,12 +45,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
+import com.zhangwenkang.cinefin.core.presentation.components.navSelectedContent
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.core.presentation.utils.cinefinSafeTop
 import kotlinx.coroutines.delay
 
@@ -145,7 +145,8 @@ internal fun ReaderControlLayer(
     val enterMillis = if (reduceMotion) READER_CONTROLS_REDUCED_MS else READER_CONTROLS_ENTER_MS
     val exitMillis = if (reduceMotion) READER_CONTROLS_REDUCED_MS else READER_CONTROLS_EXIT_MS
     val colors = LocalCinefinColors.current
-    val accent = LocalMediaColors.current.base
+    // 2.0.2 D5（C9 补）：全书进度条属进度 / 导航强调，归极光——浅色主题用 auroraInk 保证纸色底可读（同 C8d 口径）。
+    val accent = navSelectedContent(colors)
     // 深色 / OLED 家族 = 玻璃（rgba(10,16,28,.58) + glassBorder）；纸色 / 护眼 = 页色 96%。
     val containerColor = if (darkChrome) colors.glass else chromeColor.copy(alpha = 0.96f)
     val borderColor = if (darkChrome) colors.glassBorder else contentColor.copy(alpha = 0.08f)

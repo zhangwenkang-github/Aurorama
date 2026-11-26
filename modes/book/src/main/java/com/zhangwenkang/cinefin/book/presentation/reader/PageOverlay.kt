@@ -44,6 +44,8 @@ internal fun PageOverlay(
     onAnnotationTap: (ReaderAnnotation) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // 2.0.2 D6 裁定（C9 补）：页面叠加层 = 内容标注身份位（搜索命中 / 批注框 / 实时框选都画在书页位图上，
+    // 与「Epub 批注黄」同属内容标注体系，非交互强调），保留域媒体色；进度 / 导航强调归极光见 ReaderControlLayer。
     val accent = LocalMediaColors.current.base
     var boxSize by remember { mutableStateOf(IntSize.Zero) }
     var dragRect by remember { mutableStateOf<PageRect?>(null) }

@@ -111,13 +111,15 @@
 | C8c 灰度 12 处 | 选集勾/角标、睡目标签、跳过 chip 图标、解锁键、面板勾、菜单勾、队列「正在播放」×2、重试文字 → 极光 | K60：选集行选中 + 「正在播放」角标（C9 深色面板图 + nodes） |
 | C8d 面板焦点/选中 19 处 | 焦点环 / 错误面板按钮 / 工具键 / `PanelChip` / 分类 Tab / 面板 Tab → 极光 | core 守卫 + K60 播放器面板渲染（C9） |
 | C9 歌词外观/显示预设 chip 4 行 | 域媒体 `media.container/bright` 选中态 → `CinefinFilterChip`（aurora1@16% + @45% 描边 + `navSelectedContent`） | K60 像素：选中 chip `#0E272C` + `#3DE8C2` 20.1%、未选中 0%；守卫 `d6 歌词预设 chip 不自造选中色` |
+| C9 补 阅读器进度条 / 书签点 / 拖拽 thumb | `accent = media.base`（深色 `MediaBook` 书域蓝、纸色 / 护眼 `PaperAccent` `#A8843C`）→ `navSelectedContent(colors)`（深色 aurora1 / 浅色 auroraInk） | 代码 token 链 + book 377 单测 + `assembleLibreDebug` + `ktfmtCheck`；`ReaderProgressBar` 参数不变、无重设计（章节点本就非 accent 驱动，保持 `contentColor@36%`） |
+| C9 补 书页叠加层（搜索命中 / 批注框 / 实时框选） | `accent = media.base` 保留（内容标注身份位：深色 = `MediaBook`，纸色 / 护眼 = `PaperAccent` `#A8843C` = D5 白名单「阅读护眼纸色」） | 原地加分类注记注释；token 未见交互槽 |
 
 ### 自查结论（拥挤 / 多余图标 / 旧样式残留）
 
 - **拥挤**：D2 后两页头部均为两行，K60 dump 未见控件重叠；下载页「进行中/失败/已完成 + 排序」与「全部/视频/音乐/书籍」两行 chips 在 1080px 宽下无挤压（选中 chip 底 `#D4EBE8` 完整可见）。440dp 窄屏计数挤占 tab 属 D2 既定横滑行为（台账 #12），不再改动。
 - **多余图标**：音乐顶栏已由 5 键收敛为搜索 + ⋮；书籍/库页工具行删除后仅余 排序 / 视图 / 筛选 3 键；`ic_filter` / `header_gradient` 死资源已删且守卫 b 防复活。四主题 + 7 态 dump 未发现重复或空占位图标。
 - **旧样式残留**：全仓 `media.*` 仅剩 4 处身份位 + 1 处静态字幕轨徽标 + 字幕/歌词颜色预设白名单；`FilterChipDefaults` 在歌词两文件已清零（守卫 e）。仍存 4 个文件使用 M3 原生 `FilterChip`（`SearchBar` / `LyricsSheet` / `MusicEffectsSheet`），走主题桥接色但尺寸/描边与 `CinefinFilterChip` 不完全同款 —— 属既有差异，本卡未扩大范围，登记后续统一。
-- **待裁定（本轮未改）**：`ReaderControlLayer.kt:148` / `PageOverlay.kt:47` 的 `accent = LocalMediaColors.current.base` 驱动阅读器进度条、章节点与批注框描边（书籍域内容色，D5 白名单未列）。
+- **已裁定（C9 补）**：`ReaderControlLayer` 的 `accent` 归极光（`navSelectedContent`，覆盖进度填充 / 书签点 / thumb）；`PageOverlay` 的 `accent` 保留域媒体色（搜索命中 / 批注框 / 实时框选 = 内容标注身份位，与 Epub 批注黄同类）。
 
 ## LATER 池（本期不做，裁定见 V202_DESIGN.md「明确不做」）
 

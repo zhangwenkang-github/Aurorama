@@ -229,7 +229,7 @@ mediaColorsFor(ContentDomain, CinefinColors)
 - 资源总数 **137**：core 96 + music 10 + player 9（+ `drawable-nodpi/ic_music_placeholder.png` 1）+ settings 19 + film 1 + tv 1（冻结端）。
 - 「Kotlin / XML 引用文件数」= 生产源码（剔除 `src/test`、`build/`）中命中 `R.drawable.<name>` / `@drawable/<name>` 的文件数；同名资源按名字合并计数。
 - tint 状态分桶见文档开头口径说明；`XML` = 只被布局 / 主题 XML 引用（无 Kotlin 消费），`死资源` = 生产源码零引用（布局引用需按 ViewBinding 生成类名复核，见 B7）。
-- 「token tint」= 显式 tint 且非写死色，其中既有 `colors.*`（语义 token，合规）也有 `media.*`（域媒体色）；后者是否落在身份位由 A5 口径判定。C8c/C8d/C9 裁定执行后全仓仅余 **4 处身份位**（`BookCoverPlaceholder` / `CinefinCard` 域徽标 / `CinefinEmptyState` / `MusicModeScreen` 占位音符）+ **1 处静态字幕轨徽标** 的 `tint/color = media.*`；字幕颜色预设与歌词高亮 / 外观属白名单，不计入交互槽。逐点见 C 节 #20 / #21 / #22。
+- 「token tint」= 显式 tint 且非写死色，其中既有 `colors.*`（语义 token，合规）也有 `media.*`（域媒体色）；后者是否落在身份位由 A5 口径判定。C8c/C8d/C9 系列裁定执行后全仓仅余 **4 处身份位**（`BookCoverPlaceholder` / `CinefinCard` 域徽标 / `CinefinEmptyState` / `MusicModeScreen` 占位音符）+ **1 处静态字幕轨徽标** 的 `tint/color = media.*`，另有 **1 处书页标注叠加层**（`PageOverlay` 经 `accent` 别名消费 `media.base`，内容标注身份位，见 #23）；字幕颜色预设与歌词高亮 / 外观属白名单，不计入交互槽。逐点见 C 节 #20 / #21 / #22 / #23。
 - **死资源只标记不删除**（`ic_filter` / `header_gradient` 已在 C8a 删除，本表不留行）。
 
 ### B2 core 模块（96 个）
@@ -443,6 +443,7 @@ mediaColorsFor(ContentDomain, CinefinColors)
 | 20 | 15 处 `tint / color / background = media.*`（C8b 台账抽查新发现） | C8b→C8c | **已裁定（2026-11-26）：12 处归极光 / 1 处按先例保留，DONE（本 commit）** | 身份位 3 处合规不动；逐点处置见下表 |
 | 21 | 同状态姊妹点位（C8c 登记 19 处） | C8c→C8d | **已裁定（2026-11-26）全部归极光：DONE** | 19 处中 16 处转换、3 处实为字幕颜色预设（白名单，不改）；审计另补 1 处漏登的播放器 Tab。逐点见 C-21 明细 |
 | 22 | 歌词外观 / 显示预设 chip 选中态 4 行（`MusicLyricsPage` / `MusicLyricsTextControls`） | C8d→C9 | **DONE（负责人裁定：交互强调，非白名单）** | 两处 chip 改委托 `CinefinFilterChip(compact = true)`：选中 = aurora1@16% 容器 + aurora1 描边 + `navSelectedContent` 文字；K60 像素：选中 chip 容器 `#0E272C`（深色）/`#D4EBE8`（浅色）+ `#3DE8C2` 20.1% 命中，未选中 0%；守卫 e 钉住 |
+| 23 | 阅读器 `accent` 贯穿阅读进度条 / 书签点 / thumb / 书页批注叠加 | C9→C9补 | **DONE（负责人裁定：拆分处置，本 commit）** | `ReaderControlLayer.kt` → `navSelectedContent(colors)`（深色 aurora1 / 浅色 auroraInk），组件签名不变；`PageOverlay.kt` 保留 `media.base`（搜索命中 / 批注框 / 框选 = 内容标注身份位）+ 分类注记注释。该书页叠加层的 `MediaColors` 由 `ReaderSettings.mediaColors()` 供给：深色阅读主题 = `MediaBook` 书域蓝、纸色 / 护眼 = `PaperAccent` `#A8843C`（D5 明示白名单「阅读护眼纸色」），故保留域色与白名单口径一致。章节点实际由 `contentColor@36%` 绘制，非 accent 驱动，未改 |
 
 ### C-20 处置明细（2026-11-26 C8c）
 
@@ -499,7 +500,7 @@ mediaColorsFor(ContentDomain, CinefinColors)
 - 歌词高亮白名单：`LyricsSheet.kt:231/232`、`MusicLyricsPage.kt:513/514/535/549`（C9 改动后行号有位移）。
 - 歌词外观 / 显示预设 chip：**C9 已归极光**（#22），两文件只余歌词高亮本身消费 `media.base/bright`，交互槽为 0。
 
-**审计复查（2026-11-26 C9）**：全仓 `media.*` 只剩上述白名单 + 身份位，无遗漏交互态；`MusicModeScreen` 两处 C8c 遗留的未使用 `val media` 已清。另登记待裁定：`ReaderControlLayer.kt:148` / `PageOverlay.kt:47` 的 `accent = LocalMediaColors.current.base` 驱动阅读器进度条 / 章节点 / 批注框描边（书籍域内容色，D5 白名单未列），本卡未改。
+**审计复查（2026-11-26 C9 / 2026-11-27 C9 补）**：全仓 `media.*` 只剩上述白名单 + 身份位（4 处身份位 + 1 处静态字幕轨徽标 + 1 处书页标注叠加层 `PageOverlay`），无遗漏交互态；`MusicModeScreen` 两处 C8c 遗留的未使用 `val media` 已清。C9 补：`ReaderControlLayer` 的阅读进度条 accent 已归极光（见 #23），`PageOverlay` 保留域媒体色并加分类注记。
 
 ---
 
