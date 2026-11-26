@@ -39,11 +39,11 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 连接层 | 🟢 W31 完成；遗留 `fix/w31-trust-session-reuse` 分支待合并 | `docs/ARCHITECTURE.md` §5.4 |
 | 投屏/同步观看 | ⛔ 投屏未开始（LATER）；SyncPlay 为 SHOULD（W4 评估） | `docs/V2_REQUIREMENTS.md` §9.5 |
 | 维护/缺陷修复 → 2.0.1 | 🟢 **已发布**（2026-11-26，用户授权）：分支 `codex/v2.0.1`、tag `v2.0.1`（@`d463e64b`）、master 强推对齐 `312209a6`、GitHub Release 双 APK（发布后重下载 SHA-256 复核一致）；K60 升级 E2E：AVAILABLE+更新说明渲染 ✅ | `docs/V201_TASKS.md` |
-| UI 重构/热修 → 2.0.2 | 🟡 **进行中**（2026-11-26，分支 `codex/v2.0.2`，HEAD `ac40302a`）：**W0–C6 + C5b DONE**（C1 U1 热修 `a3ed8f5d`、C2 XML 主题清零 `2440ccf6`、C3 安全区统一 `83569904`、C4 黑底清理 `06f03d83`、C5 黄橙清零 `f419bc1f`、C5b 残项清零 `d5444007`、C6 音乐头部重排 `ac40302a`；门禁逐卡+合态复跑全绿，K60/Pad 取证全达标）；**下一卡 C7**=书籍/库头部 + 最近阅读入流；余 C7–C9 | `docs/V202_TASKS.md` · `docs/V202_DESIGN.md` |
+| UI 重构/热修 → 2.0.2 | 🟡 **进行中**（2026-11-26，分支 `codex/v2.0.2`，HEAD `a517ef6b`）：**W0–C7 + C5b DONE**（C1 U1 热修 `a3ed8f5d`、C2 XML 主题清零 `2440ccf6`、C3 安全区统一 `83569904`、C4 黑底清理 `06f03d83`、C5 黄橙清零 `f419bc1f`、C5b 残项清零 `d5444007`、C6 音乐头部重排 `ac40302a`、C7 书籍/库头部+最近阅读入流 `a517ef6b`；门禁逐卡+合态复跑全绿，K60/Pad 取证全达标）；**下一卡 C8**=D6 颜色/图标台账；余 C8–C9 | `docs/V202_TASKS.md` · `docs/V202_DESIGN.md` |
 
 ## 4. 当前焦点（2026-11-26）
 
-1. **2.0.2 进行中（分支 `codex/v2.0.2`，HEAD `ac40302a`）**：**W0–C6 + C5b DONE**——C1 U1 热修 `a3ed8f5d`、C2 XML 主题清零 `2440ccf6`、C3 安全区统一 `83569904`（rememberSafePadding 下沉 core+cinefinSafeTop()）、C4 黑底清理 `06f03d83`（垫层全走 glass/scrim28%+glassBorder+新守卫）、C5 黄橙清零 `f419bc1f`（21 点裁定，Pad 琥珀 0）、C5b 残项清零 `d5444007`（详情页/按钮/卡片选中态归极光）、C6 音乐头部重排 `ac40302a`（CinefinLibraryTabs+36dp 播放全部行，K60 起播回归）；门禁逐卡+合态复跑全绿；**下一卡 C7**=D2 书籍/库头部 + D3 最近阅读入流。
+1. **2.0.2 进行中（分支 `codex/v2.0.2`，HEAD `a517ef6b`）**：**W0–C7 + C5b DONE**——C1 U1 热修 `a3ed8f5d`、C2 XML 主题清零 `2440ccf6`、C3 安全区统一 `83569904`（rememberSafePadding 下沉 core+cinefinSafeTop()）、C4 黑底清理 `06f03d83`（垫层全走 glass/scrim28%+glassBorder+新守卫）、C5 黄橙清零 `f419bc1f`（21 点裁定，Pad 琥珀 0）、C5b 残项清零 `d5444007`（详情页/按钮/卡片选中态归极光）、C6 音乐头部重排 `ac40302a`（CinefinLibraryTabs+36dp 播放全部行，K60 起播回归）、C7 书籍/库头部+最近阅读入流 `a517ef6b`（删独立工具行、复用 CinefinLibraryTabs、headerContent 改 grid item 随滚动，K60 滚动取证+回归全过）；门禁逐卡全绿；**下一卡 C8**=D6 颜色/图标台账 + 守卫单测补齐。**测试服 TLS `-0x7280`：2026-11-26 用户排查服务端无异常，播放链路动态态补验继续受阻（疑客户端侧/mpv TLS 栈或链路中间环节）**。
 2. **2.0.1 已发布（2026-11-26，用户授权）**：tag `v2.0.1`（@`d463e64b`）+ master 对齐 `312209a6` + GitHub Release 双 APK（SHA-256 复核一致）；K60 升级 E2E ✅。
 3. **U1 已修（C1，`a3ed8f5d`）**：transfer 缺失时经 `beginDownload` 重建；修复效益自 2.0.2 起算（旧版更新器坏，2.0.0/2.0.1 用户需手动装一次 2.0.2）。
 4. **留档观察项**：「关自动旋转横置不转」用户手动验证通过（2026-11-26）核销；R11 破坏性删测试服条目未授权跳过；KNOWN_ISSUE=K60 首播偶发卡 BUFFERING 重进即恢复、测试服高码率转码能力不足（服务端）。
@@ -56,9 +56,9 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
    工作区：F:/Develop/code_data/work_tree/Aurorama/v2-merge-141（分支 codex/v2.0.2）。
 2. 开工读序（固定）：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V202_TASKS.md 状态块
    → 记忆库 MEMORY.md（读序外文件按需，不通读）。
-3. 现状（≤4 行）：HEAD 以 git log 为准；W0–C6+C5b DONE（C1–C6 逐卡+合态门禁全绿，K60/Pad 取证达标；
-   留档：测试服 TLS 未通、C3 安全区裁定×3、C5b 规则外点位×4 均列 C8）；下一卡 C7=书籍/库头部+最近阅读入流。
-4. 本会话任务（按额度 1–N 卡）：【槽：卡号+一句话目标；按依赖序 C7→C8→C9】。
+3. 现状（≤4 行）：HEAD 以 git log 为准；W0–C7+C5b DONE（C1–C7 逐卡+合态门禁全绿，K60/Pad 取证达标；
+   留档：测试服 TLS 服务端排查无异常仍不通、C3 裁定×3、C5b 规则外点位×4、C7 ic_filter 死 drawable 均列 C8）；下一卡 C8=D6 台账。
+4. 本会话任务（按额度 1–N 卡）：【槽：卡号+一句话目标；按依赖序 C8→C9】。
 5. 设计分权（固定一行）：设计以 docs/V202_DESIGN.md 为准（含 2026-11-26 垫层减重裁定+C5/C5b media.*映射口径），deepseek 零设计权。
 6. 门禁与纪律（固定引用）：见 AGENTS.md 质量门/红线；adb 取证派子代理，负责人复核证据关键行。
 7. 交接（固定一行）：收口按 AGENTS.md 五件事，提示词按统一标准填槽更新。
