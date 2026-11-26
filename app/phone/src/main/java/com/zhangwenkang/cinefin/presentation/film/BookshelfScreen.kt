@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -43,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -142,16 +145,18 @@ fun BookshelfScreen(
 
     LaunchedEffect(temporaryLibraryId) { viewModel.load(libraryId = temporaryLibraryId) }
 
-    // W6-T10：书架增强头部（最近阅读 / 本地书籍）。Ready 与占位态共用同一份。
-    val shelfHeader: (@Composable () -> Unit)? =
-        if (extras.recent.isEmpty() && extras.localBooks.isEmpty()) {
+    // W6-T10：书架增强头部（最近阅读 / 本地书籍）。Ready 与占位态共用同一份；
+    // 2.0.2 D3：Ready 态里它是内容流首项（随滚动离开），左右页边距由承载方传入（网格已带页边距 → 0dp）。
+    val shelfHeader: (@Composable (PaddingValues) -> Unit)? =
+        if (!bookshelfShelfHeaderVisible(extras.recent, extras.localBooks)) {
             null
         } else {
-            {
+            { horizontalPadding ->
                 BookshelfShelfHeader(
                     recent = extras.recent,
                     localBooks = extras.localBooks,
                     progressPercentByItemId = extras.progressPercentByItemId,
+                    horizontalPadding = horizontalPadding,
                     onOpenRecent = { entry ->
                         val uri = entry.localUri
                         if (uri != null) {
@@ -366,7 +371,7 @@ private fun BookshelfPlaceholder(
     onRetry: () -> Unit,
     onExitTemporaryLibrary: (() -> Unit)? = null,
     /** W6-T10：无服务器书籍库时也要能看到最近阅读 / 本地书籍。 */
-    headerContent: (@Composable () -> Unit)? = null,
+    headerContent: (@Composable (horizontalPadding: PaddingValues) -> Unit)? = null,
     topBarActions: @Composable RowScope.() -> Unit = {},
 ) {
     val colors = LocalCinefinColors.current
@@ -393,7 +398,7 @@ private fun BookshelfPlaceholder(
         Spacer(Modifier.height(CinefinSpacing.Space6))
 
         // W6-T10：占位态也显示书架增强头部（本地书 / 最近阅读不依赖服务器书籍库）。
-        headerContent?.invoke()
+        headerContent?.invoke(PaddingValues(start = paddingStart, end = paddingEnd))
 
         Box(
             modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = paddingStart),
@@ -459,13 +464,14 @@ private fun BookshelfShelfHeader(
     onOpenLocalBook: (BookshelfLocalBook) -> Unit,
     onRecentLongPress: (BookshelfRecentEntry) -> Unit,
     onLocalLongPress: (BookshelfLocalBook) -> Unit,
+    /** 本段自带的左右页边距：占位态传安全区 + pageGutter；作为网格 / 列表首项时传 0（承载方已经给过页边距）。 */
+    horizontalPadding: PaddingValues,
 ) {
     val colors = LocalCinefinColors.current
-    val safePadding = rememberSafePadding(handleStartInsets = false)
-    val pageGutter = rememberPageGutter()
-    val startPadding = safePadding.start + pageGutter
-    val endPadding = safePadding.end + pageGutter
-    val horizontal = PaddingValues(start = startPadding, end = endPadding)
+    val layoutDirection = LocalLayoutDirection.current
+    val startPadding = horizontalPadding.calculateStartPadding(layoutDirection)
+    val endPadding = horizontalPadding.calculateEndPadding(layoutDirection)
+    val sectionPadding = PaddingValues(start = startPadding, end = endPadding)
 
     Column(modifier = Modifier.fillMaxWidth()) {
         if (recent.isNotEmpty()) {
@@ -473,11 +479,11 @@ private fun BookshelfShelfHeader(
                 text = "最近阅读",
                 style = CinefinType.LabelMedium,
                 color = colors.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = startPadding),
+                modifier = Modifier.padding(start = startPadding, end = endPadding),
             )
             Spacer(Modifier.height(CinefinSpacing.Space2))
             LazyRow(
-                contentPadding = horizontal,
+                contentPadding = sectionPadding,
                 horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
             ) {
                 items(items = recent, key = { entry -> "recent-${entry.itemId}" }) { entry ->
@@ -490,18 +496,19 @@ private fun BookshelfShelfHeader(
                     )
                 }
             }
-            Spacer(Modifier.height(CinefinSpacing.Space4))
+            // 段间距 = Space4；末段不留尾距（与后续内容的间距交给承载方的垂直 spacing）。
+            if (localBooks.isNotEmpty()) Spacer(Modifier.height(CinefinSpacing.Space4))
         }
         if (localBooks.isNotEmpty()) {
             Text(
                 text = "本地书籍",
                 style = CinefinType.LabelMedium,
                 color = colors.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = startPadding),
+                modifier = Modifier.padding(start = startPadding, end = endPadding),
             )
             Spacer(Modifier.height(CinefinSpacing.Space2))
             LazyRow(
-                contentPadding = horizontal,
+                contentPadding = sectionPadding,
                 horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
             ) {
                 items(items = localBooks, key = { book -> "local-${book.uri}" }) { book ->
@@ -514,7 +521,6 @@ private fun BookshelfShelfHeader(
                     )
                 }
             }
-            Spacer(Modifier.height(CinefinSpacing.Space4))
         }
     }
 }

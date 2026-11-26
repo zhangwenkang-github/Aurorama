@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,7 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
@@ -27,13 +27,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinFilterChip
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinLibraryTabs
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSelectIndicator
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinSelectable
@@ -53,13 +57,13 @@ import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidTag
-import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 
 /**
  * 库内容页头部（W54-B）：视频库 / 书籍库 / 书架三处入口**共用这一份实现**。
  *
- * 结构 = 顶部 tabs（按库类型出现）→ 工具行（条目计数 / 网格列表 / 排序 / 筛选）→ 生效中的筛选 chips。 只使用既有语义 token（`CinefinSpacing` /
- * `CinefinType` / 当前域媒体色）与既有组件，不新增配色 / 字体 / 位图。
+ * 2.0.2 D2 起结构收敛为两行：①`CinefinPageTopBar` 顶栏；②标签行 = [CinefinLibraryTabs] + 行尾弱化计数 + 排序 / 视图切换 /
+ * 筛选图标键， 生效中的筛选 chips 保留一行横滑 compact（原独立工具行删除）。只使用既有语义 token（`CinefinSpacing` / `CinefinType` /
+ * 当前域媒体色）与既有组件， 不新增配色 / 字体 / 位图。
  */
 
 /** tab 文案：「库名」tab 直接用库名，其余走 film 模块的固定文案。 */
@@ -74,45 +78,28 @@ fun libraryTabLabel(tab: LibraryTab, libraryName: String): String =
         LibraryTab.Episodes -> stringResource(FilmR.string.library_tab_episodes)
     }
 
-/** 顶部 tabs：横向可滚动的 chip 行（库名 / 建议 / 即将播出 / 类型 / 制片发行商 / 剧集），下方一条弱分隔线。 */
+/** 2.0.2 D2：标签行行高 40dp（与 [CinefinLibraryTabs] 同高，顶栏下只留这一行）。 */
+private val LibraryTabsRowHeight = 40.dp
+
+/** 2.0.2 D2：标签行右侧图标键可点区域 40dp（图标 24dp，正好吃满行高）。 */
+private val LibraryHeaderIconKeySize = 40.dp
+
+/**
+ * 2.0.2 D2：库页第二行 = 轻量文本标签行（[CinefinLibraryTabs]）+ 行尾弱化计数 + 排序 / 视图切换 2 个图标键 + ⋮（收纳筛选）。
+ *
+ * 替代原来的「chip 行 + 独立工具行」两层：计数不再单独占一行（并入标签行尾、字号色值同原工具行计数）；视图切换合成**一个**图标键 （图标 =
+ * 点一下会切到的目标视图）。窄屏标签靠横滑兜底，视频库 / 书籍库 / 书架共用同一行。
+ */
 @Composable
-fun LibraryTabRow(
+fun LibraryTabsRow(
     tabs: List<LibraryTab>,
     selected: LibraryTab,
     libraryName: String,
-    onSelect: (LibraryTab) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val colors = LocalCinefinColors.current
-    Column(modifier = modifier.fillMaxWidth()) {
-        Row(
-            modifier =
-                Modifier.fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(end = CinefinSpacing.Space5),
-            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
-        ) {
-            tabs.forEach { tab ->
-                CinefinFilterChip(
-                    text = libraryTabLabel(tab, libraryName),
-                    selected = tab == selected,
-                    onClick = { onSelect(tab) },
-                    compact = true,
-                )
-            }
-        }
-        Spacer(Modifier.height(CinefinSpacing.Space2))
-        HorizontalDivider(color = colors.outlineVariant, thickness = 1.dp)
-    }
-}
-
-/** 工具行：条目计数「1-94 / 94」+ 网格 / 列表 + 排序 + 筛选（按 tab 决定显示哪几个动作）。 */
-@Composable
-fun LibraryToolbarRow(
     countText: String,
     viewMode: LibraryViewMode,
     spec: LibraryToolbarSpec,
     filterActive: Boolean,
+    onSelectTab: (LibraryTab) -> Unit,
     onViewModeChange: (LibraryViewMode) -> Unit,
     onSortClick: () -> Unit,
     onFilterClick: () -> Unit,
@@ -120,71 +107,107 @@ fun LibraryToolbarRow(
 ) {
     val colors = LocalCinefinColors.current
     Row(
-        modifier = modifier.fillMaxWidth().heightIn(min = 48.dp),
+        modifier = modifier.fillMaxWidth().height(LibraryTabsRowHeight),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = countText,
-            style = CinefinType.LabelMedium,
-            color = colors.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+        // 页边距由调用方给（安全区 + pageGutter），标签自身不再叠一层 gutter。
+        CinefinLibraryTabs(
+            items = tabs,
+            selected = selected,
+            onSelect = onSelectTab,
+            label = { tab -> libraryTabLabel(tab, libraryName) },
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(0.dp),
         )
-        Spacer(Modifier.weight(1f))
+        if (countText.isNotEmpty()) {
+            Text(
+                text = countText,
+                style = CinefinType.LabelMedium,
+                color = colors.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = CinefinSpacing.Space2),
+            )
+        }
         if (spec.showViewMode) {
-            LibraryIconToggle(
-                icon = CoreR.drawable.ic_view_grid,
-                selected = viewMode == LibraryViewMode.Grid,
-                contentDescription = stringResource(FilmR.string.library_view_grid),
-                onClick = { onViewModeChange(LibraryViewMode.Grid) },
+            val switchToList = viewMode == LibraryViewMode.Grid
+            LibraryHeaderIconKey(
+                icon =
+                    if (switchToList) CoreR.drawable.ic_view_list else CoreR.drawable.ic_view_grid,
+                contentDescription =
+                    stringResource(
+                        if (switchToList) FilmR.string.library_view_list
+                        else FilmR.string.library_view_grid
+                    ),
+                onClick = {
+                    onViewModeChange(
+                        if (switchToList) LibraryViewMode.List else LibraryViewMode.Grid
+                    )
+                },
             )
-            LibraryIconToggle(
-                icon = CoreR.drawable.ic_view_list,
-                selected = viewMode == LibraryViewMode.List,
-                contentDescription = stringResource(FilmR.string.library_view_list),
-                onClick = { onViewModeChange(LibraryViewMode.List) },
-            )
-            Spacer(Modifier.width(CinefinSpacing.Space1))
         }
         if (spec.showSort) {
-            TopBarAction(
+            LibraryHeaderIconKey(
                 icon = CoreR.drawable.ic_arrow_down_up,
-                onClick = onSortClick,
                 contentDescription = stringResource(FilmR.string.library_sort),
+                onClick = onSortClick,
             )
         }
         if (spec.showFilter) {
-            TopBarAction(
-                icon = CoreR.drawable.ic_filter,
-                onClick = onFilterClick,
+            // ⋮ 收纳筛选：一键直达既有筛选面板，筛选生效时换强调色（行为与原工具行同）。
+            LibraryOverflowKey(
                 contentDescription = stringResource(FilmR.string.library_filter),
-                tint = if (filterActive) navSelectedContent(colors) else null,
+                tint = if (filterActive) navSelectedContent(colors) else colors.onSurfaceVariant,
+                onClick = onFilterClick,
             )
         }
     }
 }
 
-/**
- * 工具行里的图标开关（2.0.1 定稿 §3 T10）：去方框磁贴底，选中只换图标色 = [navSelectedContent]（浅色档即 auroraInk）， 未选中
- * `onSurfaceVariant`，不再铺 `surfaceContainerHigh` 底。
- */
+/** 标签行右侧图标键：40dp 可点区域 + 24dp 图标，未选中 `onSurfaceVariant`（与原工具行同一套图标语言）。 */
 @Composable
-private fun LibraryIconToggle(
-    icon: Int,
-    selected: Boolean,
+private fun LibraryHeaderIconKey(
+    @DrawableRes icon: Int,
     contentDescription: String,
     onClick: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
     Box(
-        modifier = Modifier.size(44.dp).cinefinClickable(onClick = onClick),
+        modifier =
+            Modifier.size(LibraryHeaderIconKeySize)
+                .clip(CinefinShapes.Button)
+                .cinefinClickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             painter = painterResource(icon),
             contentDescription = contentDescription,
-            tint = if (selected) navSelectedContent(colors) else colors.onSurfaceVariant,
+            tint = colors.onSurfaceVariant,
+            modifier = Modifier.size(24.dp),
         )
+    }
+}
+
+/** 标签行右侧「⋮」键（与音乐页标签行同一写法：文本 glyph，无位图）。 */
+@Composable
+private fun LibraryOverflowKey(
+    contentDescription: String,
+    tint: Color,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier =
+            Modifier.size(LibraryHeaderIconKeySize)
+                .clip(CinefinShapes.Button)
+                .cinefinClickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier =
+                Modifier.clearAndSetSemantics { this.contentDescription = contentDescription }
+        ) {
+            Text(text = "⋮", style = CinefinType.TitleMedium, color = tint)
+        }
     }
 }
 

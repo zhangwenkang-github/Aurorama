@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SnackbarHostState
@@ -83,9 +84,8 @@ import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryActiveChipRow
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryFilterPanel
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryListRow
-import com.zhangwenkang.cinefin.presentation.film.components.LibraryTabRow
+import com.zhangwenkang.cinefin.presentation.film.components.LibraryTabsRow
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryTagTile
-import com.zhangwenkang.cinefin.presentation.film.components.LibraryToolbarRow
 import com.zhangwenkang.cinefin.presentation.film.components.SortByPanel
 import com.zhangwenkang.cinefin.presentation.navigation.libraryIconRes
 import com.zhangwenkang.cinefin.presentation.navigation.libraryTypeLabelRes
@@ -120,11 +120,15 @@ import kotlinx.coroutines.launch
 /** W69b：进入页面时预取详情的卡片数（只取前几张可见卡，避免放大请求量）。 */
 private const val DETAIL_PREFETCH_COUNT = 6
 
+/** 2.0.2 D3：内容流首个 header 项（书架「最近阅读 / 本地书籍」）的固定 key，跨刷新保持身份。 */
+private const val LIBRARY_HEADER_ITEM_KEY = "library-header-item"
+
 /**
  * 库内容页（视频库 / 书籍库 / 书架共用同一份实现，W54-B 扩展头部）。
  *
- * 头部 = 顶部 tabs（按库类型出现）+ 工具行（条目计数 / 网格列表 / 排序 / 筛选）+ 生效中的筛选 chips； 内容区 = 分页网格（库名 tab）或单发请求的条目 /
- * 分类网格（建议 / 即将播出 / 类型 / 制片发行商 / 剧集）， 整块内容支持下拉刷新（真实重取）。
+ * 2.0.2 D2 头部收敛为两行：顶栏 + 标签行（`CinefinLibraryTabs` + 行尾弱化计数 + 排序 / 视图切换 / 筛选，生效筛选 chips 一行横滑）； 内容区 =
+ * 分页网格（库名 tab）或单发请求的条目 / 分类网格（建议 / 即将播出 / 类型 / 制片发行商 / 剧集），整块内容支持下拉刷新（真实重取）。 W6-T10 书架增强的
+ * [headerContent] 自 2.0.2 D3 起是内容流首项（随滚动离开），不再是页面级固定区。
  */
 @Composable
 fun LibraryScreen(
@@ -151,8 +155,12 @@ fun LibraryScreen(
     shelfMetaLine: (FindroidItem) -> String? = { null },
     /** W6-T10 书架增强：从书架页隐藏的服务器条目（本地标记，不动服务器数据）。 */
     hiddenItemIds: Set<UUID> = emptySet(),
-    /** W6-T10 书架增强：列表头部插槽（最近阅读 / 本地书籍行）；null = 无。 */
-    headerContent: (@Composable () -> Unit)? = null,
+    /**
+     * W6-T10 书架增强 / 2.0.2 D3：内容流首个 header 项（最近阅读 / 本地书籍），随滚动离开；null = 无（空列表零占位）。
+     *
+     * 入参 = 该项自带的左右页边距：网格 / 列表已带页边距时传 `PaddingValues(0.dp)`，页面级占位态传安全区 + pageGutter。
+     */
+    headerContent: (@Composable (horizontalPadding: PaddingValues) -> Unit)? = null,
     /** W6-T10 书架增强：长按条目（书架页 = 移出书架 / 详情）；null = 沿用多选长按。 */
     onItemLongPress: ((FindroidItem) -> Unit)? = null,
 ) {
@@ -201,7 +209,7 @@ fun LibraryScreen(
 }
 
 /**
- * 库内容页版式：标题区「库名」+ 头部（tabs / 工具行）+ 内容区（网格 / 列表 / 分类 / 空态 / 骨架）。
+ * 库内容页版式：顶栏 + 头部标签行（详见 [LibraryTabsRow]）+ 内容区（网格 / 列表 / 分类 / 空态 / 骨架）。
  *
  * 手法与数值见 `UI_PLAN.md` D19：竖版海报至少 176dp 宽（手机仍是 2 列但每张更大）、横版卡 300dp、 方形专辑 200dp；列距保持 16 / 26dp
  * 的既有栅格，行距 24dp，底部留白 32dp。
@@ -230,8 +238,8 @@ private fun LibraryScreenLayout(
     shelfMetaLine: (FindroidItem) -> String? = { null },
     /** W6-T10 书架增强：书架页隐藏的服务器条目（见 [LibraryScreen]）。 */
     hiddenItemIds: Set<UUID> = emptySet(),
-    /** W6-T10 书架增强：列表头部插槽（见 [LibraryScreen]）。 */
-    headerContent: (@Composable () -> Unit)? = null,
+    /** W6-T10 书架增强 / 2.0.2 D3：内容流首个 header 项（见 [LibraryScreen]）。 */
+    headerContent: (@Composable (horizontalPadding: PaddingValues) -> Unit)? = null,
     /** W6-T10 书架增强：长按条目覆盖（见 [LibraryScreen]）。 */
     onItemLongPress: ((FindroidItem) -> Unit)? = null,
     onAction: (LibraryAction) -> Unit,
@@ -444,41 +452,37 @@ private fun LibraryScreenLayout(
             },
         )
 
-        // 多选态隐藏头部 tabs / 工具行 / 筛选 chips：选中作用域就是当前列表，避免中途换列表。
+        // 多选态隐藏标签行 / 筛选 chips：选中作用域就是当前列表，避免中途换列表。
         if (!selectionMode) {
             Spacer(Modifier.height(CinefinSpacing.Space3))
 
-            LibraryTabRow(
+            LibraryTabsRow(
                 tabs = tabs,
                 selected = state.tab,
                 libraryName = libraryName,
-                onSelect = { onAction(LibraryAction.SelectTab(it)) },
-                modifier = Modifier.padding(start = paddingStart, end = paddingEnd),
-            )
-
-            Spacer(Modifier.height(CinefinSpacing.Space1))
-
-            LibraryToolbarRow(
                 countText = countText,
                 viewMode = state.viewMode,
                 spec = toolbarSpec,
                 filterActive = state.filter != null,
+                onSelectTab = { onAction(LibraryAction.SelectTab(it)) },
                 onViewModeChange = { onAction(LibraryAction.SelectViewMode(it)) },
                 onSortClick = { showSortPanel = true },
                 onFilterClick = { showFilterPanel = true },
                 modifier = Modifier.padding(start = paddingStart, end = paddingEnd),
             )
 
-            LibraryActiveChipRow(
-                chips = activeChips,
-                modifier = Modifier.padding(start = paddingStart, end = paddingEnd),
-            )
+            // 生效中的筛选 chips：保留一行横滑 compact（为空时不占高度）。
+            if (activeChips.isNotEmpty()) {
+                Spacer(Modifier.height(CinefinSpacing.Space1))
+                LibraryActiveChipRow(
+                    chips = activeChips,
+                    modifier = Modifier.padding(start = paddingStart, end = paddingEnd),
+                )
+            }
 
-            Spacer(Modifier.height(CinefinSpacing.Space1))
+            // 2.0.2 D2：头部与内容区间距统一 Space5。
+            Spacer(Modifier.height(CinefinSpacing.Space5))
         }
-
-        // W6-T10：书架增强头部插槽（最近阅读 / 本地书籍）。头部是页面级固定区，不随网格滚动。
-        headerContent?.invoke()
 
         // W54-B：库内容页统一下拉刷新——分页列表走 LazyPagingItems.refresh()（真实重发请求），
         // 计数与当前 tab 由 ViewModel 重取。
@@ -510,6 +514,10 @@ private fun LibraryScreenLayout(
                         contentPadding = contentPadding,
                         verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
                     ) {
+                        // 2.0.2 D3：书架增强头部入流——作为首项随内容滚走，空列表时不插该项。
+                        headerContent?.let { header ->
+                            item(key = LIBRARY_HEADER_ITEM_KEY) { header(PaddingValues(0.dp)) }
+                        }
                         items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
                             val item = items[index]
                             item?.let { loadedItem ->
@@ -586,6 +594,15 @@ private fun LibraryScreenLayout(
                         horizontalArrangement = Arrangement.spacedBy(gridGutter),
                         verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),
                     ) {
+                        // 2.0.2 D3：书架增强头部入流——span 满行、随网格滚走，空列表时不插该项。
+                        headerContent?.let { header ->
+                            item(
+                                key = LIBRARY_HEADER_ITEM_KEY,
+                                span = { GridItemSpan(maxLineSpan) },
+                            ) {
+                                header(PaddingValues(0.dp))
+                            }
+                        }
                         items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
                             val item = items[index]
                             item?.let { loadedItem ->
@@ -660,6 +677,14 @@ private fun LibraryScreenLayout(
                         horizontalArrangement = Arrangement.spacedBy(gridGutter),
                         verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
                     ) {
+                        headerContent?.let { header ->
+                            item(
+                                key = LIBRARY_HEADER_ITEM_KEY,
+                                span = { GridItemSpan(maxLineSpan) },
+                            ) {
+                                header(PaddingValues(0.dp))
+                            }
+                        }
                         items(count = state.tags.size, key = { index -> state.tags[index].id }) {
                             index ->
                             val tag = state.tags[index]
@@ -677,6 +702,9 @@ private fun LibraryScreenLayout(
                         contentPadding = contentPadding,
                         verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
                     ) {
+                        headerContent?.let { header ->
+                            item(key = LIBRARY_HEADER_ITEM_KEY) { header(PaddingValues(0.dp)) }
+                        }
                         items(count = tabItems.size, key = { index -> tabItems[index].id }) { index
                             ->
                             val item = tabItems[index]
@@ -712,6 +740,14 @@ private fun LibraryScreenLayout(
                         horizontalArrangement = Arrangement.spacedBy(gridGutter),
                         verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),
                     ) {
+                        headerContent?.let { header ->
+                            item(
+                                key = LIBRARY_HEADER_ITEM_KEY,
+                                span = { GridItemSpan(maxLineSpan) },
+                            ) {
+                                header(PaddingValues(0.dp))
+                            }
+                        }
                         items(count = tabItems.size, key = { index -> tabItems[index].id }) { index
                             ->
                             val item = tabItems[index]

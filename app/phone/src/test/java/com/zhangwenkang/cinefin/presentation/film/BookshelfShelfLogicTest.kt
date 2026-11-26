@@ -156,4 +156,20 @@ class BookshelfShelfLogicTest {
         assertTrue(restored.isEmpty())
         assertFalse(bookshelfIsHidden(id, restored))
     }
+
+    @Test
+    fun `书架增强头部 两段都空时不占位`() {
+        val entry =
+            BookshelfRecentEntry(
+                itemId = UUID.randomUUID(),
+                title = "书",
+                coverUrl = null,
+                progressPercent = 42,
+            )
+        val local = BookshelfLocalBook(uri = "content://docs/a.epub", name = "甲")
+        // 2.0.2 D3：空列表零占位——两段都空时内容流里不插 header 项。
+        assertFalse(bookshelfShelfHeaderVisible(emptyList(), emptyList()))
+        assertTrue(bookshelfShelfHeaderVisible(listOf(entry), emptyList()))
+        assertTrue(bookshelfShelfHeaderVisible(emptyList(), listOf(local)))
+    }
 }

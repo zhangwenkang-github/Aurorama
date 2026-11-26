@@ -91,6 +91,16 @@ internal fun bookshelfProgressPercent(progression: Double?): Int? {
     return (value.coerceIn(0.0, 1.0) * 100).toInt()
 }
 
+/**
+ * 书架增强头部（最近阅读 / 本地书籍）是否出现：两段都空时整段不占位（2.0.2 D3「空列表零占位」）。
+ *
+ * 页面侧据此把 header 槽位传 null，内容流里连空 item 都不插——不留下一条空白头部区。
+ */
+internal fun bookshelfShelfHeaderVisible(
+    recent: List<BookshelfRecentEntry>,
+    localBooks: List<BookshelfLocalBook>,
+): Boolean = recent.isNotEmpty() || localBooks.isNotEmpty()
+
 /** 进度文案：有进度 `42%`，无进度「未读」。 */
 internal fun bookshelfProgressText(progressPercent: Int?): String =
     progressPercent?.let { "$it%" } ?: "未读"

@@ -43,14 +43,15 @@ private val LibraryTabIndicatorHeight = 2.dp
  * 选中 = `auroraInk` 文字 + 2dp 极光渐变指示条；未选中 = `onSurfaceVariant`。行高 40dp、标签间距 [CinefinSpacing.Space4]、
  * 左右对齐 [cinefinLibraryGutter]（与 `CinefinPageTopBar` 顶栏页边距同级），窄屏靠横滑兜底——音乐 5 个 Tab 全部保留。
  *
- * 音乐页（替代原 `CinefinSegmentedControl` 重容器分段控件）与书籍/视频库页共用。
+ * 音乐页（替代原 `CinefinSegmentedControl` 重容器分段控件）与书籍/视频库页共用；[label] 是 `@Composable`——库页标签要按库名
+ * 取资源文案（`libraryTabLabel`），非 composable 的标签函数接不住 `stringResource`。
  */
 @Composable
 fun <T> CinefinLibraryTabs(
     items: List<T>,
     selected: T,
     onSelect: (T) -> Unit,
-    label: (T) -> String,
+    label: @Composable (T) -> String,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(horizontal = cinefinLibraryGutter()),
 ) {
