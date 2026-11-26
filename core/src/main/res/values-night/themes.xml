@@ -12,8 +12,9 @@
         <item name="colorSecondaryContainer">@color/secondary_container_dark</item>
         <item name="colorOnSecondaryContainer">@color/on_secondary_container_dark</item>
 
-        <!-- Surface -->
-        <item name="android:colorBackground">@color/neutral_1000</item>
+        <!-- Surface：夜间窗口底色与 Compose 页底（dark surface #080D17）同色，消冷启动闪色 -->
+        <item name="android:colorBackground">#080D17</item>
+        <item name="android:windowBackground">#080D17</item>
         <item name="colorSurface">@color/neutral_900</item>
     </style>
 
