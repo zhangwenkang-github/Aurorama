@@ -1,4 +1,4 @@
-# Cinefin 协作约定（2026-11-24 · 2.0.1 版）
+# Cinefin 协作约定（2026-11-26 · 2.0.2 版）
 
 - 全程使用简体中文回答。
 - **负责人**：Kimi Code（主负责人/技术总监）：规划、派任务、验收、收口。实现优先派 deepseek 子代理。
@@ -10,11 +10,11 @@
 1. `docs/PROJECT_PLAN.md`（任务线一句话状态 + 当前焦点）
 2. 所在波次/任务线文档的**顶部状态块**（不要通读全文）
 3. 记忆库索引 `F:\Develop\codex_work\Documents\Kimi\engramory-memory\MEMORY.md`（按需打开条目）
-4. 2.0.1 以 `docs/V201_TASKS.md` 为唯一任务台账；2.0 需求账本 `docs/V2_REQUIREMENTS.md`、架构 `docs/V2_ARCHITECTURE.md`、设计 `docs/V2_DESIGN.md` 仅追溯用。外部原始需求 `F:\Develop\codex_work\Documents\Codex\2.0更新文档.md` 永久只读。
+4. 2.0.2 以 `docs/V202_TASKS.md` 为唯一任务台账，设计定稿 `docs/V202_DESIGN.md`；2.0.1 台账 `docs/V201_TASKS.md` 与 2.0 账本/架构/设计文档仅追溯用。外部原始需求 `F:\Develop\codex_work\Documents\Codex\2.0更新文档.md` 永久只读。
 
 ## 工作方式（波次制，2026-11-24 按 2.0.1 用户拍板修订）
 
-- 2.0.1 交付按 `docs/V201_TASKS.md` 台账的波次（W0–W5）推进；当前波次见其状态块。
+- 2.0.2 交付按 `docs/V202_TASKS.md` 台账（W0 + C1–C9）推进；当前波次见其状态块。
 - **波次按依赖与风险排，不照搬需求编号**；下载类任务分散到所属功能波次，不设独立下载波次。
 - **每个主题必须落卡**（台账登记编号/波次/验收/证据），收口逐卡核销，禁止漏排。
 - 每个子代理只领一个"一屏能验证完"的小目标；任务卡自包含（目标/文件边界/验收标准/门禁/红线）。
