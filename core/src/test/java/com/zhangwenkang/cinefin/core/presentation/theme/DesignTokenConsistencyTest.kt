@@ -622,6 +622,31 @@ class DesignTokenConsistencyTest {
     }
 
     /**
+     * 2.0.2 D6 守卫 f（C9 裁定）：`ReaderControlLayer` 的全书进度 accent 属进度 / 导航强调，归极光
+     * （`navSelectedContent`：深色 = aurora1、浅色 = auroraInk），供进度填充 / 书签点 / 拖拽 thumb 共用；此前它消费域媒体色 `base`
+     * 槽，这里钉死口径防回退。域身份位（`container` 等）不在本守卫范围。
+     */
+    @Test
+    fun `d6 ReaderControlLayer 进度 accent 归极光防回退`() {
+        val path =
+            "modes/book/src/main/java/com/zhangwenkang/cinefin/book/presentation/reader/ReaderControlLayer.kt"
+        val source = findSource(path)
+        assertTrue(
+            "$path 的进度 accent 必须走极光口径 navSelectedContent(colors)",
+            source.contains("val accent = navSelectedContent(colors)"),
+        )
+        val domainBaseSlots =
+            Regex(
+                """(?:media|mediaColors|mediaPalette|MediaBook|LocalMediaColors\.current)\.(base|onBase|bright|containerPressed)\b"""
+            )
+        val offenders = domainBaseSlots.findAll(source).map { it.value }.toList()
+        assertTrue(
+            "$path 的进度 accent 链路又消费域媒体交互槽 $offenders（应统一极光 token）",
+            offenders.isEmpty(),
+        )
+    }
+
+    /**
      * 跨模块扫描的基准目录：从 `user.dir`（Gradle test 工作目录 = 模块目录）向上找仓库根 （含 `settings.gradle.kts`），保证 `:core` /
      * `:app:phone` 等不同模块下运行时定位一致。
      */
