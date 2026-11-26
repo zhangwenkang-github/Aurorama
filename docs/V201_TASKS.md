@@ -1,8 +1,10 @@
 # 2.0.1 任务卡台账
 
 <!-- V201_STATUS_BEGIN -->
-> **当前状态（2026-11-26）**：**W5 收口——LATER 池 23 项裁定回写；T24 清理卡 DONE（`74762dc2`+`941b7d57`）；全量回归四组全绿**（R-A 测试服写路径 / R-B1 K60 / R-B2 Pad / R-C Pad 几何，证据 `F:/Develop/code_data/qa/w5-regression/`）；**发布门 5/5 全绿**（10 模块单测 3583/0/0/0、ktfmtCheck、签名双 APK arm64 78.92MiB/universal 169.14MiB + verifyMpvJniReleaseContract 8c/41m、apksigner 指纹 `e449c4aa…e155ff` 一致、双机自 2.0.0 覆盖安装冒烟 0 FATAL/ANR，证据 `qa/w5-release/`）；途中修测试隔离污染 `f589fad4`（`DownloadsViewModelDeletionTest` Unsafe 覆写 Main 不还原，整模块三连绿）。版本 2.0.1/code 8（`fa5eed4e`），HEAD=`f589fad4`；master=`312209a6`（远端推送待授权）。
-> **下一卡**：**发布**——push 分支+master、tag `v2.0.1`、GitHub Release 双 APK（粘贴 `docs/RELEASE_NOTES_v2.0.1.md`）→ 发布后验证（下载资产 SHA-256 复核 + K60 应用内 2.0.0→2.0.1 升级 E2E：AVAILABLE/更新说明渲染/下载安装）→ `RELEASE_PLAN.md` §6 历史表补 2.0.1 行 → 全文档收口。
+> **当前状态（2026-11-26）**：**2.0.1 已发布**——分支 `codex/v2.0.1` 推送 + tag `v2.0.1`（@`d463e64b`）+ master `--force-with-lease` 对齐 `312209a6`（W0-D3 决议落地）；[GitHub Release](https://github.com/zhangwenkang-github/Aurorama/releases/tag/v2.0.1) 双 APK 上架，发布后重下载 SHA-256/体积与本地构建复核一致（arm64 `2ed789ad…`/universal `98a9c7e7…`）；`RELEASE_PLAN.md` §7 已补 2.0.1 行。
+> **发布后 K60 升级 E2E（子代理取证 + 负责人代码复核）**：检查更新→AVAILABLE→更新说明渲染 ✅（设备上 debug 2.0.0/7 包等效取证：「发现新版本 2.0.1」+ Release notes 全文渲染；`release.json` asset/digest/url 字段全对；release 2.0.1 自验「已是最新版本」反向通过）；同包降级装回 2.0.0 被 Android 15 拦截（release 非 debuggable，`install -d` 按设计仅对 debuggable 生效），安装路径由发布门双机覆盖安装冒烟作证。
+> **新发现缺陷 U1（既有，非 2.0.1 回归）**：应用内「下载更新」自 `a45bd4df` 起必然立即失败——`UpdateRepositoryImpl.download()` 前置要求 transfer 已存在且 updateId 匹配，而全生产代码唯一 `beginDownload` 调用点在 `UpdateHttpDownloader` 内部（校验通过后才可达）= 死锁；K60 两次复现（Worker ~20ms FAILURE、UI 无错误反馈、从不产生 transfer.json/网络流量）；`UpdateRepositoryTest` 手动预置 transfer 掩盖缺口；v1.4.1/v2.0.0 同病。**裁定 2.0.2 热修首修**；注意修复效益自修复版起算（旧版更新器本身坏，2.0.0/2.0.1 用户需手动装一次修复版）。
+> **下一卡**：2.0.2 热修 U1——`download()` 在 transfer 缺失/不匹配且 `release.json` 匹配时经 `store.beginDownload(release)` 重建（或 Worker 前置创建），补「仅 release.json 无 transfer」用例，K60 全链（检查→下载→系统安装器）复验。
 > **观察项（KNOWN_ISSUE）**：K60 冒烟首播《被狙击的学园》卡 BUFFERING ~5min 重进即恢复（未复现成因）；测试服高码率转码能力不足（服务端个案）。
 > **红线**：生产服 `jellyfins.zhangwenkang.com` 永久只读；服务器写只在测试服验证；push/tag/Release 需用户授权。
 <!-- V201_STATUS_END -->
@@ -96,11 +98,10 @@
 
 ## 过程日志（只留最近 ~5 条）
 
+- 2026-11-26：**2.0.1 发布**——push `codex/v2.0.1`+tag `v2.0.1`（@`d463e64b`）+master 强推对齐 `312209a6`；GitHub Release 双 APK，发布后重下载 SHA-256 复核 ✅；`RELEASE_PLAN` §7 补行。K60 升级 E2E：AVAILABLE+更新说明渲染 ✅；发现既有缺陷 U1（下载死锁，自 `a45bd4df` 起 v1.4.1/2.0.0 同病，非回归）裁定 2.0.2 热修首修；Android 15 拦同包降级（release 非 debuggable）。
+
 - 2026-11-26：**W5 收口**——LATER 池 23 项裁定（修 6/不修 7/DEFERRED 11+回归 6）；T24 `74762dc2`+`941b7d57`+注释跟进 `75a5a8ab`；回归四组全绿（证据 qa/w5-regression/）；bump 2.0.1/code 8 + RELEASE_NOTES 补齐。
 
 - 2026-11-26：**W5-T24 清理卡 DONE**（本卡单 commit）——删 `configureInsets` 死代码、码率残留资源（6 串+1 图标）、`bottomRowWidthDp` 核对已 5 键/7 间距、音乐默认 tab 改「建议」（含首屏降级分支）、`StoredReleaseState` 降级兜底核对+2 契约单测；顺带修 T23 遗留 1 行 ktfmt。六模块单测全绿，K60 取证绿。
 - 2026-11-26：**W4 全波次收官**——T21 `8d5f8213`（竖屏顶栏 safeDrawing 下移）、T22 `4b7392c4`（锁定解锁根因=容器高≠画面区中点，改实测矩形回传；旋转口径 USER）、T23 `29f3efdc`（码率迁设置页+删播放器内面板，底栏 6→5 键）。HEAD=`29f3efdc`，三卡 K60 取证绿；留档 jellyfin-test 拒连（码率联动 W5 补）等 6 项入 LATER 池。
 - 2026-11-25：**W3 全波次收官**——T17 `4e391eb5`+`8c283888`（队列追加语义+快照就近迁移+RELEASE_NOTES 首条）、T18 `6e71a8b8`（播放页单入口/隐藏底栏/封面取色撤销回极光）、T20 `f7c1e8b2`（元数据手动刷新+只读保守补取）、T19 `d29bd6b0`（服务器歌单改名/删除/换位；修 PlaylistItemId 误用 bug）。W3 七卡全 DONE，全程 K60/Pad 取证绿、测试服无残留。
-- 2026-11-25：**W3 a 组收官**——T14/T15/T16 串行 resume 派同一子代理全 DONE（`8aa7d705`+`2cd7f0cd` / `00eb1cdf`+`748d76c0` / `5efbf784`）。
-- 2026-11-25：**W2 收官**——T13 `22988cf2` + T10 `78df3ed7`；T09 批② `c9cb41c9` + 批③ `cd9d6ad0` + T11 `e3bafa2e` + T12 `ddf91d75`。W2 五卡全绿。
-- 2026-11-24：W0 全波次收官——D2 设计定稿 `docs/V201_DESIGN_FINAL.md`，D3 master 对齐 v2.0.0。
