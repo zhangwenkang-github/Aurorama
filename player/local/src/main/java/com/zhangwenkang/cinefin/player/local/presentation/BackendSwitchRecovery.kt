@@ -23,6 +23,19 @@ data class BackendSwitchRecoveryPlan(
 )
 
 /**
+ * 内核自愈事件（2.0.3-F1 P3-6）。
+ *
+ * 持久化内核在本机建不出来、[PlayerHolder] 自动回落到 ExoPlayer 并复位偏好时发出：宿主据此用既有的 内核切换提示条告知用户（不静默改写用户选择）。
+ *
+ * @param id 单调递增序号：播放页用"已提示过的最大 id"去重，播放页重建后也能补提示一次。
+ */
+data class BackendSelfHeal(
+    val id: Long,
+    val failedBackend: String,
+    val recoveredBackend: String,
+)
+
+/**
  * 新建目标内核实例失败时的自愈目标。
  *
  * 持久化的 `pref_player_backend` 落在某个内核上而该内核在本机建不出来（libmpv 初始化失败、vo 配置坏档等）时，

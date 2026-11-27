@@ -43,6 +43,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -87,6 +91,11 @@ constructor(
      * 由宿主在切换失败时记录、在真的出画面 / 用户显式重试时复位。
      */
     val backendSwitchCircuitBreaker = BackendSwitchCircuitBreaker()
+
+    private val _backendSelfHeal = MutableStateFlow<BackendSelfHeal?>(null)
+
+    /** 内核自愈事件（2.0.3-F1 P3-6）：播放页订阅后用既有的内核切换提示条告知用户。 */
+    val backendSelfHeal: StateFlow<BackendSelfHeal?> = _backendSelfHeal.asStateFlow()
 
     /**
      * 原地切换内核进行中（W4-T3a-2）。
@@ -245,6 +254,9 @@ constructor(
      *
      * 持久化偏好落在本机建不出来的内核上（libmpv 初始化失败、vo 配置坏档）时，如果原样抛异常， 播放页每次起播都失败——整机就是"任何条目都播不了"。这里回落到 ExoPlayer
      * 并**复位偏好**， 让下一次起播（含重启后的播放页）不再回到坏内核；ExoPlayer 也失败才原样抛出。
+     *
+     * 2.0.3-F1（P3-6）：自愈不能静默——改写的是用户自己的内核选择，必须让他知道。事件经 [backendSelfHeal]
+     * 交给播放页，用既有的内核切换提示条（[BackendSwitchOverlay]）告知。
      */
     private fun installSelfHealing(wanted: String): Player =
         try {
@@ -253,8 +265,27 @@ constructor(
             val fallback = backendFallbackAfterCreateFailure(wanted) ?: throw error
             Timber.e(error, "播放内核 %s 创建失败，自愈回落到 %s 并复位偏好", wanted, fallback)
             appPreferences.setValue(appPreferences.playerBackend, fallback)
-            install(fallback, create(fallback))
+            val player = install(fallback, create(fallback))
+            publishBackendSelfHeal(failedBackend = wanted, recoveredBackend = fallback)
+            player
         }
+
+    private var backendSelfHealSeq = 0L
+
+    private fun publishBackendSelfHeal(failedBackend: String, recoveredBackend: String) {
+        backendSelfHealSeq += 1
+        _backendSelfHeal.value =
+            BackendSelfHeal(
+                id = backendSelfHealSeq,
+                failedBackend = failedBackend,
+                recoveredBackend = recoveredBackend,
+            )
+    }
+
+    /** 播放页已提示过该事件：只清掉匹配的那一条，避免把更新的自愈事件一起吞掉。 */
+    fun consumeBackendSelfHeal(id: Long) {
+        _backendSelfHeal.update { current -> if (current?.id == id) null else current }
+    }
 
     /**
      * 原地切换内核（W4-T3a-2）：不 recreate 播放页、不打断会话。

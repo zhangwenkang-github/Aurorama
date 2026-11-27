@@ -124,6 +124,7 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
@@ -2337,13 +2338,28 @@ constructor(
     }
 
     /**
+     * 内核自愈事件（2.0.3-F1 P3-6）：持久化内核建不出来、[PlayerHolder] 自动回落到 ExoPlayer 并复位了偏好。
+     *
+     * 播放页订阅它，用既有的内核切换提示条告知用户——不自造提示层，也不静默改写用户选择。
+     */
+    val backendSelfHeal: StateFlow<BackendSelfHeal?>
+        get() = playerHolder.backendSelfHeal
+
+    /** 播放页已提示过该自愈事件（2.0.3-F1）：清掉它，重建播放页不再重复打扰。 */
+    fun consumeBackendSelfHeal(id: Long) {
+        playerHolder.consumeBackendSelfHeal(id)
+    }
+
+    /**
      * 切换失败且旧实例已经不可用：把失败发布成错误卡片。
      *
      * 这条路径说明既没有旧内核可回滚、也没能原地重启；用户需要一个可见的重试 / 换内核入口， 否则播放页会停在无实例的空白态。
+     *
+     * 2.0.3-F1（P2-4）：文案必须是「播放内核不可用」，不能复用「无法解析播放地址」——那会把用户引去查网络。
      */
     fun reportBackendSwitchFailure() {
         errorPolicy.onPlaybackError(
-            message = application.getString(R.string.player_source_resolution_failed),
+            message = application.getString(R.string.player_backend_switch_unavailable),
             codeName = PLAYER_ERROR_BACKEND_SWITCH_FAILED,
         )
         publishPlayerError()

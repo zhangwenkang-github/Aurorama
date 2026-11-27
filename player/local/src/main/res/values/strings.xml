@@ -188,6 +188,8 @@
     <string name="player_backend_switch_switching">Switching to the %1$s engine…</string>
     <string name="player_backend_switch_switched">Switched</string>
     <string name="player_backend_switch_failed">Switch failed — previous engine kept</string>
+    <string name="player_backend_switch_unavailable">Current playback engine is unavailable. Please retry or switch engines.</string>
+    <string name="player_backend_switch_self_healed">Current engine was unavailable — switched to %1$s</string>
     <string name="player_subtitle_external">External</string>
     <string name="player_subtitle_embedded">Embedded</string>
     <string name="player_subtitle_graphic">Graphic</string>
