@@ -189,6 +189,8 @@
     <string name="player_backend_switch_switching">正在切换到 %1$s 内核…</string>
     <string name="player_backend_switch_switched">已切换</string>
     <string name="player_backend_switch_failed">切换失败，已保持原内核</string>
+    <string name="player_backend_switch_unavailable">当前播放内核不可用，请重试或切换内核</string>
+    <string name="player_backend_switch_self_healed">当前内核不可用，已切换为 %1$s</string>
     <string name="player_subtitle_external">外挂</string>
     <string name="player_subtitle_embedded">内嵌</string>
     <string name="player_subtitle_graphic">图形字幕</string>

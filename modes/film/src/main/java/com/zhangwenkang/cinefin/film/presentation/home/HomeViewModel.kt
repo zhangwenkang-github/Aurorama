@@ -210,18 +210,10 @@ constructor(
                             val previous = _state.value
                             val next = outcome.snapshot.value.toHomeState(previous, options)
                             /*
-                             * 内容签名没变就不替换状态：走廊 / 海报墙的条目身份保持稳定，返回时不会被重建，
-                             * 网格滚动位置也就不会因为"同一份内容换了一批对象实例"被打回顶部。
+                             * 2.0.3-F1：按条目逐项合并——没变的条目沿用旧实例（卡片身份与网格滚动位置稳定），
+                             * 变过的条目（进度 / 已看 / 收藏 / 标题等）换成新实例，用户数据必须真实反映到首页。
                              */
-                            _state.value =
-                                if (homeContentSignature(previous) == homeContentSignature(next)) {
-                                    previous.copy(
-                                        catalogScope = next.catalogScope,
-                                        server = next.server,
-                                    )
-                                } else {
-                                    next
-                                }
+                            _state.value = previous.withMergedContent(next)
                             loadedScope = scope
                         } else {
                             loadedScope = null
@@ -412,32 +404,86 @@ internal fun HomeState.hasRenderableContent(): Boolean =
         views.isNotEmpty()
 
 /**
- * 首页内容签名（各走廊 / 海报墙 / 库行的条目 id 序列）。
+ * 2.0.3-F1：把 [next] 的内容合并进当前状态，**未变化的条目沿用旧实例**。
  *
- * 签名相同 = 这一轮刷新拿到的是同一份内容：直接沿用旧状态对象，条目身份不换、列表不重建， 返回播放器时网格滚动位置不会因为"内容对象被整体替换"被打回顶部。
+ * 上一版按「条目 id 序列」判等：id 没变就整份沿用旧状态，于是进度条不前进、「已看」不变、改名 / 收藏 变化都不反映（P1 回归）。现在按条目**全字段**判等（`Findroid*`
+ * 都是 data class，`==` 即"这条卡片 渲染出来的东西完全一样"）：只有真的变过的条目换实例，其余保持同一对象——Compose 卡片身份与网格
+ * 滚动位置都不受影响，同时用户数据真实更新。
  */
-internal fun homeContentSignature(state: HomeState): String = buildString {
-    append(state.suggestionsSection?.items?.joinToString(",") { it.id.toString() })
-    append('|')
-    append(state.resumeSection?.homeSection?.items?.joinToString(",") { it.id.toString() })
-    append('|')
-    append(state.resumeReadingSection?.homeSection?.items?.joinToString(",") { it.id.toString() })
-    append('|')
-    append(state.resumeListeningSection?.homeSection?.items?.joinToString(",") { it.id.toString() })
-    append('|')
-    append(state.nextUpSection?.homeSection?.items?.joinToString(",") { it.id.toString() })
-    append('|')
-    append(state.recentlyAddedVideos.joinToString(",") { it.id.toString() })
-    append('|')
-    append(state.recentlyAddedBooks.joinToString(",") { it.id.toString() })
-    append('|')
-    append(state.recentlyAddedMusic.joinToString(",") { it.id.toString() })
-    append('|')
-    append(
-        state.views.joinToString(",") { view ->
-            "${view.view.id}:${view.view.items.joinToString("/") { it.id.toString() }}"
-        }
+internal fun HomeState.withMergedContent(next: HomeState): HomeState =
+    next.copy(
+        suggestionsSection = mergeSuggestions(suggestionsSection, next.suggestionsSection),
+        resumeSection = mergeSection(resumeSection, next.resumeSection),
+        resumeReadingSection = mergeSection(resumeReadingSection, next.resumeReadingSection),
+        resumeListeningSection = mergeSection(resumeListeningSection, next.resumeListeningSection),
+        nextUpSection = mergeSection(nextUpSection, next.nextUpSection),
+        recentlyAddedVideos = mergeStableItems(recentlyAddedVideos, next.recentlyAddedVideos),
+        recentlyAddedBooks = mergeStableItems(recentlyAddedBooks, next.recentlyAddedBooks),
+        recentlyAddedMusic = mergeStableItems(recentlyAddedMusic, next.recentlyAddedMusic),
+        views = mergeViews(views, next.views),
     )
+
+/**
+ * 逐项复用：位置对应的条目相等就沿用旧实例，变化过的换成新实例；长度不同直接整份换。
+ *
+ * 全部条目都没变时返回 [previous] 本身（列表实例也稳定），调用方据此判断"这条走廊没动"。
+ */
+internal fun <T> mergeStableItems(previous: List<T>, next: List<T>): List<T> {
+    if (previous.size != next.size) return next
+    var changed = false
+    val merged = ArrayList<T>(next.size)
+    for (index in next.indices) {
+        val incoming = next[index]
+        val kept = previous[index]
+        if (kept == incoming) {
+            merged += kept
+        } else {
+            merged += incoming
+            changed = true
+        }
+    }
+    return if (changed) merged else previous
+}
+
+private fun mergeSuggestions(
+    previous: HomeItem.Suggestions?,
+    next: HomeItem.Suggestions?,
+): HomeItem.Suggestions? {
+    if (previous == null || next == null) return next
+    val items = mergeStableItems(previous.items, next.items)
+    return if (items === previous.items) previous else next.copy(items = items)
+}
+
+private fun mergeSection(previous: HomeItem.Section?, next: HomeItem.Section?): HomeItem.Section? {
+    if (previous == null || next == null) return next
+    val items = mergeStableItems(previous.homeSection.items, next.homeSection.items)
+    return if (items === previous.homeSection.items) {
+        previous
+    } else {
+        next.copy(homeSection = next.homeSection.copy(items = items))
+    }
+}
+
+private fun mergeViews(
+    previous: List<HomeItem.ViewItem>,
+    next: List<HomeItem.ViewItem>,
+): List<HomeItem.ViewItem> {
+    if (previous.size != next.size) return next
+    return next.mapIndexed { index, viewItem ->
+        val previousItem = previous[index]
+        when {
+            previousItem == viewItem -> previousItem
+            previousItem.view.id != viewItem.view.id -> viewItem
+            else -> {
+                val items = mergeStableItems(previousItem.view.items, viewItem.view.items)
+                if (items === previousItem.view.items) {
+                    previousItem
+                } else {
+                    viewItem.copy(view = viewItem.view.copy(items = items))
+                }
+            }
+        }
+    }
 }
 
 /** 「最近添加」分区：合并同类库的最新条目、去重后取前 60（与旧海报墙同一口径）。 */

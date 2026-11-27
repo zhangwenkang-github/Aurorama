@@ -272,7 +272,8 @@ class HomeCatalogConsumerTest {
             "unexpected loading states: ${emitted.filter { it.isLoading } }",
             emitted.none { it.isLoading },
         )
-        assertEquals(homeContentSignature(loaded), homeContentSignature(viewModel.state.value))
+        // 内容完全没变：整份状态对象（含 views 列表实例）都被复用，StateFlow 不再发射
+        assertSame(loaded, viewModel.state.value)
         assertSame(loaded.views, viewModel.state.value.views)
     }
 
@@ -285,20 +286,110 @@ class HomeCatalogConsumerTest {
     }
 
     @Test
-    fun `home content signature ignores non content fields but tracks corridor members`() {
-        val base =
-            CatalogHomeData(views = listOf(view("A")))
-                .toHomeState(current = HomeState(), options = options())
-        val sameContent = base.copy(isLoading = true, error = IllegalStateException("transient"))
-        val otherContent =
-            CatalogHomeData(views = listOf(view("B")))
-                .toHomeState(current = HomeState(), options = options())
+    fun `progress change updates the item but keeps unchanged items and list order stable`() {
+        val playing = libraryItem(name = "playing", playbackPositionTicks = 0L)
+        val untouched = libraryItem(name = "untouched", playbackPositionTicks = 0L)
+        val previous = homeWithLibraryItems(listOf(playing, untouched))
+        val resumed = playing.copy(playbackPositionTicks = 42_000L)
+        val next = homeWithLibraryItems(listOf(resumed, untouched))
 
-        assertEquals(homeContentSignature(base), homeContentSignature(sameContent))
-        assertTrue(homeContentSignature(base) != homeContentSignature(otherContent))
-        assertTrue(base.hasRenderableContent())
+        val merged = previous.withMergedContent(next)
+
+        // 用户数据真实更新（进度条会前进）
+        assertEquals(42_000L, merged.views.single().view.items.first().playbackPositionTicks)
+        // 变过的条目换新实例，没变的条目沿用旧实例，顺序不变
+        assertSame(resumed, merged.views.single().view.items.first())
+        assertSame(untouched, merged.views.single().view.items[1])
+        assertEquals(2, merged.views.single().view.items.size)
+        // 内容确实变了：整份状态与旧对象不同（否则进度又会被丢弃）
+        assertTrue(merged != previous)
+    }
+
+    @Test
+    fun `merge reuses the previous content objects when nothing user visible changed`() {
+        val item = libraryItem(name = "stable", playbackPositionTicks = 7L)
+        val previous = homeWithLibraryItems(listOf(item))
+        // 同一份数据的新快照（对象是新实例、字段完全相等）
+        val next = homeWithLibraryItems(listOf(item.copy())).copy(isLoading = true)
+
+        val merged = previous.withMergedContent(next)
+
+        // 内容等价：走廊里的条目、库行、列表都沿用旧实例（滚动位置不丢）
+        assertSame(item, merged.views.single().view.items.single())
+        assertSame(previous.views.single(), merged.views.single())
+        assertSame(previous.recentlyAddedVideos, merged.recentlyAddedVideos)
+        // 非内容字段（loading）仍由新快照决定
+        assertEquals(true, merged.isLoading)
+        assertTrue(previous.hasRenderableContent())
         assertFalse(HomeState().hasRenderableContent())
     }
+
+    @Test
+    fun `returning from playback surfaces updated progress in the view model`() = runBlocking {
+        var progressTicks = 0L
+        val catalog =
+            HomeCatalogPort(scope = SCOPE).apply {
+                homeResult = {
+                    available(
+                        SCOPE,
+                        CatalogHomeData(
+                            views =
+                                listOf(
+                                    CatalogViewItems(
+                                        view("Movies", LIBRARY_ID),
+                                        listOf(
+                                            libraryItem(
+                                                name = "movie",
+                                                playbackPositionTicks = progressTicks,
+                                            )
+                                        ),
+                                    )
+                                )
+                        ),
+                    )
+                }
+            }
+        val viewModel =
+            installViewModel(
+                HomeViewModel(
+                        catalogReadPort = catalog,
+                        appPreferences = appPreferences(),
+                        database = database(),
+                        bookCoverProvider = bookCoverProvider(),
+                    )
+                    .withUnconfinedViewModelScope()
+            )
+        viewModel.loadData()
+        val firstItem = viewModel.state.value.views.single().view.items.single()
+        assertEquals(0L, firstItem.playbackPositionTicks)
+
+        // 播放停止上报写回进度；返回首页重新取数
+        progressTicks = 125_000L
+        viewModel.loadData()
+
+        val updated = viewModel.state.value.views.single().view.items.single()
+        assertEquals(125_000L, updated.playbackPositionTicks)
+        // 用户可见字段变了就必须换实例（沿用旧实例等于把进度丢掉）
+        assertTrue(firstItem !== updated)
+        assertFalse(viewModel.state.value.isLoading)
+    }
+
+    private fun homeWithLibraryItems(items: List<FindroidItem>): HomeState =
+        CatalogHomeData(
+                views =
+                    listOf(CatalogViewItems(view = view("Movies", LIBRARY_ID), latestMedia = items))
+            )
+            .toHomeState(current = HomeState(), options = options())
+
+    private fun libraryItem(name: String, playbackPositionTicks: Long): FindroidCollection =
+        FindroidCollection(
+            // 同一条目 id 稳定：进度变化只是字段变化，不能顺带换 id
+            id = UUID.nameUUIDFromBytes(name.toByteArray()),
+            name = name,
+            type = CollectionType.Movies,
+            images = FindroidImages(),
+            playbackPositionTicks = playbackPositionTicks,
+        )
 
     private fun fullHome(): CatalogHomeData =
         CatalogHomeData(

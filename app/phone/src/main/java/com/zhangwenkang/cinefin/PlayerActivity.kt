@@ -251,6 +251,9 @@ class PlayerActivity : BasePlayerActivity() {
 
     private var backendSwitchJob: Job? = null
     private var backendSwitchNoticeJob: Job? = null
+
+    /** 已提示过的内核自愈事件序号（2.0.3-F1 P3-6）：同一条事件只提示一次。 */
+    private var handledBackendSelfHealId: Long = 0L
     private var backendSwitchHideJob: Job? = null
 
     /**
@@ -705,6 +708,35 @@ class PlayerActivity : BasePlayerActivity() {
                                 }
                             }
                         }
+                    }
+                }
+
+                /*
+                 * 2.0.3-F1（P3-6）：内核自愈不能静默——持久化内核建不出来被自动换成 ExoPlayer 时，
+                 * 用既有的内核切换提示条（非阻断）告诉用户。StateFlow 里保留最近一次事件，
+                 * 因此播放页重建后也能补提示一次；用递增 id 去重，避免重组 / 重订阅反复弹。
+                 */
+                launch {
+                    viewModel.backendSelfHeal.collect { selfHeal ->
+                        if (selfHeal == null || selfHeal.id <= handledBackendSelfHealId) {
+                            return@collect
+                        }
+                        handledBackendSelfHealId = selfHeal.id
+                        Timber.w(
+                            "内核自愈：%s 不可用，已切换为 %s（id=%d）",
+                            selfHeal.failedBackend,
+                            selfHeal.recoveredBackend,
+                            selfHeal.id,
+                        )
+                        showBackendSwitchNotice(
+                            getString(
+                                PlayerR.string.player_backend_switch_self_healed,
+                                engineLabel(selfHeal.recoveredBackend),
+                            ),
+                            holdMs = SWITCH_FAILURE_NOTICE_MS,
+                        )
+                        // 提示过就消费掉：播放页重建（换内核 / 转码重启）不会把旧事件再弹一遍
+                        viewModel.consumeBackendSelfHeal(selfHeal.id)
                     }
                 }
 
