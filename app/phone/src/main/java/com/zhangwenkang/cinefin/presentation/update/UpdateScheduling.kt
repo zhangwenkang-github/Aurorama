@@ -63,3 +63,12 @@ internal suspend fun cancelUpdateDownload(
         is UpdateCancelResult.Failure -> false
     }
 }
+
+/**
+ * 排队态的取消：此时数据层还没有 transfer 需要保护（等待联网约束时 Worker 尚未运行）， 直接撤销唯一 Work 即可，无需经 [cancelUpdateDownload]
+ * 的「先落盘再撤销」契约。
+ */
+internal fun cancelQueuedDownload(scheduler: UpdateWorkScheduling): Boolean {
+    scheduler.cancelDownload()
+    return true
+}

@@ -173,7 +173,12 @@ private fun UpdateStatus(state: UpdateUiState) {
         when (state.phase) {
             UpdateUiPhase.IDLE -> stringResource(R.string.update_idle)
             UpdateUiPhase.CHECKING -> stringResource(R.string.update_checking)
-            UpdateUiPhase.STARTING_DOWNLOAD -> stringResource(R.string.update_starting_download)
+            UpdateUiPhase.STARTING_DOWNLOAD ->
+                if (state.waitingForNetwork) {
+                    stringResource(R.string.update_waiting_for_network)
+                } else {
+                    stringResource(R.string.update_starting_download)
+                }
             UpdateUiPhase.UP_TO_DATE -> stringResource(R.string.update_up_to_date)
             UpdateUiPhase.AVAILABLE ->
                 stringResource(R.string.update_available, state.availableVersion.orEmpty())

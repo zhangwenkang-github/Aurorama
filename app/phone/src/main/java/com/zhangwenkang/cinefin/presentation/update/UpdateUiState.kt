@@ -72,6 +72,8 @@ data class UpdateUiState(
     val canCheck: Boolean = true,
     val releaseNotes: String? = null,
     val requestFailure: UpdateRequestFailure? = null,
+    /** 下载已入队但联网约束未满足：页面要显式说明「等待网络」，而不是含糊地转圈。 */
+    val waitingForNetwork: Boolean = false,
 ) {
     val progress: Float?
         get() =
@@ -144,6 +146,32 @@ data class UpdateDownloadWorkObservation(
     val status: UpdateCheckWorkStatus = UpdateCheckWorkStatus.ABSENT,
     val terminal: UpdateTerminalResult? = null,
 )
+
+/** WorkInfo 的纯数据投影：让「派发代际过滤」能在 JVM 单测里验证，不依赖 androidx.work。 */
+internal data class DownloadWorkSample(
+    val generation: Int,
+    val status: UpdateCheckWorkStatus,
+    val terminal: UpdateTerminalResult? = null,
+)
+
+/**
+ * 只承认派发之后新入队的那一代 Work。
+ *
+ * REPLACE 传播到 WorkManager flow 之前，页面仍会读到上一代 FAILED；若不按代际过滤，点「重试下载」会先闪一帧旧失败码。 任何 generation ≤
+ * [dispatchGeneration] 的样本都视为上一代，丢弃后按「排队中」呈现。
+ */
+internal fun resolveDispatchedDownloadObservation(
+    samples: List<DownloadWorkSample>,
+    dispatchedDownloadId: String?,
+    dispatchGeneration: Int?,
+): UpdateDownloadWorkObservation {
+    if (dispatchedDownloadId == null) return UpdateDownloadWorkObservation()
+    val floor = dispatchGeneration ?: Int.MIN_VALUE
+    val latest =
+        samples.filter { it.generation > floor }.maxByOrNull { it.generation }
+            ?: return UpdateDownloadWorkObservation(status = UpdateCheckWorkStatus.QUEUED)
+    return UpdateDownloadWorkObservation(status = latest.status, terminal = latest.terminal)
+}
 
 /** Worker 写回的终止枚举 → 用户可见的失败码；非失败终态一律按状态异常处理。 */
 internal fun downloadFailureCode(terminal: UpdateTerminalResult?): UpdateFailureCode =
@@ -231,6 +259,8 @@ fun buildUpdateUiState(
                     downloadedBytes = downloaded,
                     totalBytes = total,
                     primaryAction = UpdatePrimaryAction.CANCEL,
+                    // 下载进行中禁用「检查更新」：否则会清掉派发标记，下载状态整段消失。
+                    canCheck = false,
                 )
             UpdateTransferPhase.READY_FOR_VERIFICATION ->
                 return UpdateUiState(
@@ -284,9 +314,11 @@ fun buildUpdateUiState(
                     availableVersion = availableRelease?.version,
                     updateId = updateId,
                     totalBytes = availableRelease?.assetSize ?: 0L,
-                    primaryAction = UpdatePrimaryAction.NONE,
-                    canCheck = true,
+                    // 排队/启动阶段同样必须能撤销：联网约束不满足时不能把用户困在转圈里。
+                    primaryAction = UpdatePrimaryAction.CANCEL,
+                    canCheck = false,
                     releaseNotes = availableRelease?.releaseNotes,
+                    waitingForNetwork = download.status != UpdateCheckWorkStatus.RUNNING,
                 )
             UpdateCheckWorkStatus.FAILED ->
                 return UpdateUiState(
