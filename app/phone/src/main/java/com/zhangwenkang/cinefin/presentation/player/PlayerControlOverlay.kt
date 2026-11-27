@@ -444,10 +444,13 @@ internal fun playerToolLabelsVisible(
  * W67b：左下工具行的键集分级（2.0.3 起 6 键）。
  *
  * 预计结束时刻移到该行后，窄窗优先保证结束时间完整：行宽预算（键 + 1× 徽标 + 结束时刻 + 右下全屏键 + 间距 + 左右留白，见
- * [PlayerControlSpec.bottomRowWidthDp]）放不下全部键时，省略「解码」键—— 只剩 音轨 · 字幕 · 倍率 · 详细信息 · 播放顺序 + 1× +
- * 结束时刻；宽窗 / 全屏 / 平板照旧全量。 返回恒为 [PLAYER_BOTTOM_KEY_ORDER] 的子序列（顺序不变）。
+ * [PlayerControlSpec.bottomRowWidthDp]）放不下全部键时，按 [PLAYER_BOTTOM_KEY_TIERS] 逐档退让：
  *
- * 预算按**实际要渲染的键数**算：6 键放不下退到 5 键后，再按 5 键的真实行宽比一次，避免「预估值一直按 6 键算」把能放下的形态也判成超宽。
+ * 1. 全量键：音轨 · 字幕 · 倍率 · 解码 · 详细信息 · 播放顺序；
+ * 2. 省「解码」：音轨 · 字幕 · 倍率 · 详细信息 · 播放顺序（把宽度让给右侧固定的 1× 徽标 + 结束时刻）。
+ *
+ * **每一档都用该档真实的键数重算行宽再判定**——6 键的预算不会拿去判 5 键的形态，所以放得下 5 键的窄窗
+ * 不会被误判成还得继续降级。两档都放不下时停在最后一档、不再隐藏入口（「入口恒定齐全」），键行由横向滚动兜底。
  */
 internal fun playerBottomKeysForWidth(
     widthDp: Float,
@@ -456,12 +459,20 @@ internal fun playerBottomKeysForWidth(
     hasEndTime: Boolean,
     spec: PlayerControlSpec,
 ): List<PlayerBottomKey> {
-    fun budget(keys: List<PlayerBottomKey>): Float =
-        spec.bottomRowWidthDp(showLabels, hasEndTime, keys.size) + spec.toolRowPaddingDp * 2f
+    fun fits(keys: List<PlayerBottomKey>): Boolean =
+        spec.bottomRowWidthDp(showLabels, hasEndTime, keys.size) + spec.toolRowPaddingDp * 2f <=
+            widthDp
 
-    if (budget(PLAYER_BOTTOM_KEY_ORDER) <= widthDp) return PLAYER_BOTTOM_KEY_ORDER
-    return PLAYER_BOTTOM_KEY_ORDER.filter { it != PlayerBottomKey.Decode }
+    return PLAYER_BOTTOM_KEY_TIERS.firstOrNull { keys -> fits(keys) }
+        ?: PLAYER_BOTTOM_KEY_TIERS.last()
 }
+
+/** 左下工具行的降级档位（顺序不变，恒为 [PLAYER_BOTTOM_KEY_ORDER] 的子序列）。 */
+internal val PLAYER_BOTTOM_KEY_TIERS: List<List<PlayerBottomKey>> =
+    listOf(
+        PLAYER_BOTTOM_KEY_ORDER,
+        PLAYER_BOTTOM_KEY_ORDER.filter { it != PlayerBottomKey.Decode },
+    )
 
 /** 右上角 5 键的**固定顺序**（W12 终版布局，勿再变动）：画中画 · 睡眠 · 选集 · 画面 · 设置。 */
 internal enum class PlayerTopKey {
@@ -1302,10 +1313,11 @@ fun PlayerControlOverlay(
             Box(
                 modifier = Modifier.width(videoWidth).height(videoHeight).align(Alignment.TopStart)
             ) {
-                // 暂停降亮 + 暗角（VIDEO-30）：画面上的一层，与控制层可见性解耦，控制层收起后仍在；
-                // 面板抽屉打开时让位——抽屉自带唯一一层垫层，暂停降亮再叠上来就是第二层（2.0.3 Bug 10）
+                // 暂停降亮 + 暗角（VIDEO-30）：画面上的一层，与控制层可见性、面板抽屉都解耦。
+                // 它压的是画面而不是控件垫层，面板打开时也必须保留——否则「暂停 → 开字幕面板」画面会突然变亮、
+                // 关面板又变暗；2.0.3 Bug 10 的「垫层唯一化」只针对控件垫层（顶/底栏渐变），不动画面降亮。
                 PlayerPauseDim(
-                    paused = !runtime.isPlaying && !panelOpen,
+                    paused = !runtime.isPlaying,
                     modifier = Modifier.fillMaxSize(),
                 )
                 AnimatedVisibility(
@@ -1572,8 +1584,8 @@ fun PlayerControlOverlay(
             Box(
                 modifier =
                     Modifier.fillMaxSize()
-                        // 面板层唯一的垫层（2.0.3 Bug 10）：统一走覆盖层 scrim 28% token，不再让底栏渐变 / 暂停降亮
-                        // 透上来；抽屉玻璃表面盖在它上面，全屏只有这两层，样式同源
+                        // 面板层的控件垫层（2.0.3 Bug 10）：统一走覆盖层 scrim 28% token，不再让底栏渐变 /
+                        // 工具键透上来；抽屉玻璃表面盖在它上面。画面降亮（暂停态）不属控件垫层，照常留在下面
                         .background(colors.scrim.copy(alpha = CinefinTokens.PlayerGlassAlpha))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
