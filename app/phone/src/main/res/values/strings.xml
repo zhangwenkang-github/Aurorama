@@ -28,6 +28,7 @@
     <string name="update_available">Version %1$s is available.</string>
     <string name="update_downloading">Downloading update…</string>
     <string name="update_starting_download">Starting download…</string>
+    <string name="update_waiting_for_network">Waiting for a network connection… You can cancel the download at any time.</string>
     <string name="update_progress_bytes">%1$s of %2$s</string>
     <string name="update_ready">Download complete; waiting for verification.</string>
     <string name="update_verifying">Verifying update package…</string>

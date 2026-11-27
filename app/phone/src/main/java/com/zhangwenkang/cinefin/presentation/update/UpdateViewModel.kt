@@ -63,6 +63,9 @@ constructor(
      */
     private var dispatchedDownloadId: String? = null
 
+    /** 派发那一刻已存在的 Work 代际上限。REPLACE 传播前 flow 仍会读到上一代终态， 用它做地板过滤，点击后第一帧就只能是「正在开始下载」。 */
+    private var downloadDispatchGeneration: Int? = null
+
     init {
         viewModelScope.launch { refreshState(WorkSnapshot()) }
         viewModelScope.launch { observeWork() }
@@ -71,6 +74,7 @@ constructor(
     fun checkForUpdates() {
         resetInstallStatus()
         dispatchedDownloadId = null
+        downloadDispatchGeneration = null
         requestFailure = null
         dispatchUpdateAction(UpdateAction.CHECK, _state.value.updateId, scheduler)
     }
@@ -81,6 +85,13 @@ constructor(
     }
 
     fun cancelDownload() {
+        if (_state.value.phase == UpdateUiPhase.STARTING_DOWNLOAD) {
+            cancelQueuedDownload(scheduler)
+            dispatchedDownloadId = null
+            downloadDispatchGeneration = null
+            viewModelScope.launch { refreshState(lastSnapshot) }
+            return
+        }
         val updateId = _state.value.updateId ?: return
         viewModelScope.launch {
             if (cancelUpdateDownload(updateId, repository, scheduler)) {
@@ -97,6 +108,8 @@ constructor(
     /** 点击后立刻刷新一次，让「正在开始下载」在不依赖 WorkManager 首帧的情况下就能显示； 拿不到 updateId 时把失败回写到页面，禁止静默返回。 */
     private fun startDownload() {
         val updateId = _state.value.updateId
+        // 先记下派发前的代际：新 Work 的代际必然更大，旧失败码不会抢在 REPLACE 传播前出现在首帧。
+        val floorGeneration = lastSnapshot.download.maxOfOrNull { it.generation }
         val dispatched = dispatchUpdateAction(UpdateAction.DOWNLOAD, updateId, scheduler)
         if (dispatched == UpdateDispatchResult.MISSING_UPDATE_ID) {
             requestFailure = UpdateRequestFailure.MISSING_UPDATE_ID
@@ -104,6 +117,7 @@ constructor(
             return
         }
         requestFailure = null
+        downloadDispatchGeneration = floorGeneration
         dispatchedDownloadId = updateId
         viewModelScope.launch { refreshState(lastSnapshot) }
     }
@@ -228,11 +242,17 @@ constructor(
                 downloadedBytes = loaded.third,
                 checkRunning = check.running,
                 checkTerminal = check.terminal,
-                download = snapshot.download.observationForDispatchedDownload(dispatchedDownloadId),
+                download =
+                    resolveDispatchedDownloadObservation(
+                        samples = snapshot.download.map { it.toDownloadSample() },
+                        dispatchedDownloadId = dispatchedDownloadId,
+                        dispatchGeneration = downloadDispatchGeneration,
+                    ),
             )
         lastBaseState = _state.value
         if (lastBaseState.phase == UpdateUiPhase.READY_FOR_VERIFICATION) {
             dispatchedDownloadId = null
+            downloadDispatchGeneration = null
         }
         renderInstallStatus()
         val readyUpdateId =
@@ -316,41 +336,23 @@ constructor(
 private fun List<WorkInfo>.isRunning(): Boolean = any { it.state == WorkInfo.State.RUNNING }
 
 /** 只有本会话亲手派发过下载时才暴露 Work 观测；没有观测到对应 Work 的一帧按 QUEUED 处理， 保证点击后立刻就有「正在开始下载」的反馈。 */
-private fun List<WorkInfo>.observationForDispatchedDownload(
-    dispatchedUpdateId: String?
-): UpdateDownloadWorkObservation {
-    if (dispatchedUpdateId == null) return UpdateDownloadWorkObservation()
-    val observed = latestDownloadObservation()
-    return if (observed.status == UpdateCheckWorkStatus.ABSENT) {
-        UpdateDownloadWorkObservation(status = UpdateCheckWorkStatus.QUEUED)
-    } else {
-        observed
-    }
-}
-
-private fun List<WorkInfo>.latestDownloadObservation(): UpdateDownloadWorkObservation {
-    val latest = maxByOrNull { it.generation } ?: return UpdateDownloadWorkObservation()
-    return when (latest.state) {
-        WorkInfo.State.ENQUEUED ->
-            UpdateDownloadWorkObservation(status = UpdateCheckWorkStatus.QUEUED)
-        WorkInfo.State.BLOCKED ->
-            UpdateDownloadWorkObservation(status = UpdateCheckWorkStatus.BLOCKED)
-        WorkInfo.State.RUNNING ->
-            UpdateDownloadWorkObservation(status = UpdateCheckWorkStatus.RUNNING)
-        WorkInfo.State.SUCCEEDED ->
-            UpdateDownloadWorkObservation(
-                status = UpdateCheckWorkStatus.SUCCEEDED,
-                terminal = updateTerminalResult(latest),
-            )
-        WorkInfo.State.FAILED ->
-            UpdateDownloadWorkObservation(
-                status = UpdateCheckWorkStatus.FAILED,
-                terminal = updateTerminalResult(latest),
-            )
-        WorkInfo.State.CANCELLED ->
-            UpdateDownloadWorkObservation(status = UpdateCheckWorkStatus.CANCELLED)
-    }
-}
+private fun WorkInfo.toDownloadSample(): DownloadWorkSample =
+    DownloadWorkSample(
+        generation = generation,
+        status =
+            when (state) {
+                WorkInfo.State.ENQUEUED -> UpdateCheckWorkStatus.QUEUED
+                WorkInfo.State.BLOCKED -> UpdateCheckWorkStatus.BLOCKED
+                WorkInfo.State.RUNNING -> UpdateCheckWorkStatus.RUNNING
+                WorkInfo.State.SUCCEEDED -> UpdateCheckWorkStatus.SUCCEEDED
+                WorkInfo.State.FAILED -> UpdateCheckWorkStatus.FAILED
+                WorkInfo.State.CANCELLED -> UpdateCheckWorkStatus.CANCELLED
+            },
+        terminal =
+            updateTerminalResult(this).takeIf {
+                state == WorkInfo.State.SUCCEEDED || state == WorkInfo.State.FAILED
+            },
+    )
 
 private fun List<WorkInfo>.latestCheckObservation(): UpdateCheckWorkObservation {
     val latest = maxByOrNull { it.generation } ?: return UpdateCheckWorkObservation()

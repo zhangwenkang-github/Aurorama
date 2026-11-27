@@ -28,6 +28,7 @@
     <string name="update_available">发现新版本 %1$s。</string>
     <string name="update_downloading">正在下载更新…</string>
     <string name="update_starting_download">正在开始下载…</string>
+    <string name="update_waiting_for_network">等待网络连接…随时可以取消下载。</string>
     <string name="update_progress_bytes">已下载 %1$s / %2$s</string>
     <string name="update_ready">下载完成，等待校验。</string>
     <string name="update_verifying">正在校验更新包…</string>

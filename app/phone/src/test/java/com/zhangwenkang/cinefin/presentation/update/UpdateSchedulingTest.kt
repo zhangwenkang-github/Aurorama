@@ -80,6 +80,20 @@ class UpdateSchedulingTest {
     }
 
     @Test
+    fun queuedDownloadCancelRevokesTheUniqueWorkWithoutTouchingPersistence() {
+        val events = mutableListOf<String>()
+        val scheduler = FakeUpdateWorkScheduling()
+        scheduler.onCancel = { events += "cancel-work" }
+
+        val handled = cancelQueuedDownload(scheduler)
+
+        // 排队态还没有 transfer 需要保护，直接撤销唯一 Work 即可。
+        assertTrue(handled)
+        assertEquals(listOf("cancel-work"), events)
+        assertEquals(0, scheduler.downloadIds.size)
+    }
+
+    @Test
     fun uiCancelPersistsCancelledBeforeCancellingUniqueWork() = runBlocking {
         val events = mutableListOf<String>()
         val repository =

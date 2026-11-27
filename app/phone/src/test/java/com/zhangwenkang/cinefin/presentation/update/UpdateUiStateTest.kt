@@ -377,26 +377,113 @@ class UpdateUiStateTest {
     }
 
     @Test
-    fun queuedOrRunningDownloadWorkShowsStartingFeedbackBeforeTransferExists() {
-        listOf(
-                UpdateCheckWorkStatus.QUEUED,
-                UpdateCheckWorkStatus.BLOCKED,
-                UpdateCheckWorkStatus.RUNNING,
-            )
-            .forEach { status ->
-                val state =
-                    buildUpdateUiState(
-                        currentVersion = "1.3.0",
-                        release = releaseState(),
-                        download = UpdateDownloadWorkObservation(status = status),
-                    )
+    fun queuedOrBlockedDownloadWorkOffersCancelAndSaysItWaitsForNetwork() {
+        listOf(UpdateCheckWorkStatus.QUEUED, UpdateCheckWorkStatus.BLOCKED).forEach { status ->
+            val state =
+                buildUpdateUiState(
+                    currentVersion = "1.3.0",
+                    release = releaseState(),
+                    download = UpdateDownloadWorkObservation(status = status),
+                )
 
-                assertEquals(UpdateUiPhase.STARTING_DOWNLOAD, state.phase)
-                assertEquals(UpdatePrimaryAction.NONE, state.primaryAction)
-                assertEquals("1.4.0", state.availableVersion)
-                // 排队态必须留「检查更新」逃生口：网络约束不满足时不能把用户困在等待里。
-                assertTrue(state.canCheck)
-            }
+            assertEquals(UpdateUiPhase.STARTING_DOWNLOAD, state.phase)
+            // 飞行模式下 Worker 永远等不到联网约束：必须给撤销入口，不能只转圈。
+            assertEquals(UpdatePrimaryAction.CANCEL, state.primaryAction)
+            assertTrue(state.waitingForNetwork)
+            // 检查更新在下载排队期间禁用，避免清掉派发标记后下载状态整段消失。
+            assertFalse(state.canCheck)
+            assertEquals("1.4.0", state.availableVersion)
+        }
+    }
+
+    @Test
+    fun runningDownloadWorkShowsStartingFeedbackWithoutClaimingNetworkWait() {
+        val state =
+            buildUpdateUiState(
+                currentVersion = "1.3.0",
+                release = releaseState(),
+                download = UpdateDownloadWorkObservation(status = UpdateCheckWorkStatus.RUNNING),
+            )
+
+        assertEquals(UpdateUiPhase.STARTING_DOWNLOAD, state.phase)
+        assertEquals(UpdatePrimaryAction.CANCEL, state.primaryAction)
+        assertFalse(state.waitingForNetwork)
+        assertFalse(state.canCheck)
+    }
+
+    @Test
+    fun downloadingDisablesTheCheckActionButKeepsCancel() {
+        val state =
+            buildUpdateUiState(
+                currentVersion = "1.3.0",
+                release = releaseState(),
+                transfer = transferState(phase = UpdateTransferPhase.DOWNLOADING),
+                downloadedBytes = 37,
+            )
+
+        assertEquals(UpdatePrimaryAction.CANCEL, state.primaryAction)
+        assertFalse(state.canCheck)
+    }
+
+    @Test
+    fun retriedDownloadIgnoresThePreviousFailedGeneration() {
+        val staleFailure =
+            DownloadWorkSample(
+                generation = 3,
+                status = UpdateCheckWorkStatus.FAILED,
+                terminal = UpdateTerminalResult.NETWORK_ERROR,
+            )
+
+        // 重试瞬间：REPLACE 还没传播，flow 里只有上一代 FAILED。
+        val beforePropagation =
+            resolveDispatchedDownloadObservation(
+                samples = listOf(staleFailure),
+                dispatchedDownloadId = "a".repeat(64),
+                dispatchGeneration = 3,
+            )
+        // 新一代入队后，才允许把真实状态交给页面。
+        val afterPropagation =
+            resolveDispatchedDownloadObservation(
+                samples = listOf(staleFailure, DownloadWorkSample(4, UpdateCheckWorkStatus.QUEUED)),
+                dispatchedDownloadId = "a".repeat(64),
+                dispatchGeneration = 3,
+            )
+
+        assertEquals(UpdateCheckWorkStatus.QUEUED, beforePropagation.status)
+        assertNull(beforePropagation.terminal)
+        assertEquals(UpdateCheckWorkStatus.QUEUED, afterPropagation.status)
+        assertNull(afterPropagation.terminal)
+    }
+
+    @Test
+    fun dispatchedDownloadObservationOnlyAppliesToThisSessionDispatch() {
+        val stale =
+            DownloadWorkSample(7, UpdateCheckWorkStatus.FAILED, UpdateTerminalResult.STATE_ERROR)
+
+        val idle =
+            resolveDispatchedDownloadObservation(
+                samples = listOf(stale),
+                dispatchedDownloadId = null,
+                dispatchGeneration = null,
+            )
+        val freshFailure =
+            resolveDispatchedDownloadObservation(
+                samples =
+                    listOf(
+                        stale,
+                        DownloadWorkSample(
+                            8,
+                            UpdateCheckWorkStatus.FAILED,
+                            UpdateTerminalResult.NETWORK_ERROR,
+                        ),
+                    ),
+                dispatchedDownloadId = "b".repeat(64),
+                dispatchGeneration = 7,
+            )
+
+        assertEquals(UpdateCheckWorkStatus.ABSENT, idle.status)
+        assertEquals(UpdateCheckWorkStatus.FAILED, freshFailure.status)
+        assertEquals(UpdateTerminalResult.NETWORK_ERROR, freshFailure.terminal)
     }
 
     @Test
