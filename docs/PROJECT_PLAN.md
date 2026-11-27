@@ -40,29 +40,31 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 投屏/同步观看 | ⛔ 投屏未开始（LATER）；SyncPlay 为 SHOULD（W4 评估） | `docs/V2_REQUIREMENTS.md` §9.5 |
 | 维护/缺陷修复 → 2.0.1 | 🟢 **已发布**（2026-11-26，用户授权）：分支 `codex/v2.0.1`、tag `v2.0.1`（@`d463e64b`）、master 强推对齐 `312209a6`、GitHub Release 双 APK（发布后重下载 SHA-256 复核一致）；K60 升级 E2E：AVAILABLE+更新说明渲染 ✅ | `docs/V201_TASKS.md` |
 | UI 重构/热修 → 2.0.2 | 🟢 **已发布（2026-11-27，用户四步一次性授权）**：发布点 `d7ff30a7`（分支 `codex/v2.0.2`）、tag `v2.0.2`、master 快进对齐、GitHub Release 双 APK（发布后 SHA-256 复核一致）；K60 自 2.0.1(8) 升级 E2E ✅（数据保留、四页渲染、FATAL/ANR 空、更新页「已是最新」口径正确）；顺带两小卡销项（守卫 `a437931b` / FilterChip×3 `c72c93ea`） | `docs/V202_TASKS.md` · `docs/V202_DESIGN.md` |
+| 体验修复 → 2.0.3 | 🟡 **11 bug 全修+QA返修全合入 `codex/v2.0.3`（2026-11-28）**：A–E 修复卡 + 找茬复审 F1–F6 返修（含 VideoScreen ⋮ 漏网）；bump 2.0.3/code 10；K60 取证 10/11 ✅；**剩 Pad 装机（MIUI USB 安装拦截，待用户确认）+ bug11 自愈终验 + 发布授权** | `docs/V203_TASKS.md` · `RELEASE_NOTES_v2.0.3.md` |
 
-## 4. 当前焦点（2026-11-27）
+## 4. 当前焦点（2026-11-28）
 
-1. **2.0.2 已发布（2026-11-27，用户四步一次性授权）**：发布点 `d7ff30a7`（含 bump `94ba1303` 2.0.2/code 9）；发布门复跑绿；master 快进对齐 `312209a6..d7ff30a7`、tag `v2.0.2` 已推；GitHub Release「极光幕 / Aurorama v2.0.2」双 APK（发布后重下载 SHA-256 复核一致）；K60 升级 E2E ✅（2.0.1(8)→2.0.2(9) 数据保留、四页渲染、FATAL/ANR 空、更新页「已是最新」）；`RELEASE_PLAN.md` §7 已回写。观察项：K60 并存旧 debug 包（未清理，待用户裁定）；更新页网络往返无日志侧证据（UI 文案作证）；测试服 TLS `-0x7280` 降级观察。
-2. **测试服 TLS `-0x7280`：C9 复测未复现**（播放 00:12/24:25 在走 + 17.4MB FLAC 下载全通），KNOWN_ISSUE 降级观察。
-3. **2.0.1 已发布（2026-11-26，用户授权）**：tag `v2.0.1`（@`d463e64b`）+ master 对齐 `312209a6` + GitHub Release 双 APK（SHA-256 复核一致）；K60 升级 E2E ✅。
-4. **留档观察项**：R11 破坏性删测试服条目未授权跳过；KNOWN_ISSUE=K60 首播偶发卡 BUFFERING 重进即恢复、测试服高码率转码能力不足（服务端）；M3 FilterChip 残留×3 与死资源 12 个删除列后续小卡（详见 V202_TASKS 留档行）。
-5. **环境事实**：多设备在线装机用 `assembleLibreDebug` + `adb -s <id> install -r`；**Android 15 禁止 release 包同包降级**（`install -d` 仅对 debuggable 生效，真机升级 E2E 只能前向或用 debug 包等效）；全模块单测注意 `:core`/`:app:phone` 是 `testLibreDebugUnitTest`、`:data`/`:modes:film`/`:modes:music`/`:settings` 是 `testDebugUnitTest`；ktfmt 修正任务名是 `ktfmtFormat`（全仓任务，并发卡用「快照→格式化→只保留自己文件」隔离法）；发布门须显式加跑 `verifyMpvJniReleaseContract`；GitHub 上传双资产偶发 502 拆「先建 Release 再分次传」可解；**并发子代理共用工作区会互踩 Gradle 增量编译缓存**（等他方构建结束重跑即恢复）；**Gradle 强制重跑用 `--rerun-tasks`（`--rerun` 对指定任务不生效）**；**MIUI 手势导航下屏幕最外侧 ~24dp 应用收不到触摸事件**；**Jellyfin 查询缺字段不报错只返回 null**；**Jellyfin 歌单条目操作必须用 PlaylistItemId 而非媒体 itemId**（误用返回 204 但不生效）；**播放器容器高≠画面区高**（W4-T22：竖屏容器下半截是常驻选集区，命中区/居中一律按画面区算或实测回传）；**测试 JVM 全局 `Dispatchers.Main` 被 Unsafe 覆写必须 @AfterClass 还原（W5 单测污染根因）**；**layout XML 判死必须查 databinding 生成类（文件名 grep 不到 ≠ 死资源，C8b 教训）**；设备当前登录 jellyfin-test 可写测试服（生产服写验证一律先 dump 抽屉确认服务器）。
+1. **2.0.3 修复波次收口待发布**：11 项用户实测 bug（更新无反应/首页评分/删除编辑入口/详情按钮/播放顺序/⋮大小/音乐双菜单/返回回顶/字幕面板/垫层重叠/切内核死锁）全部修复合入 `codex/v2.0.3`（A–E 卡 + 找茬复审 F1–F6 返修，详见 `docs/V203_TASKS.md` 状态块）；版本 bump 2.0.3/code 10；终态门禁绿（ktfmt+全模块单测+assembleLibreDebug）；**K60 真机取证 10/11 项 ✅**（唯一例外：下载更新无可用新版无法真机触发，37+83 单测覆盖）；`RELEASE_NOTES_v2.0.3.md` 已备。**剩余**：①Pad（43af8627）装机被 MIUI `INSTALL_FAILED_USER_RESTRICTED` 三连拦，bug 11 内核自愈终验待用户在 Pad 确认安装弹窗后补做；②发布门（assembleRelease+verifyMpvJniReleaseContract）→ master 对齐 →（用户授权后）push/tag v2.0.3/GitHub Release。
+2. **2.0.2 已发布（2026-11-27）**：tag `v2.0.2` @`d7ff30a7`、master 对齐、Release 双 APK SHA-256 复核一致、K60 升级 E2E ✅。
+3. **留档观察项**：字幕行新布局未在有字幕片实轨目视；P3-2 循环档位徽标/P3-5 音乐子菜单返回语义未做；core `DownloaderImplRecoveryTest` 2 条并行偶发（单跑绿，与本波无关）；测试服 TLS `-0x7280` 降级观察；K60 并存旧 debug 包待裁定。
+4. **环境事实（新增）**：**子代理平台会整体故障**（2026-11-27 约 1 小时，派单/resume 秒挂 `[object Object]`，worktree 磁盘现场不丢，恢复后 resume 可续跑收口）；**并行 worktree 构建共享 GRADLE_USER_HOME 会互踩**（daemon 被外部 stop、页面文件 1455，重跑/`--no-daemon` 即恢复）；**MIUI(Pad) USB 安装会拦 `INSTALL_FAILED_USER_RESTRICTED`，需设备上确认**；uiautomator dump 的 XML 是单行，`grep -c` 统计要用 `-o`；`adb` 路径在 Git Bash 下要 `export MSYS2_ARG_CONV_EXCL='*'` 防 /sdcard 被转 Windows 路径。其余同 2.0.2 行（install -r 定向、testLibreDebugUnitTest 口径、ktfmtFormat、--rerun-tasks、MIUI 边缘 24dp、PlaylistItemId、播放器容器高、@AfterClass 还原、databinding 判死）。
 
 ### 下会话开工提示词
 
 ```
 1. 角色与工作区（固定一行）：你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
-   工作区：【槽：路径】（分支【槽】）。
-2. 开工读序（固定）：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 →【槽：波次文档（新波次台账未建则 docs/V202_TASKS.md）】状态块
+   工作区：F:\Develop\codex_work\project\Aurorama（分支 codex/v2.0.3）。
+2. 开工读序（固定）：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V203_TASKS.md 状态块
    → 记忆库 MEMORY.md（读序外文件按需，不通读）。
-3. 现状（≤4 行）：HEAD 以 git log 为准；2.0.2 已发布（2026-11-27）：tag v2.0.2 @d7ff30a7、
-   master 对齐、Release 双 APK SHA-256 复核一致、K60 升级 E2E 通过；
-   测试服 TLS -0x7280 降级观察；K60 并存旧 debug 包待用户裁定清理。
-4. 本会话任务（1–2 卡）：【槽：2.0.3 候选——留档小卡=死资源 12 个删除+回归（删除需单独小卡）；
-   或新需求按内容归属插卡】。
+3. 现状（≤4 行）：HEAD 以 git log 为准；2.0.3 修复波次 11 bug+QA 返修全合入、K60 取证 10/11 绿；
+   残项=Pad 装机被 MIUI 拦（bug11 自愈终验未做）+ 发布未授权。
+4. 本会话任务（1–2 卡）：①用户确认 Pad 可装后：装机 43af8627 → 验 bug11（坏内核偏好自愈
+   回落 ExoPlayer+提示条）与 Pad 常规回归；②发布门（assembleRelease+verifyMpvJniReleaseContract
+   +签名+SHA-256）→ master 对齐 → 获授权后 push/tag v2.0.3/GitHub Release（notes 用
+   docs/RELEASE_NOTES_v2.0.3.md，发布纪律：先并 master 再 tag）。
 5. 设计分权（固定一行）：设计以 docs/V202_DESIGN.md + docs/design/COLOR_ICON_INVENTORY.md 为准，deepseek 零设计权。
-6. 门禁与纪律（固定引用）：见 AGENTS.md 质量门/红线/发布纪律（发布前先并 master）；adb 取证派子代理，负责人复核证据关键行。
+6. 门禁与纪律（固定引用）：见 AGENTS.md 质量门/红线/发布纪律；adb 取证派子代理，负责人复核证据关键行；
+   MIUI(Pad) USB 安装需设备上确认；子代理平台故障时 worktree 现场不丢、恢复后 resume 续跑。
 7. 交接（固定一行）：收口按 AGENTS.md 五件事，提示词按统一标准填槽更新。
 ```
 
