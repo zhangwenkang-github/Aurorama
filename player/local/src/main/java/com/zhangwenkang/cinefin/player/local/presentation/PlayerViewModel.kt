@@ -79,6 +79,7 @@ import com.zhangwenkang.cinefin.player.local.engine.EngineSwitchSnapshot
 import com.zhangwenkang.cinefin.player.local.engine.exo.ExoSubtitleHooks
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.session.ErrorPolicy
+import com.zhangwenkang.cinefin.player.local.session.PLAYER_ERROR_BACKEND_SWITCH_FAILED
 import com.zhangwenkang.cinefin.player.local.session.PLAYER_ERROR_SOURCE_RESOLUTION_FAILED
 import com.zhangwenkang.cinefin.player.local.session.PLAYER_ERROR_STARTUP_SOURCE_FAILED
 import com.zhangwenkang.cinefin.player.local.session.PlaybackErrorClassification
@@ -1946,6 +1947,8 @@ constructor(
                 stateString = "ExoPlayer.STATE_READY     -"
                 // 能进 READY 就说明上一次失败已经恢复，顺手收起错误卡片
                 errorPolicy.onPlaybackFileLoaded()
+                // 2.0.3-A Bug 11：真的出画面 = 兜底重启生效，复位内核切换熔断器
+                playerHolder.backendSwitchCircuitBreaker.reset()
                 startupStateMachine.markReady()
                 val playerError = errorPolicy.current
                 _uiState.update { it.copy(fileLoaded = true, playerError = playerError) }
@@ -2231,6 +2234,120 @@ constructor(
             is FindroidMovie -> BaseItemKind.MOVIE.serialName
             else -> null
         }
+    }
+
+    /**
+     * 重启 / 兜底要对准的条目（2.0.3-A Bug 11）。
+     *
+     * 优先取播放器当前条目；取不到类型（下载条目 / 本地合成源不在播放队列里）或队列已被清空时， 回落到本会话的**起播意图**——否则兜底重启会把空条目写进
+     * Intent，重建后播放页直接退出。
+     */
+    fun currentRestartSpec(): PlaybackRestartSpec? {
+        val mediaItem = playerAccess.existingPlayer()?.currentMediaItem
+        val kind = if (mediaItem != null) currentPlaybackItemKind() else null
+        if (mediaItem != null && kind != null) {
+            return PlaybackRestartSpec(
+                itemId = mediaItem.mediaId,
+                itemKind = kind,
+                mediaSourceId =
+                    mediaItem.mediaMetadata.extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID),
+            )
+        }
+        return sessionOwner.lastSourceIntent?.let { intent ->
+            PlaybackRestartSpec(
+                itemId = intent.itemId.toString(),
+                itemKind = intent.itemKind,
+                mediaSourceId = intent.preferredMediaSourceId,
+            )
+        }
+    }
+
+    /**
+     * 内核切换失败后的处置计划（2.0.3-A Bug 11）。
+     *
+     * 旧实例还在播时一律不重启；只有旧实例确实没了才允许按熔断器结果做一次原地重启。 同时把这次失败记进进程级熔断器，避免「重启 → 再失败 → 再重启」的死循环把播放页钉死。
+     */
+    fun planBackendSwitchRecovery(
+        target: String,
+        keptPreviousBackend: Boolean,
+        nowMs: Long = SystemClock.elapsedRealtime(),
+    ): BackendSwitchRecoveryPlan {
+        val spec = currentRestartSpec()
+        val key = spec?.itemId ?: "session"
+        val breaker = playerHolder.backendSwitchCircuitBreaker
+        val circuitClosed = breaker.allows(key, target, nowMs)
+        val restart =
+            shouldRestartAfterSwitchFailure(keptPreviousBackend, spec != null, circuitClosed)
+        // 只在「必须靠重启恢复」的失败上计数：旧实例还能播时的失败不该污染后续兜底额度
+        if (!keptPreviousBackend) breaker.recordFailure(key, target, nowMs)
+        Timber.w(
+            "内核切换失败处置：target=%s keptPrevious=%s restart=%s circuitClosed=%s item=%s",
+            target,
+            keptPreviousBackend,
+            restart,
+            circuitClosed,
+            key,
+        )
+        return BackendSwitchRecoveryPlan(restart = restart, target = spec)
+    }
+
+    /**
+     * 不重建播放页的兜底重启（2.0.3-A Bug 11）：用起播意图（或调用方指定的条目）重新解析源并起播。
+     *
+     * 取代「`viewModelStore.clear()` + `recreate()`」：不重建窗口、不丢队列、不把条目按裸 id 重写进 Intent，因此不会再把季 /
+     * 剧入口降级成单集入口。没有可用意图时返回 false，调用方保持现状。
+     */
+    fun reloadPlaybackInPlace(
+        itemId: UUID? = null,
+        itemKind: String? = null,
+        mediaSourceId: String? = null,
+        positionMs: Long? = null,
+    ): Boolean {
+        if (explicitExitController.isExited) return false
+        val intent = sessionOwner.lastSourceIntent
+        val resolvedItemId = itemId ?: intent?.itemId ?: return false
+        val resolvedKind = itemKind ?: intent?.itemKind.orEmpty()
+        val resumePosition =
+            positionMs?.takeIf { it > 0L }
+                ?: sessionOwner.playbackSessionState.lastEnginePositionMs
+                ?: intent?.startPositionMs
+                ?: 0L
+        Timber.i(
+            "切换失败原地重启：item=%s kind=%s position=%d",
+            resolvedItemId,
+            resolvedKind,
+            resumePosition,
+        )
+        initializePlayer(
+            itemId = resolvedItemId,
+            itemKind = resolvedKind,
+            startFromBeginning = false,
+            startPositionMs = resumePosition,
+            playbackSessionId = intent?.playbackSessionId ?: UUID.randomUUID().toString(),
+            queueEntries = intent?.queueEntries.orEmpty(),
+            preferredMediaSourceId = mediaSourceId ?: intent?.preferredMediaSourceId,
+            sourceIntentId = UUID.randomUUID().toString(),
+        )
+        return true
+    }
+
+    /** 用户显式重试 / 内核切换成功后复位熔断器，让下一次失败重新获得兜底机会。 */
+    fun resetBackendSwitchCircuitBreaker() {
+        playerHolder.backendSwitchCircuitBreaker.reset()
+    }
+
+    /**
+     * 切换失败且旧实例已经不可用：把失败发布成错误卡片。
+     *
+     * 这条路径说明既没有旧内核可回滚、也没能原地重启；用户需要一个可见的重试 / 换内核入口， 否则播放页会停在无实例的空白态。
+     */
+    fun reportBackendSwitchFailure() {
+        errorPolicy.onPlaybackError(
+            message = application.getString(R.string.player_source_resolution_failed),
+            codeName = PLAYER_ERROR_BACKEND_SWITCH_FAILED,
+        )
+        publishPlayerError()
+        refreshPlaybackSession()
     }
 
     override fun onCleared() {
@@ -3299,6 +3416,8 @@ constructor(
     }
 
     fun retryPlayerError() {
+        // 2.0.3-A Bug 11：用户显式重试 = 重新给内核切换兜底一次机会
+        playerHolder.backendSwitchCircuitBreaker.reset()
         val playerError = errorPolicy.current
         val sourceIntent =
             sessionOwner.failedSourceIntent?.takeIf {
