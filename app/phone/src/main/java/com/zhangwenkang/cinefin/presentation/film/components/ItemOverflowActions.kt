@@ -10,6 +10,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinMoreVertIcon
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.film.R as FilmR
@@ -41,6 +43,7 @@ import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidShow
+import java.util.UUID
 
 /** 2.0.3-C：海报 / 详情页 ⋮ 菜单项（与 Jellyfin 官方客户端同序：先编辑元数据，后删除）。 */
 enum class ItemOverflowAction {
@@ -85,11 +88,32 @@ internal fun itemOverflowActions(
     }
 }
 
+/**
+ * 2.0.3-F3：⋮ 键是否显示（纯函数，便于单测）。
+ *
+ * 权限未拉取时先按「可能可用」显示（点开菜单才拉取，见 [ItemOverflowActionsHandler.onRequestCapabilities]）； 拉取后没有任何可用项就彻底隐藏。
+ */
+internal fun itemOverflowMenuVisible(
+    supported: Boolean,
+    capabilitiesKnown: Boolean,
+    actions: List<ItemOverflowAction>,
+): Boolean = supported && (!capabilitiesKnown || actions.isNotEmpty())
+
+/** 2.0.3-F3：编辑对话框的打开条件——快照所属条目与请求条目一致，且该快照是最近一次请求的结果（首帧即正确快照， 不会被上一次 / 空快照重置输入）。 */
+internal fun shouldOpenMetadataEditor(
+    requestedItemId: UUID?,
+    snapshotItemId: UUID?,
+    snapshotReady: Boolean,
+): Boolean = requestedItemId != null && snapshotReady && requestedItemId == snapshotItemId
+
 /** ⋮ 菜单的当前账号能力与动作分发；null = 当前界面没有提供写能力（卡片不渲染 ⋮）。 */
 class ItemOverflowActionsHandler(
     val canEditMetadata: Boolean,
     val canDeleteContent: Boolean,
+    /** false = 权限尚未拉取：⋮ 先显示，点开时才请求（懒加载）。 */
+    val capabilitiesKnown: Boolean,
     val offlineMode: Boolean,
+    val onRequestCapabilities: () -> Unit,
     val onAction: (FindroidItem, ItemOverflowAction) -> Unit,
 )
 
@@ -100,59 +124,104 @@ val LocalItemOverflowActions = staticCompositionLocalOf<ItemOverflowActionsHandl
 fun ProvideItemOverflowActions(
     canEditMetadata: Boolean,
     canDeleteContent: Boolean,
+    capabilitiesKnown: Boolean,
     offlineMode: Boolean,
+    onRequestCapabilities: () -> Unit,
     onAction: (FindroidItem, ItemOverflowAction) -> Unit,
     content: @Composable () -> Unit,
 ) {
     val latestOnAction by rememberUpdatedState(onAction)
+    val latestOnRequest by rememberUpdatedState(onRequestCapabilities)
     val handler =
-        remember(canEditMetadata, canDeleteContent, offlineMode) {
+        remember(canEditMetadata, canDeleteContent, capabilitiesKnown, offlineMode) {
             ItemOverflowActionsHandler(
                 canEditMetadata = canEditMetadata,
                 canDeleteContent = canDeleteContent,
+                capabilitiesKnown = capabilitiesKnown,
                 offlineMode = offlineMode,
+                onRequestCapabilities = { latestOnRequest() },
                 onAction = { item, action -> latestOnAction(item, action) },
             )
         }
     CompositionLocalProvider(LocalItemOverflowActions provides handler, content = content)
 }
 
+/** 当前条目的 ⋮ 可见项（未提供写能力时为空）。 */
+@Composable
+fun rememberItemOverflowActions(item: FindroidItem): List<ItemOverflowAction> {
+    val handler = LocalItemOverflowActions.current ?: return emptyList()
+    return itemOverflowActions(
+        item = item,
+        canEditMetadata = handler.canEditMetadata,
+        canDeleteContent = handler.canDeleteContent,
+        offlineMode = handler.offlineMode,
+    )
+}
+
+/** 当前条目是否渲染 ⋮（详情动作条据此参与键宽计算）。 */
+@Composable
+fun rememberItemOverflowMenuVisible(item: FindroidItem): Boolean {
+    val handler = LocalItemOverflowActions.current ?: return false
+    return itemOverflowMenuVisible(
+        supported = supportsItemOverflowActions(item),
+        capabilitiesKnown = handler.capabilitiesKnown,
+        actions = rememberItemOverflowActions(item),
+    )
+}
+
 /**
- * 海报卡 / 详情动作条共用的 ⋮ 键：24dp 点阵图标、圆形触控目标（海报上 40dp、动作条 44dp）。
+ * 海报卡 / 详情动作条共用的 ⋮ 键。
  *
- * [onImage] = 压在海报 / 剧照上时给一层半透明黑底，保证任意亮度底图上都看得清； [outlined] = 动作条的 1dp 细描边圆形键。
+ * [size] = 视觉圆直径（海报 32dp、动作条跟随键宽），[touchSize] = 触控面边长（海报 44dp，动作条与视觉圆一致）。 [onImage] = 压在海报 /
+ * 剧照上：垫层按 2.0.3 定稿走 **scrim 28%（`PlayerGlassAlpha`）+ `glassBorder`**； [outlined] = 动作条的 1dp 细描边圆形键。
  */
 @Composable
 fun ItemOverflowMenu(
     item: FindroidItem,
     modifier: Modifier = Modifier,
-    size: Dp = 40.dp,
+    size: Dp = 32.dp,
+    touchSize: Dp = 44.dp,
     onImage: Boolean = false,
     outlined: Boolean = false,
 ) {
     val handler = LocalItemOverflowActions.current ?: return
-    val actions =
-        itemOverflowActions(
-            item = item,
-            canEditMetadata = handler.canEditMetadata,
-            canDeleteContent = handler.canDeleteContent,
-            offlineMode = handler.offlineMode,
+    val actions = rememberItemOverflowActions(item)
+    val visible =
+        itemOverflowMenuVisible(
+            supported = supportsItemOverflowActions(item),
+            capabilitiesKnown = handler.capabilitiesKnown,
+            actions = actions,
         )
-    if (actions.isEmpty()) return
+    if (!visible) return
 
     val colors = LocalCinefinColors.current
     var expanded by remember(item.id) { mutableStateOf(false) }
+    // 权限未拉取时先记下「想打开」，拉取完成后按真实可见项再打开（不阻塞点击）。
+    var openWhenReady by remember(item.id) { mutableStateOf(false) }
+    LaunchedEffect(handler.capabilitiesKnown) {
+        if (openWhenReady && handler.capabilitiesKnown) {
+            expanded = actions.isNotEmpty()
+            openWhenReady = false
+        }
+    }
     val contentColor = if (onImage) Color.White else colors.onSurfaceVariant
     val description = stringResource(CoreR.string.title_more)
 
-    Box(modifier = modifier) {
+    Box(modifier = modifier.size(touchSize), contentAlignment = Alignment.Center) {
         Box(
             modifier =
                 Modifier.size(size)
                     .clip(CircleShape)
                     .then(
-                        if (onImage) Modifier.background(Color.Black.copy(alpha = 0.38f))
-                        else Modifier
+                        if (onImage) {
+                            // 纯图标控件的图上垫层：scrim 28% + glassBorder（2.0.3-M1 定稿，与 ItemTopBar 同口径）。
+                            Modifier.background(
+                                    colors.scrim.copy(alpha = CinefinTokens.PlayerGlassAlpha)
+                                )
+                                .border(1.dp, colors.glassBorder, CircleShape)
+                        } else {
+                            Modifier
+                        }
                     )
                     .then(
                         if (outlined) Modifier.border(1.dp, colors.outline, CircleShape)
@@ -162,7 +231,14 @@ fun ItemOverflowMenu(
                         contentDescription = description
                         role = Role.Button
                     }
-                    .cinefinClickable { expanded = true },
+                    .cinefinClickable {
+                        if (handler.capabilitiesKnown) {
+                            expanded = true
+                        } else {
+                            openWhenReady = true
+                            handler.onRequestCapabilities()
+                        }
+                    },
             contentAlignment = Alignment.Center,
         ) {
             // 语义由外层 Box 的 semantics 提供，图标本身不再暴露节点

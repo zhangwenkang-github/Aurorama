@@ -5,13 +5,16 @@ import android.os.Environment
 import android.os.StatFs
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
@@ -26,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -40,10 +44,13 @@ import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckEnv
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckRules
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderState
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.auroraGradient
+import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadState
 import com.zhangwenkang.cinefin.models.FindroidEpisode
@@ -55,8 +62,9 @@ import com.zhangwenkang.cinefin.models.isDownloaded
 /**
  * 详情页动作区（2.0.3-C 图标化重绘）。
  *
- * 一条圆形图标键：播放 / 重播 / 预告 / 下载 / 已播放 / 喜欢 + 右侧 ⋮（编辑元数据 / 删除）。 键内不再有文字标签，图标 24dp、1dp `outline` 细描边、触控目标
- * 44dp（竖屏 hero 布局 48dp）；选中态只换极光描边与内容色，不铺填充底。 玩家靠图标辨识动作，无障碍文案由 contentDescription 保留。
+ * 单行圆形图标键（同一 FlowRow，含 ⋮）：播放 / 重播 / 预告 / 下载 / 已播放 / 喜欢 / ⋮（编辑元数据 / 删除）。 键内不再有文字标签，图标 24dp、1dp
+ * `outline` 细描边；键宽随可用宽度自适应（竖屏 hero 优先 48dp、宽屏 44dp，下限 40dp），保证 ⋮ 永远与同排。 宽屏（头图动作排压在 backdrop 上）整排垫一层
+ * `glass` + `glassBorder`，播放主键保留极光渐变 CTA；竖屏 hero 保持纯描边。 玩家靠图标辨识动作，无障碍文案由 contentDescription 保留。
  *
  * 下载动作两套语义：
  * - [downloadState] 非空（Show / Season / Episode，W51）：三态（未下载 / 已在队列 / 已下载），点击统一回调
@@ -86,6 +94,7 @@ fun ItemButtonsBar(
     heroLayout: Boolean = false,
 ) {
     val context = LocalContext.current
+    val colors = LocalCinefinColors.current
 
     val trailerUri =
         when (item) {
@@ -179,73 +188,118 @@ fun ItemButtonsBar(
         }
     }
 
-    val keySize = if (heroLayout) 48.dp else 44.dp
     val playDescription = stringResource(CoreR.string.play_button_description)
+    val restartDescription = stringResource(FilmR.string.detail_play_from_beginning)
     val trailerDescription = stringResource(CoreR.string.trailer_button_description)
     val playedDescription = stringResource(CoreR.string.detail_action_played)
     val favoriteDescription = stringResource(CoreR.string.detail_action_favorite)
+
+    val showRestart = item.playbackPositionTicks.div(600000000) > 0
+    val showTrailer = trailerUri != null
+    val overflowVisible = rememberItemOverflowMenuVisible(item)
+    val keyCount =
+        1 +
+            (if (showRestart) 1 else 0) +
+            (if (showTrailer) 1 else 0) +
+            (if (showDownloadAction) 1 else 0) +
+            2 +
+            (if (overflowVisible) 1 else 0)
 
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         Column(
             modifier = modifier,
             verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
         ) {
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
-                verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
-            ) {
-                DetailActionKey(
-                    icon = CoreR.drawable.ic_play,
-                    contentDescription = playDescription,
-                    onClick = { onPlayClick(false) },
-                    enabled = item.canPlay && canPlay,
-                    emphasized = true,
-                    size = keySize,
-                )
-                if (item.playbackPositionTicks.div(600000000) > 0) {
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                // 宽屏动作排垫一层 glass（压在 backdrop 上，纯描边圆在浅色剧照上看不清）；竖屏 hero 不垫。
+                val plateInset = if (heroLayout) 0.dp else CinefinSpacing.Space2
+                val plateBorder = if (heroLayout) 0.dp else 1.dp
+                val availableDp = (maxWidth - plateInset * 2 - plateBorder * 2).value
+                val keySize =
+                    detailActionKeySizeDp(
+                            availableWidthDp = availableDp,
+                            keyCount = keyCount,
+                            preferredDp = if (heroLayout) 48f else 44f,
+                            minimumDp = 40f,
+                            gapDp = CinefinSpacing.Space2.value,
+                        )
+                        .dp
+                FlowRow(
+                    modifier =
+                        Modifier.fillMaxWidth()
+                            .then(
+                                if (heroLayout) {
+                                    Modifier
+                                } else {
+                                    Modifier.clip(CinefinShapes.Card)
+                                        .background(colors.glass)
+                                        .border(1.dp, colors.glassBorder, CinefinShapes.Card)
+                                        .padding(plateInset)
+                                }
+                            ),
+                    horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+                    verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+                ) {
                     DetailActionKey(
-                        icon = CoreR.drawable.ic_rotate_ccw,
-                        contentDescription = null,
-                        onClick = { onPlayClick(true) },
+                        icon = CoreR.drawable.ic_play,
+                        contentDescription = playDescription,
+                        onClick = { onPlayClick(false) },
+                        enabled = item.canPlay && canPlay,
+                        emphasized = true,
+                        primary = !heroLayout,
                         size = keySize,
                     )
-                }
-                trailerUri?.let { uri ->
+                    if (showRestart) {
+                        DetailActionKey(
+                            icon = CoreR.drawable.ic_rotate_ccw,
+                            contentDescription = restartDescription,
+                            onClick = { onPlayClick(true) },
+                            size = keySize,
+                        )
+                    }
+                    trailerUri
+                        ?.takeIf { showTrailer }
+                        ?.let { uri ->
+                            DetailActionKey(
+                                icon = CoreR.drawable.ic_film,
+                                contentDescription = trailerDescription,
+                                onClick = { onTrailerClick(uri) },
+                                size = keySize,
+                            )
+                        }
+                    if (showDownloadAction) {
+                        DetailActionKey(
+                            icon = CoreR.drawable.ic_download,
+                            contentDescription = downloadLabel,
+                            selected = downloadSelected,
+                            enabled = downloadEnabledNow,
+                            onClick = onDownloadAction,
+                            size = keySize,
+                        )
+                    }
                     DetailActionKey(
-                        icon = CoreR.drawable.ic_film,
-                        contentDescription = trailerDescription,
-                        onClick = { onTrailerClick(uri) },
+                        icon = CoreR.drawable.ic_check,
+                        contentDescription = playedDescription,
+                        selected = item.played,
+                        onClick = onMarkAsPlayedClick,
                         size = keySize,
                     )
-                }
-                if (showDownloadAction) {
                     DetailActionKey(
-                        icon = CoreR.drawable.ic_download,
-                        contentDescription = downloadLabel,
-                        selected = downloadSelected,
-                        enabled = downloadEnabledNow,
-                        onClick = onDownloadAction,
+                        icon =
+                            if (item.favorite) CoreR.drawable.ic_bookmark_filled
+                            else CoreR.drawable.ic_bookmark,
+                        contentDescription = favoriteDescription,
+                        selected = item.favorite,
+                        onClick = onMarkAsFavoriteClick,
                         size = keySize,
                     )
+                    ItemOverflowMenu(
+                        item = item,
+                        size = keySize,
+                        touchSize = keySize,
+                        outlined = true,
+                    )
                 }
-                DetailActionKey(
-                    icon = CoreR.drawable.ic_check,
-                    contentDescription = playedDescription,
-                    selected = item.played,
-                    onClick = onMarkAsPlayedClick,
-                    size = keySize,
-                )
-                DetailActionKey(
-                    icon =
-                        if (item.favorite) CoreR.drawable.ic_bookmark_filled
-                        else CoreR.drawable.ic_bookmark,
-                    contentDescription = favoriteDescription,
-                    selected = item.favorite,
-                    onClick = onMarkAsFavoriteClick,
-                    size = keySize,
-                )
-                ItemOverflowMenu(item = item, size = keySize, outlined = true)
             }
             if (downloaderState != null) {
                 AnimatedVisibility(
@@ -341,13 +395,17 @@ private fun DetailActionKey(
     modifier: Modifier = Modifier,
     selected: Boolean = false,
     emphasized: Boolean = false,
+    /** 一级 CTA（宽屏动作排的播放键）：极光渐变实底 + `onAurora` 内容 + `auroraGlow` 投影（既有 CTA 口径）。 */
+    primary: Boolean = false,
     enabled: Boolean = true,
     size: Dp = 44.dp,
 ) {
     val colors = LocalCinefinColors.current
+    val primaryFill = primary && enabled
     val contentColor =
         when {
             !enabled -> colors.onSurfaceFaint.copy(alpha = colors.disabledAlpha)
+            primaryFill -> colors.onAurora
             selected -> navSelectedContent(colors)
             emphasized -> colors.aurora1
             else -> colors.onSurfaceVariant
@@ -363,7 +421,24 @@ private fun DetailActionKey(
             modifier
                 .size(size)
                 .clip(CircleShape)
-                .border(1.dp, borderColor, CircleShape)
+                .then(
+                    if (primaryFill) {
+                        Modifier.shadow(
+                            elevation = CinefinTokens.AuroraGlowElevationDp.dp,
+                            shape = CircleShape,
+                            clip = false,
+                            ambientColor =
+                                colors.aurora1.copy(alpha = CinefinTokens.AuroraGlowAlpha),
+                            spotColor = colors.aurora1.copy(alpha = CinefinTokens.AuroraGlowAlpha),
+                        )
+                    } else {
+                        Modifier
+                    }
+                )
+                .then(if (primaryFill) Modifier.auroraGradient(colors) else Modifier)
+                .then(
+                    if (primaryFill) Modifier else Modifier.border(1.dp, borderColor, CircleShape)
+                )
                 .cinefinClickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

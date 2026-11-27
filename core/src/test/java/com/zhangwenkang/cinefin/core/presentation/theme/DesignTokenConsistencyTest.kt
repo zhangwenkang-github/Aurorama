@@ -491,7 +491,8 @@ class DesignTokenConsistencyTest {
      * 2.0.2 D4 黑底清理守卫：图上控件/徽标的垫层只准走 `colors.glass` + `glassBorder` 或 scrim 28%（`PlayerGlassAlpha`
      * 口径），禁止再手写 `Color.Black.copy` 与写死黑色字面量。
      *
-     * 覆盖点：BaseBadge（7 徽标共用）/ ItemTopBar 覆盖层图标键 / 多选圆点 / 播放器控制层 / 桌面歌词悬浮窗。
+     * 覆盖点：BaseBadge（7 徽标共用）/ ItemTopBar 覆盖层图标键 / 多选圆点 / 播放器控制层 / 桌面歌词悬浮窗 / 影视域海报 ⋮
+     * 与详情动作排（2.0.3-F3）。
      */
     @Test
     fun `d4 image overlay controls back their content with glass tokens only`() {
@@ -507,6 +508,11 @@ class DesignTokenConsistencyTest {
                     listOf("colors.glass", "colors.glassBorder"),
                 "modes/music/src/main/java/com/zhangwenkang/cinefin/music/presentation/MusicLyricsOverlayContent.kt" to
                     listOf("colors.surface", "colors.aurora1"),
+                // 2.0.3-F3：海报 ⋮ 图标垫层 = scrim 28%（PlayerGlassAlpha）+ glassBorder；详情动作排 = glass 底盘。
+                "app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/film/components/ItemOverflowActions.kt" to
+                    listOf("CinefinTokens.PlayerGlassAlpha", "colors.glassBorder"),
+                "app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/film/components/ItemButtonsBar.kt" to
+                    listOf("colors.glass", "colors.glassBorder"),
             )
         // 黑字面量：ARGB 全黑（任意 alpha）+ 桌面歌词 v1 两条写死色
         val hardcodedBlack =

@@ -288,8 +288,12 @@ private fun MovieScreenLayout(
                     // 2.0.3-C：详情页 ⋮（编辑元数据 / 删除）——动作沿用本页既有对话框与 ViewModel 事件流。
                     ProvideItemOverflowActions(
                         canEditMetadata = canEditMetadata,
+                        // 电影 / 单集按条目自身 `canDelete` 判定删除入口；账号级删除许可在这里不参与，传 false 保持行为不变。
                         canDeleteContent = false,
+                        // 本页 ViewModel 进页即拉权限（既有行为），⋮ 直接按已知能力渲染。
+                        capabilitiesKnown = true,
                         offlineMode = offlineMode,
+                        onRequestCapabilities = {},
                         onAction = { _, action ->
                             when (action) {
                                 ItemOverflowAction.EditMetadata -> onEditMetadataClick()

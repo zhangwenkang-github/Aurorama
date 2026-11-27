@@ -19,33 +19,42 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
+/** 2.0.3-F3：⋮ 菜单的账号能力快照；[loaded] = 权限已拉取（未拉取时入口按「可能可用」显示，点开才拉取）。 */
+data class ItemWriteCapabilities(
+    val loaded: Boolean = false,
+    val canEditMetadata: Boolean = false,
+    val canDeleteContent: Boolean = false,
+)
+
 /**
  * 2.0.3-C：影视域通用的「删除服务器条目 / 编辑元数据」写入口（海报墙与剧集 / 季详情页共用）。
  *
  * 与 MovieViewModel / EpisodeViewModel 里的同款动作是同一套仓库调用、同一套权限判定与结果事件： 删除走二次确认后 [deleteItem]，编辑先取服务器快照
  * [loadMetadataSnapshot] 再提交 [saveMetadata]。权限来自 [UserPolicyStore]（未拉取 / 换号后一律 fail-closed）。
+ *
+ * 2.0.3-F3：构造时不再拉取权限——页面可能只是浏览，[start] 由 ⋮ 菜单第一次被点开时调用，避免每个列表页常驻一次权限请求。
  */
 @HiltViewModel
 class ItemWriteViewModel
 @Inject
 constructor(
     private val repository: JellyfinRepository,
-    userPolicyStore: UserPolicyStore,
+    private val userPolicyStore: UserPolicyStore,
 ) : ViewModel() {
-    /** 编辑元数据是管理员专属（`POST /Items/{id}` 整体 RequiresElevation）。 */
-    private val _canEditMetadata = MutableStateFlow(false)
-    val canEditMetadata = _canEditMetadata.asStateFlow()
-
-    /**
-     * 账号级删除许可（管理员 / `EnableContentDeletion`）。剧集 / 季的本地模型没有服务端条目级 `canDelete`， 入口门控退到这一口径；电影 /
-     * 单集仍以条目自身 `canDelete` 为准。
-     */
-    private val _canDeleteContent = MutableStateFlow(false)
-    val canDeleteContent = _canDeleteContent.asStateFlow()
+    private val _capabilities = MutableStateFlow(ItemWriteCapabilities())
+    val capabilities = _capabilities.asStateFlow()
 
     /** 编辑对话框预填快照；null = 服务器当前值没取到（字段禁用）。 */
     private val _metadataSnapshot = MutableStateFlow<ItemMetadataSnapshot?>(null)
     val metadataSnapshot = _metadataSnapshot.asStateFlow()
+
+    /** 快照所属条目：与请求条目一致才允许打开对话框，避免首帧拿到上一次 / 空快照。 */
+    private val _metadataSnapshotItemId = MutableStateFlow<UUID?>(null)
+    val metadataSnapshotItemId = _metadataSnapshotItemId.asStateFlow()
+
+    /** 快照结果属于最近一次请求（false = 还在读取 / 结果已过期）。 */
+    private val _metadataSnapshotReady = MutableStateFlow(false)
+    val metadataSnapshotReady = _metadataSnapshotReady.asStateFlow()
 
     private val _metadataSnapshotLoading = MutableStateFlow(false)
     val metadataSnapshotLoading = _metadataSnapshotLoading.asStateFlow()
@@ -61,12 +70,22 @@ constructor(
     private val metadataEventsChannel = Channel<DetailWriteEvent>(Channel.BUFFERED)
     val metadataEvents = metadataEventsChannel.receiveAsFlow()
 
-    init {
+    private var started = false
+    private var metadataRequestSerial = 0L
+
+    /** 首次打开 ⋮ 菜单时调用：拉取权限并保持跟随（同一身份内不再重复请求）。 */
+    fun start() {
+        if (started) return
+        started = true
         viewModelScope.launch {
             runCatching { userPolicyStore.ensureLoaded() }
             userPolicyStore.access.collect { access ->
-                _canEditMetadata.value = canEditMetadata(access.policy)
-                _canDeleteContent.value = canDeleteContent(access.policy, libraryId = null)
+                _capabilities.value =
+                    ItemWriteCapabilities(
+                        loaded = access.isLoaded,
+                        canEditMetadata = canEditMetadata(access.policy),
+                        canDeleteContent = canDeleteContent(access.policy, libraryId = null),
+                    )
             }
         }
     }
@@ -79,13 +98,20 @@ constructor(
         }
     }
 
-    /** 打开编辑对话框前先取服务器当前值；取不到（null）时对话框字段禁用。 */
+    /** 打开编辑对话框前先取服务器当前值；结果与请求条目绑定（[metadataSnapshotItemId]），取不到时对话框字段禁用。 */
     fun loadMetadataSnapshot(itemId: UUID) {
+        val serial = ++metadataRequestSerial
         _metadataSnapshotLoading.value = true
+        _metadataSnapshotReady.value = false
         _metadataSnapshot.value = null
+        _metadataSnapshotItemId.value = null
         viewModelScope.launch {
-            _metadataSnapshot.value =
-                runCatching { repository.fetchItemMetadataSnapshot(itemId) }.getOrNull()
+            val snapshot = runCatching { repository.fetchItemMetadataSnapshot(itemId) }.getOrNull()
+            // 期间又发起了新请求（换了条目 / 重复打开）：旧结果直接丢弃。
+            if (serial != metadataRequestSerial) return@launch
+            _metadataSnapshot.value = snapshot
+            _metadataSnapshotItemId.value = itemId
+            _metadataSnapshotReady.value = true
             _metadataSnapshotLoading.value = false
         }
     }

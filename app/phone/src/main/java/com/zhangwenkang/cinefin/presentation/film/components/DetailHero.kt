@@ -32,6 +32,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
+import kotlin.math.floor
 
 /**
  * W66 视频详情页统一头图（用户 2026-10-04 拍板：统一到「节目页」版式）。
@@ -405,6 +406,24 @@ internal fun detailHeroPosterWidthDp(screenWidthDp: Float): Float =
 
 /** 平板头图基准高度（纯函数）：400dp；实际由 [ItemHeader] 的 `heightIn(min)` 保证不裁切。 */
 internal fun detailHeroMinHeightDp(expanded: Boolean): Float = if (expanded) 400f else 300f
+
+/**
+ * 2.0.3-F3：详情动作排单行键宽（纯函数，单测覆盖）。
+ *
+ * 按实测可用宽度均分：`(可用宽 − 间距×(n−1)) / n`，上限 [preferredDp]、下限 [minimumDp]（再窄就折行，不再压缩触控目标）。 结果向下取整到整 dp，避免
+ * dp→px 舍入后又多出 1dp 导致 ⋮ 被挤到第二行。
+ */
+internal fun detailActionKeySizeDp(
+    availableWidthDp: Float,
+    keyCount: Int,
+    preferredDp: Float = 48f,
+    minimumDp: Float = 40f,
+    gapDp: Float = 8f,
+): Float {
+    if (keyCount <= 0) return preferredDp
+    val fitted = (availableWidthDp - gapDp * (keyCount - 1)) / keyCount
+    return floor(fitted.coerceAtMost(preferredDp)).coerceAtLeast(minimumDp)
+}
 
 internal enum class DetailBodyMode {
     Content,
