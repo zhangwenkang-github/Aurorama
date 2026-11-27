@@ -33,6 +33,26 @@ class DetailHeroRulesTest {
         assertEquals(300f, detailHeroMinHeightDp(expanded = false), 0.01f)
     }
 
+    /** 2.0.3-F3：7 键单行放得下（411dp 屏 ≈ 379dp 可用）：47dp；360dp 屏 40dp；再窄保底 40dp（宁可折行）。 */
+    @Test
+    fun `action key size fits every key on one row`() {
+        assertEquals(47f, detailActionKeySizeDp(379f, keyCount = 7), 0.01f)
+        assertEquals(40f, detailActionKeySizeDp(328f, keyCount = 7), 0.01f)
+        assertEquals(40f, detailActionKeySizeDp(288f, keyCount = 7), 0.01f)
+        assertEquals(48f, detailActionKeySizeDp(600f, keyCount = 7), 0.01f)
+        assertEquals(44f, detailActionKeySizeDp(600f, keyCount = 7, preferredDp = 44f), 0.01f)
+        assertEquals(48f, detailActionKeySizeDp(379f, keyCount = 0), 0.01f)
+    }
+
+    @Test
+    fun `action key row of n fits the measured width`() {
+        val available = 379f
+        val keyCount = 7
+        val size = detailActionKeySizeDp(available, keyCount)
+        val total = size * keyCount + 8f * (keyCount - 1)
+        assertTrue("键宽合计 $total 超可用宽 $available", total <= available)
+    }
+
     @Test
     fun `detail body mode prefers content then error then loading`() {
         assertEquals(DetailBodyMode.Content, detailBodyMode(hasContent = true, hasError = true))
