@@ -314,12 +314,12 @@ internal enum class PlayerPanel {
 /**
  * 控制层版式规格（W12 终版布局 + 反馈 A 控件样式统一）。
  *
- * 终版（用户确认，勿再变动）：进度条一行 = 当前时间 · 进度条 · 总时长；进度条下方左侧 5 键 = 音轨 / 字幕 / 倍率 / 解码 / 详细信息，右侧 = 全屏键；右上角 5 键 =
- * 画中画 / 睡眠 / 选集 / 画面 / 设置；锁定键贴画面区右缘垂直居中；中央五键居中。
+ * 终版（用户确认，勿再变动）：进度条一行 = 当前时间 · 进度条 · 总时长；进度条下方左侧 5 键 = 音轨 / 字幕 / 倍率 / 解码 / 详细信息（2.0.3 起末尾追加「播放顺序」），
+ * 右侧 = 全屏键；右上角 5 键 = 画中画 / 睡眠 / 选集 / 画面 / 设置；锁定键贴画面区右缘垂直居中；中央五键居中。
  *
  * 窄屏（<600dp，手机 / 分屏 / 小窗）整体收一档，保证工具行 + 全屏键一行不越界（极窄窗由横向滚动兜底）。
  *
- * W17 起工具行**5 键恒定齐全**（见 [playerToolLabelsVisible]）；W4-T23 起「码率」随面板迁到设置页：全屏 / 宽度充足 = 图标下加小字； 窄屏 /
+ * W17 起工具行**入口恒定齐全**（见 [playerToolLabelsVisible]）；W4-T23 起「码率」随面板迁到设置页：全屏 / 宽度充足 = 图标下加小字； 窄屏 /
  * Compact = 只留图标。倍率键只显示图标，当前值由 1× 徽标显示。
  */
 internal data class PlayerControlSpec(
@@ -335,19 +335,23 @@ internal data class PlayerControlSpec(
     val toolRowPaddingDp: Float,
 ) {
     /**
-     * 底栏一行 = 5 个工具键 + 1× 徽标 + 右下全屏键 + 7 个间距（含全屏键前的留白，W13 反馈③新增 1×）。 1× 徽标 W14
+     * 底栏一行 = 键行（[keyCount] 个工具键）+ 1× 徽标 + 右下全屏键 + 每键一个间距 + 首尾各一个间距。 1× 徽标 W14
      * 起按文本自适应（不再占一个键框），按最宽档估值计；极端窄窗由工具行的横向滚动兜底。
      */
     val bottomRowWidthDp: Float
         get() = bottomRowWidthDp(showLabels = false)
 
     /**
-     * W17：底栏一行宽度预算。[showLabels] = true 时 5 个工具键按「图标 + 小字」的加宽键框计 （全屏键恒为纯图标，不参与加宽）。
+     * W17：底栏一行宽度预算。[showLabels] = true 时工具键按「图标 + 小字」的加宽键框计 （全屏键恒为纯图标，不参与加宽）。
      *
      * W67b：预计结束时刻移到这一行后，[withEndTime] = true 时再加「1× 徽标 + 结束时间文本 + 两侧 8dp 间距」， 供
-     * [playerBottomKeysForWidth] 做 5 键 / 4 键分级。
+     * [playerBottomKeysForWidth] 做键集分级。2.0.3 起 [keyCount] 必须传**实际要渲染的键数**，分级时才能按真实行宽比较。
      */
-    fun bottomRowWidthDp(showLabels: Boolean, withEndTime: Boolean = false): Float {
+    fun bottomRowWidthDp(
+        showLabels: Boolean,
+        withEndTime: Boolean = false,
+        keyCount: Int = PLAYER_BOTTOM_KEY_ORDER.size,
+    ): Float {
         val toolKeyWidth =
             if (showLabels) {
                 toolKeySizeDp + PLAYER_TOOL_KEY_LABEL_WIDTH_EXTRA_DP
@@ -355,10 +359,10 @@ internal data class PlayerControlSpec(
                 toolKeySizeDp
             }
         val base =
-            toolKeyWidth * 5f +
+            toolKeyWidth * keyCount +
                 toolKeySizeDp +
                 maxOf(toolKeyWidth, PLAYER_SPEED_BADGE_WIDTH_DP) +
-                keyGapDp * 7f
+                keyGapDp * (keyCount + 2f)
         return if (withEndTime) base + PLAYER_END_TIME_WIDTH_DP else base
     }
 }
@@ -385,9 +389,10 @@ internal fun playerControlSpec(widthDp: Float): PlayerControlSpec {
 }
 
 /**
- * 进度条下方左侧 5 键的**固定顺序**（W12 终版布局，勿再变动；W4-T23 删码率键）：音轨 · 字幕 · 倍率 · 解码 · 详细信息。
+ * 进度条下方左侧键行的**固定顺序**：音轨 · 字幕 · 倍率 · 解码 · 详细信息 · 播放顺序。
  *
- * 抽成有序表是为了让「顺序」可被单测钉住——这一版布局是多轮确认的最终版，改顺序就是回归。
+ * 前 5 键是 W12 终版布局（W4-T23 删码率键），改顺序就是回归；2.0.3 起「播放顺序」从播放设置面板
+ * 移到这一行末尾——它属于播放中会随手切换的控件，不该藏在面板里（唯一入口同时从设置面板删除）。
  */
 internal enum class PlayerBottomKey {
     Audio,
@@ -395,6 +400,7 @@ internal enum class PlayerBottomKey {
     Speed,
     Decode,
     Info,
+    Repeat,
 }
 
 internal val PLAYER_BOTTOM_KEY_ORDER: List<PlayerBottomKey> =
@@ -404,6 +410,7 @@ internal val PLAYER_BOTTOM_KEY_ORDER: List<PlayerBottomKey> =
         PlayerBottomKey.Speed,
         PlayerBottomKey.Decode,
         PlayerBottomKey.Info,
+        PlayerBottomKey.Repeat,
     )
 
 /**
@@ -413,12 +420,12 @@ internal val PLAYER_BOTTOM_KEY_ORDER: List<PlayerBottomKey> =
 internal const val PLAYER_TOOL_ROW_WIDE_WIDTH_DP = 600f
 
 /**
- * 工具区（右上 5 键 + 左下 5 键）是否在图标下显示小字（W17 用户确认）。
+ * 工具区（右上键簇 + 左下工具行）是否在图标下显示小字（W17 用户确认）。
  *
  * 判据：Compact（自由窗口 / 分屏窄宽）一律只留图标；全屏（`PlayerActivity.fullscreenMode`）一律显示； 非全屏时宽度 ≥ 600dp 或平板 /
  * 折叠展开形态显示。非全屏手机形态（窄屏）只留图标—— 38dp 键框放不下文字，硬塞会撑破底栏。
  *
- * 键本身（5 键）永远都在，文字只是可读性增强：W17 起「解码」不再从工具行隐藏，因此设置面板里 W13 加的兜底入口已删除（用户确认不留兜底入口）； 码率入口 W4-T23 起只在设置页。
+ * 键本身（6 键）永远都在，文字只是可读性增强：W17 起「解码」不再从工具行隐藏，因此设置面板里 W13 加的兜底入口已删除（用户确认不留兜底入口）； 码率入口 W4-T23 起只在设置页。
  */
 internal fun playerToolLabelsVisible(
     isFullscreen: Boolean,
@@ -434,11 +441,13 @@ internal fun playerToolLabelsVisible(
             formFactor == PlayerFormFactor.Foldable)
 
 /**
- * W67b：左下工具行的键集分级。
+ * W67b：左下工具行的键集分级（2.0.3 起 6 键）。
  *
  * 预计结束时刻移到该行后，窄窗优先保证结束时间完整：行宽预算（键 + 1× 徽标 + 结束时刻 + 右下全屏键 + 间距 + 左右留白，见
- * [PlayerControlSpec.bottomRowWidthDp]）放不下 5 键时，省略「解码」键—— 只剩 音轨 · 字幕 · 倍率 · 详细信息 + 1× + 结束时刻；宽窗 /
- * 全屏 / 平板照旧全量 5 键。 返回恒为 [PLAYER_BOTTOM_KEY_ORDER] 的子序列（顺序不变）。
+ * [PlayerControlSpec.bottomRowWidthDp]）放不下全部键时，省略「解码」键—— 只剩 音轨 · 字幕 · 倍率 · 详细信息 · 播放顺序 + 1× +
+ * 结束时刻；宽窗 / 全屏 / 平板照旧全量。 返回恒为 [PLAYER_BOTTOM_KEY_ORDER] 的子序列（顺序不变）。
+ *
+ * 预算按**实际要渲染的键数**算：6 键放不下退到 5 键后，再按 5 键的真实行宽比一次，避免「预估值一直按 6 键算」把能放下的形态也判成超宽。
  */
 internal fun playerBottomKeysForWidth(
     widthDp: Float,
@@ -447,8 +456,10 @@ internal fun playerBottomKeysForWidth(
     hasEndTime: Boolean,
     spec: PlayerControlSpec,
 ): List<PlayerBottomKey> {
-    val budget = spec.bottomRowWidthDp(showLabels, hasEndTime) + spec.toolRowPaddingDp * 2f
-    if (budget <= widthDp) return PLAYER_BOTTOM_KEY_ORDER
+    fun budget(keys: List<PlayerBottomKey>): Float =
+        spec.bottomRowWidthDp(showLabels, hasEndTime, keys.size) + spec.toolRowPaddingDp * 2f
+
+    if (budget(PLAYER_BOTTOM_KEY_ORDER) <= widthDp) return PLAYER_BOTTOM_KEY_ORDER
     return PLAYER_BOTTOM_KEY_ORDER.filter { it != PlayerBottomKey.Decode }
 }
 
@@ -506,6 +517,26 @@ internal fun resolvePlayerBack(
         sidePanelOpen -> PlayerBackAction.CloseSidePanel
         else -> PlayerBackAction.Ignore
     }
+
+/**
+ * 底栏「播放顺序」键的激活态：只要不是「顺序播放」就算激活（列表循环 / 单集循环 / 随机都是非默认档）。
+ *
+ * 抽成纯函数给单测钉住：随机档在播放器里 `repeatMode` 也是 ALL，只按 `repeatMode != OFF` 判会把 「顺序 +
+ * 随机」与「列表循环」混成一档，所以两路状态都要看。
+ */
+internal fun playerRepeatActive(repeatMode: Int, shuffleEnabled: Boolean): Boolean =
+    shuffleEnabled || repeatMode != Player.REPEAT_MODE_OFF
+
+/**
+ * 控制层（顶栏 / 底栏 / 中央簇 / 锁定键）此刻是否可见（2.0.3）。
+ *
+ * 面板抽屉打开时整层控制层收起：抽屉是半透明的玻璃表面，底栏渐变与工具键透过它显形会变成「两层垫层 + 控件互相重叠」；
+ * 面板自己有关闭键与返回键，关闭后控制层按原可见性回来（不会把用户手动收起的控制层顶出来）。
+ */
+internal fun playerChromeVisible(
+    controlsVisible: Boolean,
+    panelOpen: Boolean,
+): Boolean = controlsVisible && !panelOpen
 
 /** 中央播放簇的键尺寸（W11 反馈③⑧）。 */
 internal data class PlayerCenterSpec(
@@ -1085,6 +1116,15 @@ fun PlayerControlOverlay(
         panelBackTarget = if (panel == PlayerPanel.Settings) panel else null
         panel = target
     }
+    /*
+     * 2.0.3（Bug 10）：面板抽屉打开时控制层整层收起——抽屉是半透明玻璃表面，底栏渐变与工具键透过它显形
+     * 会变成「两层垫层 + 控件重叠」；面板自带关闭 / 返回键，关闭后控制层按原可见性回来。
+     */
+    val panelOpen = panel != PlayerPanel.None
+    val chromeVisible =
+        playerChromeVisible(controlsVisible = controls.visible, panelOpen = panelOpen)
+    /** 底栏实测高度（px）：由控制层回传，提示条 / 抽屉垫层按它让位 */
+    var bottomBarHeightPx by remember { mutableIntStateOf(0) }
     val bottomBar: @Composable (Modifier, Brush?, PlayerControlSpec) -> Unit =
         { barModifier, scrim, spec ->
             PlayerBottomBar(
@@ -1103,6 +1143,7 @@ fun PlayerControlOverlay(
                 decodeActive =
                     settingsController.state.decodeMode == PlayerViewModel.DECODE_MODE_SOFTWARE ||
                         settingsController.state.backend == PlayerViewModel.PLAYER_BACKEND_MPV,
+                repeatActive = playerRepeatActive(runtime.repeatMode, runtime.shuffleEnabled),
                 spec = spec,
                 // W67b：结束时间进了工具行——窄窗按宽度预算省略解码键，优先保证 1× + 结束时间完整
                 bottomKeys =
@@ -1113,7 +1154,7 @@ fun PlayerControlOverlay(
                         spec = spec,
                     ),
                 isFullscreen = isFullscreen,
-                // W17：5 键恒定齐全；文字只在窄屏以外的形态出现
+                // W17：入口恒定齐全；文字只在窄屏以外的形态出现
                 showLabels = toolLabelsVisible,
                 onSeek = onSeekRequest,
                 onSeekFraction = onSeekFractionRequest,
@@ -1123,17 +1164,22 @@ fun PlayerControlOverlay(
                 onSpeed = { navigatePanel(PlayerPanel.Speed) },
                 onDecode = { navigatePanel(PlayerPanel.Decode) },
                 onInfo = { navigatePanel(PlayerPanel.Info) },
+                onRepeat = { navigatePanel(PlayerPanel.Repeat) },
                 onToggleFullscreen = onToggleFullscreen,
                 scrim = scrim,
                 modifier = barModifier,
-                onHeightChanged = onBottomBarHeight,
+                onHeightChanged = { heightPx ->
+                    onBottomBarHeight(heightPx)
+                    // 提示条按这条实测高度让位（2.0.3 Bug 10）
+                    bottomBarHeightPx = heightPx
+                },
             )
         }
 
     /*
-     * 控件分布（W12 终版，勿再变动）：
-     * 右上角 5 键 = 画中画 · 睡眠 · 选集 · 画面 · 设置；进度条下一行 = 左 5 键
-     * （音轨 · 字幕 · 倍率 · 解码 · 详细信息）+ 右下全屏键；中央五键；锁定键贴画面区右缘垂直居中。
+     * 控件分布（W12 终版 + 2.0.3）：
+     * 右上角 6 键 = 画中画 · 睡眠 · 选集 · 画面 · SyncPlay · 设置；进度条下一行 = 左 6 键
+     * （音轨 · 字幕 · 倍率 · 解码 · 详细信息 · 播放顺序）+ 右下全屏键；中央五键；锁定键贴画面区右缘垂直居中。
      */
     val toolCluster: @Composable () -> Unit = {
         PlayerToolCluster(
@@ -1187,6 +1233,8 @@ fun PlayerControlOverlay(
         // 面板抽屉宽度：手机 / 窄窗整宽；宽屏取 46%（360–560dp）。抽屉盖在画面上，不改画面布局
         val drawerWidth =
             if (maxWidth < 420.dp) maxWidth else (maxWidth * 0.46f).coerceIn(360.dp, 560.dp)
+        // 底栏实测高度（dp）：跳过提示条 / SyncPlay 提示条按它上浮，避免压在工具行上
+        val bottomBarHeight = with(density) { bottomBarHeightPx.toDp() }
 
         if (layout.isCompact) {
             // 小窗：标题行 + 工具行 + 细进度条。「更多」取消后，工具行横向可滚，兜住全部入口（不缩水也不越界）
@@ -1218,6 +1266,8 @@ fun PlayerControlOverlay(
                         aspectActive =
                             aspect.resizeMode != AspectMode.Fit.resizeMode ||
                                 videoTransform.hasAdjustments,
+                        repeatActive =
+                            playerRepeatActive(runtime.repeatMode, runtime.shuffleEnabled),
                         isPipSupported = isPipSupported,
                         speed = runtime.speed,
                         onOpenSubtitle = { navigatePanel(PlayerPanel.Subtitle) },
@@ -1225,6 +1275,7 @@ fun PlayerControlOverlay(
                         onOpenAspect = { navigatePanel(PlayerPanel.Aspect) },
                         onOpenQueue = { navigatePanel(PlayerPanel.Queue) },
                         onOpenInfo = { navigatePanel(PlayerPanel.Info) },
+                        onOpenRepeat = { navigatePanel(PlayerPanel.Repeat) },
                         onOpenSettings = { navigatePanel(PlayerPanel.Settings) },
                         onOpenDecode = { navigatePanel(PlayerPanel.Decode) },
                         decodeActive =
@@ -1242,19 +1293,23 @@ fun PlayerControlOverlay(
                     )
                 },
                 modifier = Modifier.align(Alignment.BottomCenter),
-                onHeightChanged = onBottomBarHeight,
+                onHeightChanged = { heightPx ->
+                    onBottomBarHeight(heightPx)
+                    bottomBarHeightPx = heightPx
+                },
             )
         } else {
             Box(
                 modifier = Modifier.width(videoWidth).height(videoHeight).align(Alignment.TopStart)
             ) {
-                // 暂停降亮 + 暗角（VIDEO-30）：画面上的一层，与控制层可见性解耦，控制层收起后仍在
+                // 暂停降亮 + 暗角（VIDEO-30）：画面上的一层，与控制层可见性解耦，控制层收起后仍在；
+                // 面板抽屉打开时让位——抽屉自带唯一一层垫层，暂停降亮再叠上来就是第二层（2.0.3 Bug 10）
                 PlayerPauseDim(
-                    paused = !runtime.isPlaying,
+                    paused = !runtime.isPlaying && !panelOpen,
                     modifier = Modifier.fillMaxSize(),
                 )
                 AnimatedVisibility(
-                    visible = controls.visible,
+                    visible = chromeVisible,
                     /*
                      * 流光：控制层淡入 200ms + 上浮 12dp 走可中断弹簧（VIDEO-28/30）；
                      * 退场淡出 150ms 快速让位、位移临界阻尼弹簧一次到位。全部走 AnimatedVisibility，
@@ -1291,7 +1346,10 @@ fun PlayerControlOverlay(
                             syncPlayCapsule = syncPlayCapsule,
                             onOpenSyncPlay = { navigatePanel(PlayerPanel.SyncPlay) },
                             tools = toolCluster,
-                            modifier = Modifier.align(Alignment.TopCenter),
+                            // 2.0.3（Bug 10）：选集侧栏是覆盖在画面右缘的玻璃层，顶栏右侧 6 键必须让出它的宽度，
+                            // 否则工具键（以及锁定键）会被侧栏玻璃盖住——底栏早就让了，顶栏以前漏了
+                            modifier =
+                                Modifier.align(Alignment.TopCenter).padding(end = sidePanelInset),
                             onHeightChanged = onTopBarHeight,
                             // 竖屏窗口（SplitPortrait / 平板竖屏）的画面区从窗口顶边开始，顶栏要让开挖孔
                             protectTopInset = protectTopInset,
@@ -1340,7 +1398,8 @@ fun PlayerControlOverlay(
                             iconSize = spec.iconSizeDp.dp,
                             modifier =
                                 Modifier.align(Alignment.CenterEnd)
-                                    .padding(end = CinefinSpacing.Space3)
+                                    // 选集侧栏展开时跟着让出侧栏宽度（2.0.3 Bug 10：不让就被玻璃盖住）
+                                    .padding(end = sidePanelInset + CinefinSpacing.Space3)
                                     .onGloballyPositioned { coordinates ->
                                         val rect = coordinates.boundsInRoot()
                                         onLockKeyRect(rect.left, rect.top, rect.right, rect.bottom)
@@ -1363,7 +1422,7 @@ fun PlayerControlOverlay(
                  * 缓冲（W11 反馈⑤）：控件可见时由中央播放键里的转圈表达；控件整层隐藏（用户手动收起）
                  * 时才用独立的玻璃圈兜底——任何时刻整个播放页只有 1 个加载图标，也不会与播放键叠在一起。
                  */
-                if (seekFailed != null && controls.visible) {
+                if (seekFailed != null && chromeVisible) {
                     SeekFailureCard(
                         failure = seekFailed,
                         onRetry = onRetrySeek,
@@ -1373,7 +1432,7 @@ fun PlayerControlOverlay(
                     )
                 }
 
-                if (playbackSession.loading && !controls.visible) {
+                if (playbackSession.loading && !chromeVisible) {
                     PlayerBufferingIndicator(
                         visible = true,
                         modifier = Modifier.align(Alignment.Center),
@@ -1391,7 +1450,7 @@ fun PlayerControlOverlay(
                     )
                 }
 
-                // 片头/片尾跳过：独立于控制层，超时或播放结束自动消失
+                // 片头/片尾跳过：独立于控制层，超时或播放结束自动消失；底边按底栏实测高度上浮，不压工具行
                 val segment = uiState.currentSegment
                 if (segment != null && skipChipVisible && !controls.locked) {
                     SkipSegmentChip(
@@ -1402,7 +1461,10 @@ fun PlayerControlOverlay(
                         },
                         modifier =
                             Modifier.align(Alignment.BottomEnd)
-                                .padding(end = 24.dp, bottom = 132.dp),
+                                .padding(
+                                    end = CinefinSpacing.Space6,
+                                    bottom = bottomBarHeight + CinefinSpacing.Space2,
+                                ),
                     )
                 }
             }
@@ -1495,7 +1557,9 @@ fun PlayerControlOverlay(
             visible = syncPlayNoticeText != null,
             enter = fadeIn(tween(CinefinMotion.Fast, easing = CinefinMotion.Standard)),
             exit = fadeOut(tween(CinefinMotion.Fast, easing = CinefinMotion.Accelerate)),
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 96.dp),
+            modifier =
+                Modifier.align(Alignment.BottomCenter)
+                    .padding(bottom = bottomBarHeight + CinefinSpacing.Space2),
         ) {
             SyncPlayNoticeBar(text = lastSyncPlayNotice)
         }
@@ -1504,10 +1568,13 @@ fun PlayerControlOverlay(
          * 统一从右侧滑出（与选集栏同款），半透明底直接盖在画面上，画面布局不动；
          * 打开期间触摸由 PlayerOverlayContainer 整层接管（panelOpen），点抽屉外的空白关闭。
          */
-        if (panel != PlayerPanel.None) {
+        if (panelOpen) {
             Box(
                 modifier =
                     Modifier.fillMaxSize()
+                        // 面板层唯一的垫层（2.0.3 Bug 10）：统一走覆盖层 scrim 28% token，不再让底栏渐变 / 暂停降亮
+                        // 透上来；抽屉玻璃表面盖在它上面，全屏只有这两层，样式同源
+                        .background(colors.scrim.copy(alpha = CinefinTokens.PlayerGlassAlpha))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
@@ -2353,9 +2420,9 @@ private fun ErrorActionButton(
 /**
  * 底栏（W12 终版布局 + W17 文字化）：进度条一行（当前时间 · 进度条 · 总时长）+ 左下工具行 + 右下全屏键。
  *
- * 左下工具行（W17 用户确认，W4-T23 删码率键）：**5 键恒定齐全**（音轨 · 字幕 · 倍速 · 解码 · 详细信息）+ 「详细信息」右侧的 1× 徽标；[showLabels] =
- * true（全屏 / 宽度充足 / 平板）时在图标下加 10sp 小字， 窄屏与 Compact 只留图标。倍速键只显示图标，当前值由 1× 徽标（纯展示、不可点击）显示。
- * 右下角全屏键**保持纯图标**，与工具行不重叠。
+ * 左下工具行（W17 用户确认，W4-T23 删码率键，2.0.3 加播放顺序）：**入口恒定齐全**（音轨 · 字幕 · 倍速 · 解码 · 详细信息 · 播放顺序）， 1×
+ * 徽标固定在键行右侧；[showLabels] = true（全屏 / 宽度充足 / 平板）时在图标下加 10sp 小字， 窄屏与 Compact 只留图标。倍速键只显示图标，当前值由 1×
+ * 徽标（纯展示、不可点击）显示。 右下角全屏键**保持纯图标**，与工具行不重叠。
  */
 @Composable
 private fun PlayerBottomBar(
@@ -2375,6 +2442,8 @@ private fun PlayerBottomBar(
     subtitleEnabled: Boolean,
     /** 解码键激活态：软解或 mpv 内核 */
     decodeActive: Boolean,
+    /** 播放顺序键激活态：不是「顺序播放」就等于开着循环 / 随机 */
+    repeatActive: Boolean,
     /** 版式规格（W12 反馈 A）：窄屏整体收一档 */
     spec: PlayerControlSpec,
     /** W67b：本行实际渲染的左下工具键（窄窗省略解码键，给 1× + 预计结束时刻让位） */
@@ -2391,6 +2460,8 @@ private fun PlayerBottomBar(
     onSpeed: () -> Unit,
     onDecode: () -> Unit,
     onInfo: () -> Unit,
+    /** 2.0.3：播放顺序（顺序 / 列表循环 / 单集循环 / 随机）——打开循环模式面板 */
+    onRepeat: () -> Unit,
     onToggleFullscreen: () -> Unit,
     /** 底栏遮罩：叠在画面上的形态用渐变，折痕下屏用 null（背景由内容区承担） */
     scrim: Brush? = null,
@@ -2459,8 +2530,8 @@ private fun PlayerBottomBar(
         Spacer(Modifier.height(CinefinSpacing.Space1))
 
         /*
-         * 进度条下方（W13 方案 A 起分级显示）：全屏 / 宽度充足 = 5 键（音轨 · 字幕 · 倍率 · 解码 · 详细信息）+ 1×；
-         * 非全屏窄窗 = 音轨 · 字幕 · 倍率 · 详细信息 + 1×（解码改从「设置 → 播放」进入；码率在设置页）。右下恒为全屏键。
+         * 进度条下方（W13 方案 A 起分级显示）：全屏 / 宽度充足 = 全部键（音轨 · 字幕 · 倍率 · 解码 · 详细信息 · 播放顺序）+ 1×；
+         * 非全屏窄窗按宽度预算省「解码」（音轨 · 字幕 · 倍率 · 详细信息 · 播放顺序 + 1×），码率在设置页。右下恒为全屏键。
          * 行内横向可滚：窗口再窄也只是多滑一下，不会把键挤出屏幕（W12 反馈 A + W11 反馈⑧ 的兜底）。
          */
         Row(
@@ -2562,6 +2633,24 @@ private fun PlayerBottomBar(
                                         null
                                     },
                             )
+                        // 2.0.3：播放顺序（顺序 / 列表循环 / 单集循环 / 随机）唯一的播放中入口；
+                        // 当前档位在面板里看，键上只用激活态表达「不是顺序播放」。图标沿用全仓唯一的 ic_repeat（无随机 / 单集图标）。
+                        PlayerBottomKey.Repeat ->
+                            PlayerIconButton(
+                                iconRes = CoreR.drawable.ic_repeat,
+                                contentDescription =
+                                    stringResource(PlayerR.string.player_controls_repeat),
+                                selected = repeatActive,
+                                onClick = onRepeat,
+                                size = spec.toolKeySizeDp.dp,
+                                iconSize = spec.iconSizeDp.dp,
+                                label =
+                                    if (showLabels) {
+                                        stringResource(PlayerR.string.player_controls_repeat)
+                                    } else {
+                                        null
+                                    },
+                            )
                     }
                 }
             }
@@ -2645,6 +2734,8 @@ internal fun PlayerCompactToolKeys(
     subtitleEnabled: Boolean,
     aspectActive: Boolean,
     decodeActive: Boolean,
+    /** 2.0.3：播放顺序是否不是「顺序播放」（列表循环 / 单集循环 / 随机） */
+    repeatActive: Boolean,
     isPipSupported: Boolean,
     /** 当前倍率：1× 徽标显示的值（倍速入口只有倍率图标键） */
     speed: Float,
@@ -2653,6 +2744,8 @@ internal fun PlayerCompactToolKeys(
     onOpenAspect: () -> Unit,
     onOpenQueue: () -> Unit,
     onOpenInfo: () -> Unit,
+    /** 2.0.3：播放顺序（循环 / 随机）——与画面区底栏同一个面板 */
+    onOpenRepeat: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenDecode: () -> Unit,
     onSpeed: () -> Unit,
@@ -2696,6 +2789,14 @@ internal fun PlayerCompactToolKeys(
         iconRes = PlayerR.drawable.ic_player_info,
         contentDescription = stringResource(PlayerR.string.player_controls_label_info),
         onClick = onOpenInfo,
+        size = 40.dp,
+    )
+    // 2.0.3：播放顺序（与画面区底栏同序，排在「详细信息」之后）
+    PlayerIconButton(
+        iconRes = CoreR.drawable.ic_repeat,
+        contentDescription = stringResource(PlayerR.string.player_controls_repeat),
+        selected = repeatActive,
+        onClick = onOpenRepeat,
         size = 40.dp,
     )
     // 1× 徽标：贴在「详细信息」右侧（W13 反馈③；W14 起纯展示、不可点）
@@ -4008,13 +4109,14 @@ private fun SubtitleCurrentCombination(
     val colors = LocalCinefinColors.current
     val shape = CinefinShapes.Card
     Column(
+        verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1),
         modifier =
             Modifier.fillMaxWidth()
                 .padding(horizontal = CinefinSpacing.Space3, vertical = CinefinSpacing.Space2)
                 .clip(shape)
                 .background(colors.surfaceContainerLow)
                 .border(1.dp, colors.outlineVariant, shape)
-                .padding(horizontal = CinefinSpacing.Space3, vertical = CinefinSpacing.Space2)
+                .padding(horizontal = CinefinSpacing.Space3, vertical = CinefinSpacing.Space2),
     ) {
         Text(
             text = stringResource(PlayerR.string.player_subtitle_current_combo),
@@ -4102,7 +4204,9 @@ private fun SubtitleCombinationLine(
                 )
             }
         }
-        option?.assignment?.let { assignment -> SubtitleAssignmentBadge(assignment) }
+        // 2.0.3（Bug 9b）：行首已经是「主字幕 / 次字幕」标签，行尾不再重复落点徽标，只留「关闭」动作；
+        // 文字与控件之间留一个 Space2，窄抽屉里也不贴在一起
+        Spacer(Modifier.width(CinefinSpacing.Space2))
         PanelChip(
             label = stringResource(PlayerR.string.player_subtitle_close),
             selected = false,
@@ -4159,46 +4263,52 @@ private fun SubtitleTrackRow(
 ) {
     val colors = LocalCinefinColors.current
     val shape = CinefinShapes.Card
+    /*
+     * 2.0.3（Bug 9b）分行布局：以前「轨道名 + 原生轨标 + 内封/外挂 tag + 落点徽标 + 移除键」挤在同一行、
+     * 下面再堆主/次 chip 与说明，窄抽屉里文字与图标互相顶。现在固定四段：
+     * ① 轨道名（+ 原生轨标 / 移除键）② 格式 · 来源 · 图形（+ 落点徽标）③ 主/次动作 ④ 说明。
+     */
     Column(
+        verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1),
         modifier =
             Modifier.fillMaxWidth()
-                .padding(horizontal = CinefinSpacing.Space3, vertical = 2.dp)
+                .padding(horizontal = CinefinSpacing.Space3, vertical = CinefinSpacing.Space1)
                 .clip(shape)
                 .background(colors.surfaceContainerLow)
                 .border(1.dp, colors.outlineVariant, shape)
-                .padding(horizontal = CinefinSpacing.Space3, vertical = CinefinSpacing.Space2)
+                .padding(horizontal = CinefinSpacing.Space3, vertical = CinefinSpacing.Space2),
     ) {
-        Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = option.label,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = colors.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    if (!option.textAssignable) {
-                        Spacer(Modifier.width(CinefinSpacing.Space2))
-                        SubtitleTextBadge(
-                            stringResource(PlayerR.string.player_subtitle_native_only)
-                        )
-                    }
-                }
-                Text(
-                    text = subtitleTrackRowMeta(option),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = option.label,
+                style = MaterialTheme.typography.bodyLarge,
+                color = colors.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            if (!option.textAssignable) {
+                Spacer(Modifier.width(CinefinSpacing.Space2))
+                SubtitleTextBadge(stringResource(PlayerR.string.player_subtitle_native_only))
             }
-            Spacer(Modifier.width(CinefinSpacing.Space2))
-            SubtitleTrackTag(subtitleTrackTag(option))
-            option.assignment?.let { assignment -> SubtitleAssignmentBadge(assignment) }
             if (option.sideloaded) {
+                Spacer(Modifier.width(CinefinSpacing.Space1))
                 SideloadRemoveKey(id = option.id, onRemove = onRemoveSideloaded)
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = subtitleTrackRowMeta(option),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            // 落点只在这里出现一次（说明文字里不再重复「主字幕 / 次字幕」）
+            option.assignment?.let { assignment ->
+                Spacer(Modifier.width(CinefinSpacing.Space2))
+                SubtitleAssignmentBadge(assignment)
             }
         }
         FlowRow(
@@ -4324,8 +4434,7 @@ private fun SubtitleAssignmentBadge(assignment: PlayerViewModel.SubtitleAssignme
         style = MaterialTheme.typography.labelSmall,
         color = media.bright,
         modifier =
-            Modifier.padding(end = CinefinSpacing.Space2)
-                .clip(shape)
+            Modifier.clip(shape)
                 .background(media.container)
                 .border(1.dp, media.outline, shape)
                 .padding(horizontal = CinefinSpacing.Space2, vertical = 1.dp),
@@ -4407,32 +4516,13 @@ private fun subtitleTrackMeta(option: PlayerViewModel.SubtitleOption): String {
         .joinToString(" · ")
 }
 
-/** 轨道行副标题：语言进组头、来源进行尾标注，这里只留格式与落点，避免同一信息写三遍。 */
-@Composable
-private fun subtitleTrackRowMeta(option: PlayerViewModel.SubtitleOption): String =
-    listOfNotNull(
-            option.format.takeIf { it.isNotBlank() },
-            option.assignment?.let { subtitleAssignmentLabel(it) },
-        )
-        .joinToString(" · ")
-
-@Composable
-private fun subtitleAssignmentLabel(assignment: PlayerViewModel.SubtitleAssignment): String =
-    stringResource(
-        when (assignment) {
-            PlayerViewModel.SubtitleAssignment.Primary -> PlayerR.string.player_subtitle_primary
-            PlayerViewModel.SubtitleAssignment.Secondary -> PlayerR.string.player_subtitle_secondary
-            PlayerViewModel.SubtitleAssignment.Native -> PlayerR.string.player_subtitle_native_only
-        }
-    )
-
 /**
- * 行尾 12sp 标注（VIDEO-11）：内封 / 外挂；图形字幕追加「· 图形」。
+ * 轨道行副标题（2.0.3 Bug 9b）：语言进组头，这里只留「格式 · 来源 · 图形」。
  *
- * 侧载字幕本质是外挂文件，同样标「外挂」，本机身份由行尾移除键体现。
+ * 落点（主 / 次 / 原生轨）交给行尾徽标单独表达，同一信息不在两处重复；内封 / 外挂以前是行尾的独立 文本控件，和其它徽标挤在一行，现在并进这行纯文本。
  */
 @Composable
-private fun subtitleTrackTag(option: PlayerViewModel.SubtitleOption): String {
+private fun subtitleTrackRowMeta(option: PlayerViewModel.SubtitleOption): String {
     val origin =
         stringResource(
             when (option.origin) {
@@ -4443,22 +4533,12 @@ private fun subtitleTrackTag(option: PlayerViewModel.SubtitleOption): String {
                     PlayerR.string.player_subtitle_tag_external
             }
         )
-    return if (option.graphic) {
-        "$origin · ${stringResource(PlayerR.string.player_subtitle_tag_graphic)}"
-    } else {
-        origin
-    }
-}
-
-@Composable
-private fun SubtitleTrackTag(text: String) {
-    Text(
-        text = text,
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
-        color = LocalCinefinColors.current.onSurfaceVariant,
-        maxLines = 1,
-    )
+    return listOfNotNull(
+            option.format.takeIf { it.isNotBlank() },
+            origin,
+            stringResource(PlayerR.string.player_subtitle_tag_graphic).takeIf { option.graphic },
+        )
+        .joinToString(" · ")
 }
 
 @Composable
@@ -4548,8 +4628,9 @@ private fun SubtitleDelayRow(
     val stepLabel = formatSubtitleDelayStep(PlayerSubtitleController.DELAY_STEP_MS)
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+        // 这一行只在「当前组合」卡内使用：横向留白由卡片负责，不再叠一层 Space5
+        modifier = Modifier.fillMaxWidth().padding(vertical = CinefinSpacing.Space1),
     ) {
         PanelChip(
             label = "−$stepLabel",

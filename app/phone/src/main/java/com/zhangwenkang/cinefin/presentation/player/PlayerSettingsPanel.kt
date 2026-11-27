@@ -306,7 +306,7 @@ class PlayerSettingsController(
 /**
  * 设置面板的两个分类（W12 反馈 B）：**播放 / 手势**。
  *
- * 解码、字幕、音频、画面全部移出设置面板：解码有独立入口（进度条下 6 键之一）、字幕与音频并入各自面板、 画面只保留右上角入口——设置面板里不再出现重复入口，也不再出现「播放」大按钮。
+ * 解码、字幕、音频、画面全部移出设置面板：解码/播放顺序有底栏独立入口、字幕与音频并入各自面板、 画面只保留右上角入口——设置面板里不再出现重复入口，也不再出现「播放」大按钮。
  */
 private enum class PlayerSettingsTab(@StringRes val labelRes: Int) {
     Playback(PlayerR.string.player_settings_tab_playback),
@@ -403,14 +403,8 @@ internal fun PlayerSettingsPanel(
                         checked = settings.stayAtEndOfFrame,
                         onCheckedChange = { controller.setStayAtEndOfFrame(it) },
                     )
-                    // 循环模式（顺序 / 列表 / 单集 / 随机）在「更多」去重后唯一的入口（W10 反馈⑤）
-                    PanelRow(
-                        label = stringResource(PlayerR.string.player_settings_repeat_entry),
-                        caption =
-                            stringResource(PlayerR.string.player_settings_repeat_entry_caption),
-                        selected = false,
-                        onClick = { onOpenPanel(PlayerPanel.Repeat) },
-                    )
+                    // 2.0.3：循环 / 随机不再在本面板留入口——它已经移到播放页底栏（播放顺序键），
+                    // 与「一个功能一个入口」同一原则（W10 反馈⑤ 的去重口径）
                     /*
                      * W4-T9（VIDEO-08 手机竖屏入口）：窄屏宽度预算省略底栏「码率 / 解码」键是既有行为（不改预算），
                      * 这里给解码面板补一条页内入口，点击跳转到既有的 [PlayerPanel.Decode] 面板。
