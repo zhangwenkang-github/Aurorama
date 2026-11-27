@@ -82,6 +82,13 @@ constructor(
     private var instanceBackend: String? = null
 
     /**
+     * 内核切换熔断器（2.0.3-A Bug 11）：进程级，跨播放页 `recreate()` 记忆失败次数。
+     *
+     * 由宿主在切换失败时记录、在真的出画面 / 用户显式重试时复位。
+     */
+    val backendSwitchCircuitBreaker = BackendSwitchCircuitBreaker()
+
+    /**
      * 原地切换内核进行中（W4-T3a-2）。
      *
      * 切换期间偏好 / 实例会短暂不一致：`player` getter 若照常按偏好比对，会在管线中途把**旧实例**当成过期实例重建， 位置与轨道全丢。窗口内一律返回当前实例，由
@@ -219,10 +226,8 @@ constructor(
                 engine?.let {
                     return it.media3Player
                 }
-                return install(
-                    appPreferences.getValue(appPreferences.playerBackend),
-                    create(appPreferences.getValue(appPreferences.playerBackend)),
-                )
+                val pending = appPreferences.getValue(appPreferences.playerBackend)
+                return installSelfHealing(pending)
             }
             val wanted = appPreferences.getValue(appPreferences.playerBackend)
             val existing = engine
@@ -232,7 +237,23 @@ constructor(
                 seekSink.onPlayerReleased()
                 runCatching { existing.release() }
             }
-            return install(wanted, create(wanted))
+            return installSelfHealing(wanted)
+        }
+
+    /**
+     * 按偏好装实例，建不出来时自愈（2.0.3-A Bug 11）。
+     *
+     * 持久化偏好落在本机建不出来的内核上（libmpv 初始化失败、vo 配置坏档）时，如果原样抛异常， 播放页每次起播都失败——整机就是"任何条目都播不了"。这里回落到 ExoPlayer
+     * 并**复位偏好**， 让下一次起播（含重启后的播放页）不再回到坏内核；ExoPlayer 也失败才原样抛出。
+     */
+    private fun installSelfHealing(wanted: String): Player =
+        try {
+            install(wanted, create(wanted))
+        } catch (error: Throwable) {
+            val fallback = backendFallbackAfterCreateFailure(wanted) ?: throw error
+            Timber.e(error, "播放内核 %s 创建失败，自愈回落到 %s 并复位偏好", wanted, fallback)
+            appPreferences.setValue(appPreferences.playerBackend, fallback)
+            install(fallback, create(fallback))
         }
 
     /**
@@ -276,11 +297,27 @@ constructor(
         }
         val startIndex = previousPlayer.currentMediaItemIndex.coerceIn(0, mediaItems.lastIndex)
 
+        /*
+         * 目标内核先建出来再动状态（2.0.3-A Bug 11）：mpv 初始化失败（`MPVLib.create() == null`）时
+         * 直接返回「内核不可用」，旧实例、seek 绑定、字幕钩子都不动——这条失败是可恢复的，
+         * 宿主据此保持原内核而不是重启播放页。
+         */
+        val created: Media3PlaybackEngine =
+            try {
+                create(target)
+            } catch (error: Throwable) {
+                Timber.w(error, "目标内核 %s 建不出来（旧内核保持不变）", target)
+                return EngineSwitchOutcome.Failure(
+                    "engine-unavailable",
+                    rolledBack = true,
+                    cause = error,
+                )
+            }
+
         backendSwitchInProgress = true
         val switchStartedAtMs = SystemClock.elapsedRealtime()
         var replacement: Media3PlaybackEngine? = null
         try {
-            val created = create(target)
             replacement = created
             install(target, created)
             val newPlayer = created.media3Player

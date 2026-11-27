@@ -203,14 +203,33 @@ class PlaylistManager internal constructor(private val repository: JellyfinRepos
                 }
                 BaseItemKind.EPISODE -> {
                     // W76-B11b：单集入口同样先起播（只 1 次 getItem），整剧队列交给后台补全
-                    val episode = repository.getEpisode(itemId)
+                    /*
+                     * 2.0.3-A Bug 11：服务器把条目归成 Video（家庭视频 / 无剧集归属）时，`getEpisode`
+                     * 会 fail-closed 抛「该条目不是可播放的剧集」——这类条目其实能播，按单片起播即可。
+                     * 旧实现没有回落，于是切内核失败后的兜底重启会把它永久钉死在失败分支里
+                     * （每次重启都以 EPISODE 再问一次，每次都失败）。
+                     */
+                    val episode =
+                        try {
+                            repository.getEpisode(itemId)
+                        } catch (error: PlaybackStartException) {
+                            throw error
+                        } catch (error: IllegalStateException) {
+                            // 映射失败的 fail-closed（"该条目不是可播放的剧集"）：条目类型不是单集
+                            resolveVideoAsMovie(itemId, error) ?: throw error
+                        } catch (error: NullPointerException) {
+                            resolveVideoAsMovie(itemId, error) ?: throw error
+                        }
 
-                    pendingSeriesQueueExpansion =
-                        SeriesQueueExpansion(
-                            seriesId = episode.seriesId,
-                            anchorItemId = episode.id,
-                            fallbackSeasonId = episode.seasonId,
-                        )
+                    // 真正解析成单集才需要补整剧队列：单片条目没有季集语义
+                    if (episode is FindroidEpisode) {
+                        pendingSeriesQueueExpansion =
+                            SeriesQueueExpansion(
+                                seriesId = episode.seriesId,
+                                anchorItemId = episode.id,
+                                fallbackSeasonId = episode.seasonId,
+                            )
+                    }
                     items = listOf(episode)
                     episode
                 }
@@ -269,7 +288,15 @@ class PlaylistManager internal constructor(private val repository: JellyfinRepos
             runCatchingCancellable {
                 when (entry.kind) {
                     BaseItemKind.MOVIE -> repository.getMovie(entry.itemId)
-                    BaseItemKind.EPISODE -> repository.getEpisode(entry.itemId)
+                    BaseItemKind.EPISODE ->
+                        // 2.0.3-A Bug 11：显式队列里的单集同样可能是 Video 类型，回落单片
+                        try {
+                            repository.getEpisode(entry.itemId)
+                        } catch (error: IllegalStateException) {
+                            resolveVideoAsMovie(entry.itemId, error) ?: throw error
+                        } catch (error: NullPointerException) {
+                            resolveVideoAsMovie(entry.itemId, error) ?: throw error
+                        }
                     else -> null
                 }
             }
@@ -440,6 +467,28 @@ class PlaylistManager internal constructor(private val repository: JellyfinRepos
      */
     fun findItem(itemId: UUID): FindroidItem? =
         items.firstOrNull { it.id == itemId } ?: startItem?.takeIf { it.id == itemId }
+
+    /**
+     * 2.0.3-A Bug 11：单集解析失败的回落——按单片再解析一次。
+     *
+     * 只在**条目映射**失败时调用（fail-closed 的 `IllegalStateException` / 字段缺失的 `NullPointerException`）：
+     * 服务器把家庭视频之类归成 Video 时，`getEpisode` 按契约拒绝，但该条目本身可播，走 `getMovie` 即可。 网络 / 鉴权错误不走这里（换解析路径救不了）。返回
+     * null 表示回落也拿不到，调用方抛原始异常。
+     */
+    private suspend fun resolveVideoAsMovie(itemId: UUID, cause: Exception): FindroidItem? =
+        runCatchingCancellable {
+            repository.getMovie(itemId)
+        }
+        .onSuccess {
+            Timber.w(
+                cause,
+                "单集解析失败（%s），按单片起播：item=%s",
+                cause.message,
+                itemId,
+            )
+        }
+        .onFailure { Timber.d(it, "单片回落同样失败：item=%s", itemId) }
+        .getOrNull()
 
     /**
      * 播放队列在「整剧 / 整季 / 单片」层面的条目数。

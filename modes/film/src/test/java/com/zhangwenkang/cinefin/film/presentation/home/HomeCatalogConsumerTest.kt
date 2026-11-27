@@ -35,11 +35,13 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -229,6 +231,75 @@ class HomeCatalogConsumerTest {
             assertTrue(viewModel.state.value.error == null)
         }
 
+    @Test
+    fun `returning from the player revalidates home without a full page reload`() = runBlocking {
+        val catalog =
+            HomeCatalogPort(scope = SCOPE).apply {
+                homeResult = {
+                    available(
+                        SCOPE,
+                        CatalogHomeData(views = listOf(view("stable"))),
+                    )
+                }
+            }
+        val viewModel =
+            installViewModel(
+                HomeViewModel(
+                        catalogReadPort = catalog,
+                        appPreferences = appPreferences(),
+                        database = database(),
+                        bookCoverProvider = bookCoverProvider(),
+                    )
+                    .withUnconfinedViewModelScope()
+            )
+        viewModel.loadData()
+        val loaded = viewModel.state.value
+        assertEquals(listOf("stable"), loaded.views.map { it.view.name })
+        assertFalse(loaded.isLoading)
+
+        val emitted = mutableListOf<HomeState>()
+        val collector = launch(Dispatchers.Unconfined) { viewModel.state.collect { emitted += it } }
+        try {
+            // 播放停止上报会失效元数据缓存；返回首页时页面会再 loadData 一次
+            viewModel.loadData()
+        } finally {
+            collector.cancel()
+        }
+
+        assertEquals(2, catalog.homeCalls)
+        // 已有内容 + 同 scope：全程不出现整页 loading（不闪骨架），内容对象保持稳定
+        assertTrue(
+            "unexpected loading states: ${emitted.filter { it.isLoading } }",
+            emitted.none { it.isLoading },
+        )
+        assertEquals(homeContentSignature(loaded), homeContentSignature(viewModel.state.value))
+        assertSame(loaded.views, viewModel.state.value.views)
+    }
+
+    @Test
+    fun `first load and scope change still show full page loading`() {
+        assertTrue(homeLoadShowsFullPageLoading(sameScope = false, hasRenderableContent = false))
+        assertTrue(homeLoadShowsFullPageLoading(sameScope = false, hasRenderableContent = true))
+        assertTrue(homeLoadShowsFullPageLoading(sameScope = true, hasRenderableContent = false))
+        assertFalse(homeLoadShowsFullPageLoading(sameScope = true, hasRenderableContent = true))
+    }
+
+    @Test
+    fun `home content signature ignores non content fields but tracks corridor members`() {
+        val base =
+            CatalogHomeData(views = listOf(view("A")))
+                .toHomeState(current = HomeState(), options = options())
+        val sameContent = base.copy(isLoading = true, error = IllegalStateException("transient"))
+        val otherContent =
+            CatalogHomeData(views = listOf(view("B")))
+                .toHomeState(current = HomeState(), options = options())
+
+        assertEquals(homeContentSignature(base), homeContentSignature(sameContent))
+        assertTrue(homeContentSignature(base) != homeContentSignature(otherContent))
+        assertTrue(base.hasRenderableContent())
+        assertFalse(HomeState().hasRenderableContent())
+    }
+
     private fun fullHome(): CatalogHomeData =
         CatalogHomeData(
             suggestions = listOf(collection("suggestion")),
@@ -361,6 +432,8 @@ class HomeCatalogConsumerTest {
         var scope: CatalogScope?,
         var scopeFailure: CancellationException? = null,
     ) : CatalogReadPort {
+        var homeCalls = 0
+
         var homeResult: suspend (CatalogHomeQuery) -> CatalogReadOutcome<CatalogHomeData> = {
             HOME_UNAVAILABLE
         }
@@ -374,8 +447,10 @@ class HomeCatalogConsumerTest {
             query: CatalogSearchQuery
         ): CatalogReadOutcome<List<FindroidItem>> = error("search must not run")
 
-        override suspend fun home(query: CatalogHomeQuery): CatalogReadOutcome<CatalogHomeData> =
-            homeResult(query)
+        override suspend fun home(query: CatalogHomeQuery): CatalogReadOutcome<CatalogHomeData> {
+            homeCalls += 1
+            return homeResult(query)
+        }
 
         override suspend fun libraries(
             query: CatalogLibrariesQuery

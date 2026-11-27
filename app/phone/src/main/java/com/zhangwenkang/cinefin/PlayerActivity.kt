@@ -56,7 +56,6 @@ import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.databinding.ActivityPlayerBinding
 import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.playback.CinefinPlaybackService
-import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_MEDIA_SOURCE_ID
 import com.zhangwenkang.cinefin.player.core.syncplay.SyncPlayControllerState
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
 import com.zhangwenkang.cinefin.player.local.capabilities.DeviceCapabilitiesProbe
@@ -1171,13 +1170,45 @@ class PlayerActivity : BasePlayerActivity() {
                         getString(PlayerR.string.player_backend_switch_failed),
                         holdMs = SWITCH_FAILURE_NOTICE_MS,
                     )
+                    /*
+                     * 2.0.3-A Bug 11：失败后的处置交给 ViewModel 判定，不再无条件 restart + recreate。
+                     *
+                     * 旧实例还在播（keptPreviousBackend）就继续用旧内核——重启页面只会丢队列与位置；
+                     * 旧实例确实没了才按熔断器结果做一次**原地**重解析（不重建窗口、不重写 Intent），
+                     * 同一「条目 + 目标内核」反复失败即熔断，交给错误卡片让用户显式选择。
+                     */
+                    val plan =
+                        viewModel.planBackendSwitchRecovery(
+                            target = target,
+                            keptPreviousBackend = result.keptPreviousBackend,
+                        )
                     Timber.w(
-                        "原地切换内核失败（%s）：reason=%s keptPrevious=%s，回退旧重启路径",
+                        "原地切换内核失败（%s）：reason=%s keptPrevious=%s restart=%s",
                         reason,
                         result.reason,
                         result.keptPreviousBackend,
+                        plan.restart,
                     )
-                    restartPlaybackFromPosition(fallbackPosition, fallbackTarget)
+                    if (plan.restart) {
+                        val handoff = fallbackTarget
+                        val reloaded =
+                            viewModel.reloadPlaybackInPlace(
+                                itemId =
+                                    handoff?.let { raw ->
+                                        runCatching { UUID.fromString(raw.itemId) }.getOrNull()
+                                    },
+                                itemKind = handoff?.itemKind,
+                                mediaSourceId = handoff?.mediaSourceId,
+                                positionMs = fallbackPosition.takeIf { it > 0L },
+                            )
+                        if (!reloaded) {
+                            Timber.w("切换失败兜底重启没有可用条目，保持当前页面（reason=%s）", result.reason)
+                            bindPlayerInstance(viewModel.existingPlayer)
+                        }
+                    } else if (viewModel.existingPlayer == null) {
+                        // 回滚与重启都用不上：发布错误卡片，至少留下重试 / 换内核入口
+                        viewModel.reportBackendSwitchFailure()
+                    }
                 }
             }
         }
@@ -1425,23 +1456,14 @@ class PlayerActivity : BasePlayerActivity() {
      *
      * 必须**在写 `pref_player_backend` 之前**调用：偏好一变，[PlayerViewModel.player] 会立即按新偏好重建空实例。
      */
-    private fun currentRestartTarget(): PlayerRestartTarget? {
-        val activePlayer = viewModel.existingPlayer ?: return null
-        val kind = viewModel.currentPlaybackItemKind() ?: return null
-        val mediaId = activePlayer.currentMediaItem?.mediaId?.takeIf { it.isNotBlank() }
-        val mediaSourceId =
-            activePlayer.currentMediaItem
-                ?.mediaMetadata
-                ?.extras
-                ?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)
-        return mediaId?.let {
+    private fun currentRestartTarget(): PlayerRestartTarget? =
+        viewModel.currentRestartSpec()?.let { spec ->
             PlayerRestartTarget(
-                itemId = it,
-                itemKind = kind,
-                mediaSourceId = mediaSourceId,
+                itemId = spec.itemId,
+                itemKind = spec.itemKind,
+                mediaSourceId = spec.mediaSourceId,
             )
         }
-    }
 
     /**
      * 把比例档位落到当前内核并留下验收日志。
@@ -1716,6 +1738,18 @@ class PlayerActivity : BasePlayerActivity() {
                 intent.putExtra(EXTRA_MEDIA_SOURCE_ID, mediaSourceId)
             }
             Timber.d("Restart player 对准当前条目：itemId=%s kind=%s", it.itemId, it.itemKind)
+        }
+        /*
+         * 2.0.3-A Bug 11：既拿不到当前条目、Intent 里也没有条目时不要 recreate——
+         * 重建后的播放页没有起播项，会直接 finish，用户看到的是"播放页被关掉"。
+         */
+        val hasIntentItem =
+            intent.extras?.getString("itemId")?.let { raw ->
+                runCatching { UUID.fromString(raw) }.isSuccess
+            } == true
+        if (target == null && !hasIntentItem) {
+            Timber.w("重启播放页取消：没有可对准的条目（position=%d）", positionMs)
+            return
         }
         intent.putExtra(EXTRA_PLAYBACK_SESSION, playbackSessionId)
         intent.putExtra(EXTRA_START_POSITION_MS, positionMs)

@@ -145,7 +145,25 @@ constructor(
         Timber.i("Loading catalog home")
         val requestSerial = ++loadSerial
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, error = null)
+            /*
+             * 2.0.3-A Bug 8：已有内容且 scope 未变 = 静默刷新。
+             *
+             * 从播放器返回（播放停止上报会让元数据缓存失效）时重新取一次是对的，但**不能**切整页 loading：
+             * 旧实现无条件 `isLoading = true`，首页骨架 / 顶栏 loading 会跟着闪一次，观感就是"整页重新加载"。
+             */
+            val loadingScope = runCatching { catalogReadPort.currentScope() }.getOrNull()
+            val sameScope = loadingScope != null && loadedScope == loadingScope
+            val showFullPageLoading =
+                homeLoadShowsFullPageLoading(
+                    sameScope = sameScope,
+                    hasRenderableContent = _state.value.hasRenderableContent(),
+                )
+            _state.value =
+                if (showFullPageLoading) {
+                    _state.value.copy(isLoading = true, error = null)
+                } else {
+                    _state.value.copy(error = null)
+                }
             try {
                 val scope = catalogReadPort.currentScope()
                 if (scope == null) {
@@ -189,7 +207,21 @@ constructor(
                                 currentScope = currentScope,
                             )
                         ) {
-                            _state.value = outcome.snapshot.value.toHomeState(_state.value, options)
+                            val previous = _state.value
+                            val next = outcome.snapshot.value.toHomeState(previous, options)
+                            /*
+                             * 内容签名没变就不替换状态：走廊 / 海报墙的条目身份保持稳定，返回时不会被重建，
+                             * 网格滚动位置也就不会因为"同一份内容换了一批对象实例"被打回顶部。
+                             */
+                            _state.value =
+                                if (homeContentSignature(previous) == homeContentSignature(next)) {
+                                    previous.copy(
+                                        catalogScope = next.catalogScope,
+                                        server = next.server,
+                                    )
+                                } else {
+                                    next
+                                }
                             loadedScope = scope
                         } else {
                             loadedScope = null
@@ -356,6 +388,57 @@ private fun HomeState.withoutCatalog(): HomeState =
         recentlyAddedMusic = emptyList(),
         views = emptyList(),
     )
+
+/**
+ * 2.0.3-A Bug 8：首页刷新是否要切整页 loading。
+ *
+ * 已有内容且 scope 未变时一律静默刷新——从播放器返回（播放停止上报会让元数据缓存失效）只更新卡片数据， 不闪骨架、不打回顶部。
+ */
+internal fun homeLoadShowsFullPageLoading(
+    sameScope: Boolean,
+    hasRenderableContent: Boolean,
+): Boolean = !sameScope || !hasRenderableContent
+
+/** 是否已有可渲染的首页内容（与页面骨架的判定同一口径）。 */
+internal fun HomeState.hasRenderableContent(): Boolean =
+    suggestionsSection != null ||
+        resumeSection != null ||
+        resumeReadingSection != null ||
+        resumeListeningSection != null ||
+        nextUpSection != null ||
+        recentlyAddedVideos.isNotEmpty() ||
+        recentlyAddedBooks.isNotEmpty() ||
+        recentlyAddedMusic.isNotEmpty() ||
+        views.isNotEmpty()
+
+/**
+ * 首页内容签名（各走廊 / 海报墙 / 库行的条目 id 序列）。
+ *
+ * 签名相同 = 这一轮刷新拿到的是同一份内容：直接沿用旧状态对象，条目身份不换、列表不重建， 返回播放器时网格滚动位置不会因为"内容对象被整体替换"被打回顶部。
+ */
+internal fun homeContentSignature(state: HomeState): String = buildString {
+    append(state.suggestionsSection?.items?.joinToString(",") { it.id.toString() })
+    append('|')
+    append(state.resumeSection?.homeSection?.items?.joinToString(",") { it.id.toString() })
+    append('|')
+    append(state.resumeReadingSection?.homeSection?.items?.joinToString(",") { it.id.toString() })
+    append('|')
+    append(state.resumeListeningSection?.homeSection?.items?.joinToString(",") { it.id.toString() })
+    append('|')
+    append(state.nextUpSection?.homeSection?.items?.joinToString(",") { it.id.toString() })
+    append('|')
+    append(state.recentlyAddedVideos.joinToString(",") { it.id.toString() })
+    append('|')
+    append(state.recentlyAddedBooks.joinToString(",") { it.id.toString() })
+    append('|')
+    append(state.recentlyAddedMusic.joinToString(",") { it.id.toString() })
+    append('|')
+    append(
+        state.views.joinToString(",") { view ->
+            "${view.view.id}:${view.view.items.joinToString("/") { it.id.toString() }}"
+        }
+    )
+}
 
 /** 「最近添加」分区：合并同类库的最新条目、去重后取前 60（与旧海报墙同一口径）。 */
 private fun recentItems(

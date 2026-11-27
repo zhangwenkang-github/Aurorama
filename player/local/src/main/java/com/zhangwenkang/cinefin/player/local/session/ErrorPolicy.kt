@@ -17,6 +17,13 @@ const val PLAYER_ERROR_STARTUP_SOURCE_FAILED = "STARTUP_SOURCE_FAILED"
 internal const val STARTUP_SOURCE_RETRY_MAX = 1
 
 /**
+ * 内核切换失败且没有任何可用实例（2.0.3-A Bug 11）。
+ *
+ * 回滚与原地重启都不可用时的最后一档：把失败发布成错误卡片，保证用户还有「重试 / 换内核」入口， 而不是停在没有实例的空白播放页。
+ */
+const val PLAYER_ERROR_BACKEND_SWITCH_FAILED = "BACKEND_SWITCH_FAILED"
+
+/**
  * 播放错误的唯一决策者（W2-T2）。
  *
  * 持有「当前已发布的错误」这一事实源、起播期源错误的重试预算、解码失败去重窗口。
