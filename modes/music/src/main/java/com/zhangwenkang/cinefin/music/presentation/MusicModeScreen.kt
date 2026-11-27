@@ -1544,7 +1544,10 @@ private fun MusicPageOverflowMenu(
                 expanded = true
             }
         ) { tint ->
-            CinefinMoreVertIcon(contentDescription = "更多选项", tint = tint)
+            CinefinMoreVertIcon(
+                contentDescription = stringResource(R.string.music_menu_more_options),
+                tint = tint,
+            )
         }
         DropdownMenu(
             expanded = expanded,
@@ -1586,12 +1589,12 @@ private fun MusicPageOverflowMenu(
                     // 列表组（原标签行 ⋮）。
                     if (visibility.showsSource) {
                         MusicToolbarMenuItem(
-                            text = "来源筛选",
+                            text = stringResource(R.string.music_menu_source_filter),
                             trailingText = sourceFilter.label,
                             onClick = { page = MusicToolbarMenuPage.SOURCE },
                         )
                         MusicToolbarMenuItem(
-                            text = "来源徽标",
+                            text = stringResource(R.string.music_menu_source_badge),
                             checked = showSourceBadge,
                             onClick = {
                                 closeMenu()
@@ -1601,18 +1604,18 @@ private fun MusicPageOverflowMenu(
                     }
                     if (visibility.showsSongOptions) {
                         MusicToolbarMenuItem(
-                            text = "排序",
+                            text = stringResource(R.string.music_menu_sort),
                             trailingText =
                                 "${sortKey.label} ${musicSongSortDirectionLabel(sortAscending)}",
                             onClick = { page = MusicToolbarMenuPage.SORT },
                         )
                         MusicToolbarMenuItem(
-                            text = "筛选",
+                            text = stringResource(R.string.music_menu_filter),
                             trailingText = if (favoritesOnly) "收藏" else null,
                             onClick = { page = MusicToolbarMenuPage.FILTER },
                         )
                         MusicToolbarMenuItem(
-                            text = "每页数量",
+                            text = stringResource(R.string.music_menu_page_size),
                             trailingText = "$pageSize",
                             onClick = { page = MusicToolbarMenuPage.PAGE_SIZE },
                         )
@@ -1620,7 +1623,11 @@ private fun MusicPageOverflowMenu(
                 }
                 MusicToolbarMenuPage.SOURCE -> {
                     MusicToolbarMenuItem(
-                        text = "← 来源筛选",
+                        text =
+                            stringResource(
+                                R.string.music_menu_back_to,
+                                stringResource(R.string.music_menu_source_filter),
+                            ),
                         onClick = { page = MusicToolbarMenuPage.ROOT },
                     )
                     MusicItemSourceFilter.entries.forEach { option ->
@@ -1636,7 +1643,11 @@ private fun MusicPageOverflowMenu(
                 }
                 MusicToolbarMenuPage.SORT -> {
                     MusicToolbarMenuItem(
-                        text = "← 排序",
+                        text =
+                            stringResource(
+                                R.string.music_menu_back_to,
+                                stringResource(R.string.music_menu_sort),
+                            ),
                         onClick = { page = MusicToolbarMenuPage.ROOT },
                     )
                     MusicSongSortKey.entries.forEach { option ->
@@ -1663,7 +1674,11 @@ private fun MusicPageOverflowMenu(
                 }
                 MusicToolbarMenuPage.FILTER -> {
                     MusicToolbarMenuItem(
-                        text = "← 筛选",
+                        text =
+                            stringResource(
+                                R.string.music_menu_back_to,
+                                stringResource(R.string.music_menu_filter),
+                            ),
                         onClick = { page = MusicToolbarMenuPage.ROOT },
                     )
                     MusicToolbarMenuItem(
@@ -1677,7 +1692,11 @@ private fun MusicPageOverflowMenu(
                 }
                 MusicToolbarMenuPage.PAGE_SIZE -> {
                     MusicToolbarMenuItem(
-                        text = "← 每页数量",
+                        text =
+                            stringResource(
+                                R.string.music_menu_back_to,
+                                stringResource(R.string.music_menu_page_size),
+                            ),
                         onClick = { page = MusicToolbarMenuPage.ROOT },
                     )
                     MUSIC_SONG_PAGE_SIZES.forEach { size ->
@@ -2334,7 +2353,11 @@ private fun PlaylistList(
                 trailing = {
                     Box {
                         CinefinIconButton(onClick = { menuOpen = true }) { tint ->
-                            CinefinMoreVertIcon(contentDescription = "歌单操作", tint = tint)
+                            CinefinMoreVertIcon(
+                                contentDescription =
+                                    stringResource(R.string.music_menu_playlist_actions),
+                                tint = tint,
+                            )
                         }
                         DropdownMenu(
                             expanded = menuOpen,

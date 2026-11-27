@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="music_menu_more_options">More options</string>
+    <string name="music_menu_playlist_actions">Playlist actions</string>
+    <string name="music_menu_source_filter">Source filter</string>
+    <string name="music_menu_source_badge">Source badge</string>
+    <string name="music_menu_sort">Sort</string>
+    <string name="music_menu_filter">Filter</string>
+    <string name="music_menu_page_size">Page size</string>
+    <string name="music_menu_back_to">← %1$s</string>
+</resources>

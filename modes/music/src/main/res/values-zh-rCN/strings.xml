@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="music_menu_more_options">更多选项</string>
+    <string name="music_menu_playlist_actions">歌单操作</string>
+    <string name="music_menu_source_filter">来源筛选</string>
+    <string name="music_menu_source_badge">来源徽标</string>
+    <string name="music_menu_sort">排序</string>
+    <string name="music_menu_filter">筛选</string>
+    <string name="music_menu_page_size">每页数量</string>
+    <string name="music_menu_back_to">← %1$s</string>
+</resources>
