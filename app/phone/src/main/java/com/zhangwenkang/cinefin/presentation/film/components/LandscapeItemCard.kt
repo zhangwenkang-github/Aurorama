@@ -81,6 +81,8 @@ fun LandscapeItemCard(
      * 不需要回落（视频卡等）。
      */
     onServerImageFailed: (() -> Unit)? = null,
+    /** 2.0.3-C：首页视频卡不显示评分徽标；默认 true = 既有行为。 */
+    showRating: Boolean = true,
 ) {
     val colors = LocalCinefinColors.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -168,6 +170,7 @@ fun LandscapeItemCard(
             item = item,
             cornerPadding = CinefinSpacing.Space3,
             bottomInset = 48.dp,
+            showRating = showRating,
         )
 
         Column(

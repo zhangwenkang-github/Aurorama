@@ -34,6 +34,14 @@ fun communityRatingBadgeText(item: FindroidItem): String? =
     }
 
 /**
+ * 2.0.3-C：评分徽标的可见文案——[showRating] = false 时一律不渲染（首页视频卡专用）。
+ *
+ * 首页要「图说一切」，评分压在每张海报上会让整面墙变吵；详情页 / 库页保持显示。
+ */
+fun communityRatingBadgeText(item: FindroidItem, showRating: Boolean): String? =
+    if (showRating) communityRatingBadgeText(item) else null
+
+/**
  * 评分徽标——设计定稿位置：海报**左下角**（进度条上方，与右上角标区不冲突）。
  *
  * 形态复用 [BaseBadge]（§8.9 的形状、留白与描边）；配色按 2.0.1 定稿：极光淡色 pill = `aurora1` 12% 底（批①，AUDIT-17）+
@@ -47,8 +55,10 @@ fun BoxScope.CommunityRatingBadge(
     cornerPadding: Dp = CinefinSpacing.Space3,
     /** 底部额外抬升（横版卡标题块 / 卡片进度条占位时用），默认贴着海报左下角。 */
     bottomInset: Dp = 0.dp,
+    /** 2.0.3-C：首页视频卡传 false 隐藏评分徽标；默认 true = 既有行为。 */
+    showRating: Boolean = true,
 ) {
-    val text = communityRatingBadgeText(item) ?: return
+    val text = communityRatingBadgeText(item, showRating) ?: return
     val colors = LocalCinefinColors.current
     BaseBadge(
         modifier =

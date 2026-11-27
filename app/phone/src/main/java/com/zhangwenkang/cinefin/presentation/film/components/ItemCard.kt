@@ -70,6 +70,8 @@ fun ItemCard(
     showResumeProgress: Boolean = false,
     /** W6-T10 书架增强：标题下的附加信息行（`作者 · 42%` / `未读`）；null = 不显示额外行（既有调用零改动）。 */
     extraMetaLine: String? = null,
+    /** 2.0.3-C：首页视频卡不显示评分徽标；默认 true = 既有行为。 */
+    showRating: Boolean = true,
 ) {
     val colors = LocalCinefinColors.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -129,7 +131,16 @@ fun ItemCard(
                 cornerPadding = CinefinSpacing.Space3,
                 bottomInset =
                     if (direction == Direction.HORIZONTAL || showResumeProgress) 12.dp else 0.dp,
+                showRating = showRating,
             )
+            // 2.0.3-C：竖版海报右下角 ⋮（编辑元数据 / 删除）；横版卡右下角是文字块，不放菜单。
+            if (direction == Direction.VERTICAL) {
+                ItemOverflowMenu(
+                    item = item,
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(CinefinSpacing.Space3),
+                    onImage = true,
+                )
+            }
             if (direction == Direction.HORIZONTAL || showResumeProgress) {
                 ProgressBar(
                     item = item,

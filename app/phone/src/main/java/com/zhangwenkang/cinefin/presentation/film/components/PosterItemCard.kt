@@ -63,6 +63,8 @@ fun PosterItemCard(
      * 不需要回落（视频卡等）。
      */
     onServerImageFailed: (() -> Unit)? = null,
+    /** 2.0.3-C：首页视频卡不显示评分徽标（细节页 / 库页保持）；默认 true = 既有行为。 */
+    showRating: Boolean = true,
 ) {
     val colors = LocalCinefinColors.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -136,7 +138,20 @@ fun PosterItemCard(
             )
 
             // W8-T3'：评分徽标压在海报左下角（进度条上方），与右上角标区不冲突。
-            CommunityRatingBadge(item = item, cornerPadding = CinefinSpacing.Space2)
+            CommunityRatingBadge(
+                item = item,
+                cornerPadding = CinefinSpacing.Space2,
+                showRating = showRating,
+            )
+
+            // 2.0.3-C：海报右下角 ⋮（编辑元数据 / 删除）；当前界面未提供写能力时不渲染。
+            ItemOverflowMenu(
+                item = item,
+                modifier =
+                    Modifier.align(Alignment.BottomEnd)
+                        .padding(end = CinefinSpacing.Space2, bottom = CinefinSpacing.Space2),
+                onImage = true,
+            )
 
             if (resumeFraction > 0f) {
                 Box(

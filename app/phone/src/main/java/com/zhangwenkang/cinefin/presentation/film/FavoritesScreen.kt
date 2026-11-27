@@ -60,6 +60,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.Direction
 import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeInfo
 import com.zhangwenkang.cinefin.presentation.film.components.FavoriteChangeEffect
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
+import com.zhangwenkang.cinefin.presentation.film.components.ItemOverflowActionsHost
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchAction
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchActionBar
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchEvent
@@ -72,6 +73,7 @@ import com.zhangwenkang.cinefin.presentation.selection.mediaBatchCaps
 import com.zhangwenkang.cinefin.presentation.selection.mediaBatchEventMessage
 import com.zhangwenkang.cinefin.presentation.selection.mediaBatchNeedsEpisodeSelection
 import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColumns
+import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
@@ -170,201 +172,219 @@ fun FavoritesScreen(
             bottom = safePadding.bottom + CinefinSpacing.Space8,
         )
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        CinefinPageTopBar(
-            title =
-                if (selection.selectionMode) {
-                    stringResource(CoreR.string.download_selected_count, selection.selectedCount)
-                } else {
-                    stringResource(CoreR.string.title_my_favorites)
-                },
-            subtitle =
-                if (!selection.selectionMode && !state.isLoading && state.error == null) {
-                    stringResource(FilmR.string.library_item_count, visibleItems.size)
-                } else {
-                    null
-                },
-            onOpenDrawer = if (selection.selectionMode) null else onOpenDrawer,
-            modifier = Modifier.padding(start = safePadding.start),
-            actions = {
-                if (selection.selectionMode) {
-                    MediaBatchTopBarActions(
-                        selectedCount = selection.selectedCount,
-                        visibleCount = loadedIds.size,
-                        onSelectAll = { selection = selection.selectAll(loadedIds) },
-                        onSelectNone = { selection = selection.selectNone(loadedIds) },
-                        onExit = { selection = selection.clear() },
-                    )
-                }
-            },
-        )
-
-        if (!selection.selectionMode) {
-            Spacer(Modifier.height(CinefinSpacing.Space3))
-            Row(
-                modifier =
-                    Modifier.fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = paddingStart),
-                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                FavoriteTypeFilter.entries.forEach { filter ->
-                    CinefinFilterChip(
-                        text = filter.label(),
-                        selected = state.filter == filter,
-                        onClick = { viewModel.setFilter(filter) },
-                        compact = true,
-                    )
-                }
-            }
-            Spacer(Modifier.height(CinefinSpacing.Space2))
-            Row(
-                modifier =
-                    Modifier.fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = paddingStart),
-                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(CoreR.string.favorites_sort_label),
-                    style = CinefinType.LabelSmall,
-                    color = LocalCinefinColors.current.onSurfaceFaint,
-                )
-                FavoriteSort.entries.forEach { sort ->
-                    CinefinFilterChip(
-                        text = sort.label(),
-                        selected = state.sort == sort,
-                        onClick = { viewModel.setSort(sort) },
-                        compact = true,
-                    )
-                }
-            }
-            Spacer(Modifier.height(CinefinSpacing.Space1))
-        }
-
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            when {
-                state.error != null -> {
-                    CinefinEmptyState(
-                        title = stringResource(CoreR.string.favorites_load_failed),
-                        modifier =
-                            Modifier.align(Alignment.Center).padding(horizontal = paddingStart),
-                        icon = { tint ->
-                            Icon(
-                                painter = painterResource(CoreR.drawable.ic_alert_circle),
-                                contentDescription = null,
-                                tint = tint,
-                                modifier = Modifier.size(44.dp),
-                            )
-                        },
-                        action = {
-                            CinefinButton(
-                                text = stringResource(CoreR.string.retry),
-                                onClick = { viewModel.load() },
-                                size = CinefinButtonSize.Medium,
-                                variant = CinefinButtonVariant.Filled,
-                            )
-                        },
-                    )
-                }
-                !state.isLoading && visibleItems.isEmpty() -> {
-                    CinefinEmptyState(
-                        title = stringResource(CoreR.string.favorites_empty_title),
-                        message = stringResource(CoreR.string.favorites_empty_message),
-                        modifier =
-                            Modifier.align(Alignment.Center).padding(horizontal = paddingStart),
-                        icon = { tint ->
-                            Icon(
-                                painter = painterResource(CoreR.drawable.ic_bookmark),
-                                contentDescription = null,
-                                tint = tint,
-                                modifier = Modifier.size(44.dp),
-                            )
-                        },
-                    )
-                }
-                else -> {
-                    LazyVerticalGrid(
-                        columns = GridCellsAdaptiveWithMinColumns(minSize = 176.dp, minColumns = 2),
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = contentPadding,
-                        horizontalArrangement = Arrangement.spacedBy(gridGutter),
-                        verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),
-                    ) {
-                        items(items = visibleItems, key = { item -> item.id }) { item ->
-                            ItemCard(
-                                item = item,
-                                direction = Direction.VERTICAL,
-                                onClick = {
-                                    if (selection.selectionMode) {
-                                        selection =
-                                            selection
-                                                .retain(loadedIds.toSet())
-                                                .toggle(item.id.toString())
-                                    } else {
-                                        onItemClick(item)
-                                    }
-                                },
-                                modifier = Modifier.animateItem(),
-                                selectionMode = selection.selectionMode,
-                                selected = selection.isSelected(item.id.toString()),
-                                onLongClick = {
-                                    selection =
-                                        selection
-                                            .retain(loadedIds.toSet())
-                                            .longPress(item.id.toString())
-                                },
-                                downloadBadge = downloadBadges[item.id] ?: DownloadBadgeInfo(),
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        CinefinSnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier.padding(horizontal = paddingStart),
-        )
-
-        if (selection.selectionMode) {
-            MediaBatchActionBar(
-                mode = MediaBatchMode.FAVORITES,
-                selectedCount = selection.selectedCount,
-                isEnabled = { action -> mediaBatchActionEnabled(action, selectedCaps) },
-                onAction = { action ->
-                    when (action) {
-                        MediaBatchAction.FAVORITE -> batchViewModel.favoriteSelected(selectedItems)
-                        MediaBatchAction.DOWNLOAD -> {
-                            val targets =
-                                batchDownloadTargets(
-                                    selectedItems,
-                                    batchViewModel.capsOf(selectedItems),
-                                )
-                            if (
-                                targets.isEmpty() || mediaBatchNeedsEpisodeSelection(selectedItems)
-                            ) {
-                                // 无可入队条目 / 需先选集（Show / Season）：保持既有反馈路径。
-                                batchViewModel.downloadSelected(selectedItems)
-                            } else {
-                                // W7-T1b：先弹前置检查，确认后才入队（只带空间装得下的子集）。
-                                precheck =
-                                    DetailDownloadRules.mediaBatchPrecheck(
-                                        items = targets,
-                                        availableBytes =
-                                            DownloadPrecheckEnvironment.availableBytes(context, 0),
-                                        title = downloadTitle,
-                                    )
-                            }
-                        }
-                        MediaBatchAction.MARK_PLAYED ->
-                            batchViewModel.markPlayedSelected(selectedItems)
-                        else -> Unit
+    // 2.0.3-C：收藏海报的 ⋮（编辑元数据 / 删除）；删除或改名后整页重取。
+    ItemOverflowActionsHost(
+        offlineMode = LocalOfflineMode.current,
+        modifier = Modifier.fillMaxSize(),
+        snackbarHostState = snackbarHostState,
+        onItemDeleted = { viewModel.load() },
+        onMetadataSaved = { viewModel.load() },
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            CinefinPageTopBar(
+                title =
+                    if (selection.selectionMode) {
+                        stringResource(
+                            CoreR.string.download_selected_count,
+                            selection.selectedCount,
+                        )
+                    } else {
+                        stringResource(CoreR.string.title_my_favorites)
+                    },
+                subtitle =
+                    if (!selection.selectionMode && !state.isLoading && state.error == null) {
+                        stringResource(FilmR.string.library_item_count, visibleItems.size)
+                    } else {
+                        null
+                    },
+                onOpenDrawer = if (selection.selectionMode) null else onOpenDrawer,
+                modifier = Modifier.padding(start = safePadding.start),
+                actions = {
+                    if (selection.selectionMode) {
+                        MediaBatchTopBarActions(
+                            selectedCount = selection.selectedCount,
+                            visibleCount = loadedIds.size,
+                            onSelectAll = { selection = selection.selectAll(loadedIds) },
+                            onSelectNone = { selection = selection.selectNone(loadedIds) },
+                            onExit = { selection = selection.clear() },
+                        )
                     }
                 },
             )
+
+            if (!selection.selectionMode) {
+                Spacer(Modifier.height(CinefinSpacing.Space3))
+                Row(
+                    modifier =
+                        Modifier.fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = paddingStart),
+                    horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    FavoriteTypeFilter.entries.forEach { filter ->
+                        CinefinFilterChip(
+                            text = filter.label(),
+                            selected = state.filter == filter,
+                            onClick = { viewModel.setFilter(filter) },
+                            compact = true,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(CinefinSpacing.Space2))
+                Row(
+                    modifier =
+                        Modifier.fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = paddingStart),
+                    horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(CoreR.string.favorites_sort_label),
+                        style = CinefinType.LabelSmall,
+                        color = LocalCinefinColors.current.onSurfaceFaint,
+                    )
+                    FavoriteSort.entries.forEach { sort ->
+                        CinefinFilterChip(
+                            text = sort.label(),
+                            selected = state.sort == sort,
+                            onClick = { viewModel.setSort(sort) },
+                            compact = true,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(CinefinSpacing.Space1))
+            }
+
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                when {
+                    state.error != null -> {
+                        CinefinEmptyState(
+                            title = stringResource(CoreR.string.favorites_load_failed),
+                            modifier =
+                                Modifier.align(Alignment.Center).padding(horizontal = paddingStart),
+                            icon = { tint ->
+                                Icon(
+                                    painter = painterResource(CoreR.drawable.ic_alert_circle),
+                                    contentDescription = null,
+                                    tint = tint,
+                                    modifier = Modifier.size(44.dp),
+                                )
+                            },
+                            action = {
+                                CinefinButton(
+                                    text = stringResource(CoreR.string.retry),
+                                    onClick = { viewModel.load() },
+                                    size = CinefinButtonSize.Medium,
+                                    variant = CinefinButtonVariant.Filled,
+                                )
+                            },
+                        )
+                    }
+                    !state.isLoading && visibleItems.isEmpty() -> {
+                        CinefinEmptyState(
+                            title = stringResource(CoreR.string.favorites_empty_title),
+                            message = stringResource(CoreR.string.favorites_empty_message),
+                            modifier =
+                                Modifier.align(Alignment.Center).padding(horizontal = paddingStart),
+                            icon = { tint ->
+                                Icon(
+                                    painter = painterResource(CoreR.drawable.ic_bookmark),
+                                    contentDescription = null,
+                                    tint = tint,
+                                    modifier = Modifier.size(44.dp),
+                                )
+                            },
+                        )
+                    }
+                    else -> {
+                        LazyVerticalGrid(
+                            columns =
+                                GridCellsAdaptiveWithMinColumns(minSize = 176.dp, minColumns = 2),
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = contentPadding,
+                            horizontalArrangement = Arrangement.spacedBy(gridGutter),
+                            verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),
+                        ) {
+                            items(items = visibleItems, key = { item -> item.id }) { item ->
+                                ItemCard(
+                                    item = item,
+                                    direction = Direction.VERTICAL,
+                                    onClick = {
+                                        if (selection.selectionMode) {
+                                            selection =
+                                                selection
+                                                    .retain(loadedIds.toSet())
+                                                    .toggle(item.id.toString())
+                                        } else {
+                                            onItemClick(item)
+                                        }
+                                    },
+                                    modifier = Modifier.animateItem(),
+                                    selectionMode = selection.selectionMode,
+                                    selected = selection.isSelected(item.id.toString()),
+                                    onLongClick = {
+                                        selection =
+                                            selection
+                                                .retain(loadedIds.toSet())
+                                                .longPress(item.id.toString())
+                                    },
+                                    downloadBadge = downloadBadges[item.id] ?: DownloadBadgeInfo(),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            CinefinSnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.padding(horizontal = paddingStart),
+            )
+
+            if (selection.selectionMode) {
+                MediaBatchActionBar(
+                    mode = MediaBatchMode.FAVORITES,
+                    selectedCount = selection.selectedCount,
+                    isEnabled = { action -> mediaBatchActionEnabled(action, selectedCaps) },
+                    onAction = { action ->
+                        when (action) {
+                            MediaBatchAction.FAVORITE ->
+                                batchViewModel.favoriteSelected(selectedItems)
+                            MediaBatchAction.DOWNLOAD -> {
+                                val targets =
+                                    batchDownloadTargets(
+                                        selectedItems,
+                                        batchViewModel.capsOf(selectedItems),
+                                    )
+                                if (
+                                    targets.isEmpty() ||
+                                        mediaBatchNeedsEpisodeSelection(selectedItems)
+                                ) {
+                                    // 无可入队条目 / 需先选集（Show / Season）：保持既有反馈路径。
+                                    batchViewModel.downloadSelected(selectedItems)
+                                } else {
+                                    // W7-T1b：先弹前置检查，确认后才入队（只带空间装得下的子集）。
+                                    precheck =
+                                        DetailDownloadRules.mediaBatchPrecheck(
+                                            items = targets,
+                                            availableBytes =
+                                                DownloadPrecheckEnvironment.availableBytes(
+                                                    context,
+                                                    0,
+                                                ),
+                                            title = downloadTitle,
+                                        )
+                                }
+                            }
+                            MediaBatchAction.MARK_PLAYED ->
+                                batchViewModel.markPlayedSelected(selectedItems)
+                            else -> Unit
+                        }
+                    },
+                )
+            }
         }
     }
 

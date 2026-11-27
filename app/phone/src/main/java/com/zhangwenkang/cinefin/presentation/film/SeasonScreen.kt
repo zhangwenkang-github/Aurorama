@@ -65,11 +65,13 @@ import com.zhangwenkang.cinefin.presentation.film.components.BatchDownloadDialog
 import com.zhangwenkang.cinefin.presentation.film.components.DetailHero
 import com.zhangwenkang.cinefin.presentation.film.components.EpisodeCard
 import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
+import com.zhangwenkang.cinefin.presentation.film.components.ItemOverflowActionsHost
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.detailWriteEventMessage
 import com.zhangwenkang.cinefin.presentation.film.components.downloadEventMessage
 import com.zhangwenkang.cinefin.presentation.film.components.showsViewAction
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchTopBarActions
+import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.utils.rememberLazyScrollMemoryState
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import java.util.UUID
@@ -145,79 +147,90 @@ fun SeasonScreen(
             queued = downloadSnapshot.queuedIds,
         )
 
-    SeasonScreenLayout(
-        state = state,
-        // W75 #5：滚动位置按季 id 记忆——进集 / 返回时保持原位置（不置顶）。
-        scrollKey = "season:$seasonId",
-        downloadState = seasonDownloadState,
+    // 2.0.3-C：季详情 / 集卡的 ⋮（编辑元数据 / 删除）；删掉本季后返回上一页，改名后重取本页。
+    ItemOverflowActionsHost(
+        offlineMode = LocalOfflineMode.current,
         snackbarHostState = snackbarHostState,
-        selectionMode = batchSelection.selectionMode,
-        selectedCount = batchSelection.selectedCount,
-        selectedIds = batchSelection.selectedIds,
-        onSelectAll = { batchSelection = batchSelection.selectAll(loadedEpisodeIds) },
-        onSelectNone = { batchSelection = batchSelection.selectNone(loadedEpisodeIds) },
-        onExitSelection = { batchSelection = batchSelection.clear() },
-        onToggleEpisode = { key -> batchSelection = batchSelection.toggle(key) },
-        onLongPressEpisode = { key -> batchSelection = batchSelection.longPress(key) },
-        onBatchDownload = {
-            val selectedEpisodes =
-                state.episodes.filter { episode ->
-                    episode.id.toString() in batchSelection.selectedIds
-                }
-            val selection =
-                DetailDownloadRules.selectBatch(
-                    itemIds = selectedEpisodes.map { episode -> episode.id },
-                    downloaded = downloadSnapshot.downloadedIds,
-                    queued = downloadSnapshot.queuedIds,
-                    limit = null,
-                )
-            val targets = selectedEpisodes.filter { episode ->
-                episode.id in selection.selected.toSet()
-            }
-            if (targets.isEmpty()) {
-                detailDownloadViewModel.reportSkipped(selection)
-                batchSelection = batchSelection.clear()
-            } else {
-                // W7-F3：先弹前置检查（空间 / 网络 / 媒体类型确认），确认后才入队；只带装得下的子集。
-                precheck =
-                    DetailDownloadRules.mediaBatchPrecheck(
-                        items = targets,
-                        availableBytes = DownloadPrecheckEnvironment.availableBytes(context, 0),
-                        title = context.getString(CoreR.string.detail_action_download),
+        onItemDeleted = { deleted ->
+            if (deleted.id == seasonId) navigateBack()
+            else viewModel.loadSeason(seasonId = seasonId)
+        },
+        onMetadataSaved = { viewModel.loadSeason(seasonId = seasonId) },
+    ) {
+        SeasonScreenLayout(
+            state = state,
+            // W75 #5：滚动位置按季 id 记忆——进集 / 返回时保持原位置（不置顶）。
+            scrollKey = "season:$seasonId",
+            downloadState = seasonDownloadState,
+            snackbarHostState = snackbarHostState,
+            selectionMode = batchSelection.selectionMode,
+            selectedCount = batchSelection.selectedCount,
+            selectedIds = batchSelection.selectedIds,
+            onSelectAll = { batchSelection = batchSelection.selectAll(loadedEpisodeIds) },
+            onSelectNone = { batchSelection = batchSelection.selectNone(loadedEpisodeIds) },
+            onExitSelection = { batchSelection = batchSelection.clear() },
+            onToggleEpisode = { key -> batchSelection = batchSelection.toggle(key) },
+            onLongPressEpisode = { key -> batchSelection = batchSelection.longPress(key) },
+            onBatchDownload = {
+                val selectedEpisodes =
+                    state.episodes.filter { episode ->
+                        episode.id.toString() in batchSelection.selectedIds
+                    }
+                val selection =
+                    DetailDownloadRules.selectBatch(
+                        itemIds = selectedEpisodes.map { episode -> episode.id },
+                        downloaded = downloadSnapshot.downloadedIds,
+                        queued = downloadSnapshot.queuedIds,
+                        limit = null,
                     )
-            }
-        },
-        onDownloadClick = {
-            val selection =
-                DetailDownloadRules.selectBatch(
-                    itemIds = downloadTargets.map { episode -> episode.id },
-                    downloaded = downloadSnapshot.downloadedIds,
-                    queued = downloadSnapshot.queuedIds,
-                    limit = null,
-                )
-            if (selection.selected.isEmpty()) {
-                detailDownloadViewModel.reportSkipped(selection)
-            } else {
-                batchDialogVisible = true
-            }
-        },
-        onAction = { action ->
-            when (action) {
-                is SeasonAction.Play -> {
-                    val intent = Intent(context, PlayerActivity::class.java)
-                    intent.putExtra("itemId", seasonId.toString())
-                    intent.putExtra("itemKind", BaseItemKind.SEASON.serialName)
-                    context.startActivity(intent)
+                val targets = selectedEpisodes.filter { episode ->
+                    episode.id in selection.selected.toSet()
                 }
-                is SeasonAction.OnBackClick -> navigateBack()
-                is SeasonAction.OnHomeClick -> navigateHome()
-                is SeasonAction.NavigateToItem -> navigateToItem(action.item)
-                is SeasonAction.NavigateToSeries -> navigateToSeries(action.seriesId)
-                else -> Unit
-            }
-            viewModel.onAction(action)
-        },
-    )
+                if (targets.isEmpty()) {
+                    detailDownloadViewModel.reportSkipped(selection)
+                    batchSelection = batchSelection.clear()
+                } else {
+                    // W7-F3：先弹前置检查（空间 / 网络 / 媒体类型确认），确认后才入队；只带装得下的子集。
+                    precheck =
+                        DetailDownloadRules.mediaBatchPrecheck(
+                            items = targets,
+                            availableBytes = DownloadPrecheckEnvironment.availableBytes(context, 0),
+                            title = context.getString(CoreR.string.detail_action_download),
+                        )
+                }
+            },
+            onDownloadClick = {
+                val selection =
+                    DetailDownloadRules.selectBatch(
+                        itemIds = downloadTargets.map { episode -> episode.id },
+                        downloaded = downloadSnapshot.downloadedIds,
+                        queued = downloadSnapshot.queuedIds,
+                        limit = null,
+                    )
+                if (selection.selected.isEmpty()) {
+                    detailDownloadViewModel.reportSkipped(selection)
+                } else {
+                    batchDialogVisible = true
+                }
+            },
+            onAction = { action ->
+                when (action) {
+                    is SeasonAction.Play -> {
+                        val intent = Intent(context, PlayerActivity::class.java)
+                        intent.putExtra("itemId", seasonId.toString())
+                        intent.putExtra("itemKind", BaseItemKind.SEASON.serialName)
+                        context.startActivity(intent)
+                    }
+                    is SeasonAction.OnBackClick -> navigateBack()
+                    is SeasonAction.OnHomeClick -> navigateHome()
+                    is SeasonAction.NavigateToItem -> navigateToItem(action.item)
+                    is SeasonAction.NavigateToSeries -> navigateToSeries(action.seriesId)
+                    else -> Unit
+                }
+                viewModel.onAction(action)
+            },
+        )
+    }
 
     if (batchDialogVisible) {
         BatchDownloadDialog(

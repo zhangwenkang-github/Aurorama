@@ -57,11 +57,13 @@ import com.zhangwenkang.cinefin.presentation.film.components.HomeHero
 import com.zhangwenkang.cinefin.presentation.film.components.HomeSection
 import com.zhangwenkang.cinefin.presentation.film.components.HomeTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.HomeView
+import com.zhangwenkang.cinefin.presentation.film.components.ItemOverflowActionsHost
 import com.zhangwenkang.cinefin.presentation.film.components.PosterItemCard
 import com.zhangwenkang.cinefin.presentation.film.components.SectionHeader
 import com.zhangwenkang.cinefin.presentation.film.components.libraryPlaceholderIconRes
 import com.zhangwenkang.cinefin.presentation.film.components.lumenEntrance
 import com.zhangwenkang.cinefin.presentation.local.HomeLocalMediaSection
+import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
@@ -93,19 +95,26 @@ fun HomeScreen(
     // W60b：收藏变更后重取首页走廊，卡片收藏角标即时一致。
     FavoriteChangeEffect { viewModel.loadData() }
 
-    HomeScreenLayout(
-        state = state,
-        onOpenDrawer = onOpenDrawer,
-        onSearchClick = onSearchClick,
-        onItemClick = onItemClick,
-        onLibraryClick = onLibraryClick,
-        onOpenLocalLibrary = onOpenLocalLibrary,
-        onRetry = { viewModel.loadData(force = true) },
-        downloadBadges = downloadBadges,
-        bookCovers = bookCovers,
-        onRequestBookCover = viewModel::requestBookCover,
-        onRequestBookCoverFallback = viewModel::requestBookCoverFallback,
-    )
+    // 2.0.3-C：首页视频海报的 ⋮（编辑元数据 / 删除）；删除或改名后整页重取，卡片即时消失 / 更新。
+    ItemOverflowActionsHost(
+        offlineMode = LocalOfflineMode.current,
+        onItemDeleted = { viewModel.loadData(force = true) },
+        onMetadataSaved = { viewModel.loadData(force = true) },
+    ) {
+        HomeScreenLayout(
+            state = state,
+            onOpenDrawer = onOpenDrawer,
+            onSearchClick = onSearchClick,
+            onItemClick = onItemClick,
+            onLibraryClick = onLibraryClick,
+            onOpenLocalLibrary = onOpenLocalLibrary,
+            onRetry = { viewModel.loadData(force = true) },
+            downloadBadges = downloadBadges,
+            bookCovers = bookCovers,
+            onRequestBookCover = viewModel::requestBookCover,
+            onRequestBookCoverFallback = viewModel::requestBookCoverFallback,
+        )
+    }
 }
 
 /**
@@ -231,6 +240,7 @@ private fun HomeScreenLayout(
                                 section = section.copy(items = section.items.drop(1)),
                                 itemsPadding = PaddingValues(),
                                 downloadBadges = downloadBadges,
+                                showRating = false,
                                 onAction = { action ->
                                     action.dispatch(onItemClick, onLibraryClick)
                                 },
@@ -269,6 +279,7 @@ private fun HomeScreenLayout(
                                 section = state.nextUpSection!!.homeSection.copy(items = items),
                                 itemsPadding = PaddingValues(),
                                 downloadBadges = downloadBadges,
+                                showRating = false,
                                 onAction = { action ->
                                     action.dispatch(onItemClick, onLibraryClick)
                                 },
@@ -291,6 +302,7 @@ private fun HomeScreenLayout(
                                 placeholderIconResFor = libraryPlaceholderIcon(view.view.type),
                                 onItemVisible = requestBookCover,
                                 onServerImageFailed = requestBookCoverFallback,
+                                showRating = false,
                                 onAction = { action ->
                                     action.dispatch(onItemClick, onLibraryClick)
                                 },
@@ -395,6 +407,7 @@ private fun LazyGridScope.homeRail(
             placeholderIconResFor = placeholderIconResFor,
             onItemVisible = onItemVisible,
             onServerImageFailed = onCoverFallback,
+            showRating = false,
             onAction = { action -> action.dispatch(onItemClick, onLibraryClick) },
         )
     }
@@ -432,6 +445,7 @@ private fun LazyGridScope.homePosterWall(
             imageOverride = imageOverrideFor(item),
             placeholderIconRes = placeholderIconResFor(item),
             onServerImageFailed = { onCoverFallback(item) },
+            showRating = false,
         )
     }
 }

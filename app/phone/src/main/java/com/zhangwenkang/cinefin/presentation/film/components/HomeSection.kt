@@ -34,6 +34,8 @@ fun HomeSection(
     onItemVisible: (FindroidItem) -> Unit = {},
     /** W69b：服务器图加载失败回调——书籍卡据此触发本地生成回落。 */
     onServerImageFailed: (FindroidItem) -> Unit = {},
+    /** 2.0.3-C：首页视频卡不显示评分徽标；默认 true = 既有行为。 */
+    showRating: Boolean = true,
 ) {
     val gutter = rememberGridGutter()
     Column(modifier = modifier) {
@@ -55,6 +57,7 @@ fun HomeSection(
                     imageOverride = imageOverrideFor(item),
                     placeholderIconRes = placeholderIconResFor(item),
                     onServerImageFailed = { onServerImageFailed(item) },
+                    showRating = showRating,
                 )
             }
         }

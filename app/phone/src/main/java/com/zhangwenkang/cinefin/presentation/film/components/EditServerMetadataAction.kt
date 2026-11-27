@@ -1,12 +1,7 @@
 package com.zhangwenkang.cinefin.presentation.film.components
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -15,57 +10,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
-import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
-import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
-import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.repository.ItemMetadataSnapshot
 
 /**
- * W8-T6：详情页「编辑元数据」动作行。
- *
- * 视觉沿用 `CinefinButton` 的 Text 变形（48dp 触控高 / 46dp 按钮高、20dp 横向内边距、LabelLarge），与「删除服务器文件」
- * 同款，但使用常规内容色（非 error 槽位）：这是普通动作，不是危险操作。
- */
-@Composable
-fun EditServerMetadataButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val colors = LocalCinefinColors.current
-    Box(
-        modifier = modifier.defaultMinSize(minHeight = 48.dp),
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        Row(
-            modifier =
-                Modifier.height(46.dp)
-                    .clip(CinefinShapes.Button)
-                    .cinefinClickable(onClick = onClick)
-                    .padding(horizontal = CinefinSpacing.Space5),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Start,
-        ) {
-            Text(
-                text = stringResource(FilmR.string.detail_edit_metadata_action),
-                style = CinefinType.LabelLarge,
-                color = colors.onSurface,
-                maxLines = 1,
-            )
-        }
-    }
-}
-
-/**
- * W8-T6：条目元数据编辑对话框（Lumen 面板，参照音乐模块 PlaylistNameDialog）。
+ * W8-T6：条目元数据编辑对话框（2.0.3-C：入口移到海报 / 详情页的 ⋮ 菜单）（Lumen 面板，参照音乐模块 PlaylistNameDialog）。
  *
  * 快照为 null 表示服务器当前值没取到：字段禁用，保存按钮不可用（fail-closed），用户只能取消。 保存按钮只在名称非空、三个字段与快照有差异、且没有正在提交时可用。
  */
