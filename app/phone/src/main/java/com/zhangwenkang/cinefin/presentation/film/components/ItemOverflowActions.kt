@@ -2,9 +2,7 @@ package com.zhangwenkang.cinefin.presentation.film.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.DropdownMenu
@@ -24,12 +22,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinMoreVertIcon
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
@@ -165,7 +165,10 @@ fun ItemOverflowMenu(
                     .cinefinClickable { expanded = true },
             contentAlignment = Alignment.Center,
         ) {
-            OverflowDots(color = contentColor)
+            // 语义由外层 Box 的 semantics 提供，图标本身不再暴露节点
+            Box(Modifier.clearAndSetSemantics {}) {
+                CinefinMoreVertIcon(contentDescription = description, tint = contentColor)
+            }
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             actions.forEach { action ->
@@ -195,15 +198,3 @@ private val ItemOverflowAction.labelRes: Int
             ItemOverflowAction.EditMetadata -> FilmR.string.detail_edit_metadata_action
             ItemOverflowAction.Delete -> FilmR.string.detail_delete_server_confirm
         }
-
-/** 24dp 点阵 ⋮（3 × 4dp 圆点 + 6dp 间距）；不依赖图标资源，任意主题色下都清晰。 */
-@Composable
-private fun OverflowDots(color: Color) {
-    Column(
-        modifier = Modifier.size(width = 24.dp, height = 24.dp),
-        verticalArrangement = Arrangement.SpaceBetween,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        repeat(3) { Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(color)) }
-    }
-}

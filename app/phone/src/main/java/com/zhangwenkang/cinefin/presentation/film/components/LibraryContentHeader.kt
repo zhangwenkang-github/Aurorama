@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinFilterChip
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinLibraryTabs
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinMoreVertIcon
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSelectIndicator
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinSelectable
@@ -188,7 +189,7 @@ private fun LibraryHeaderIconKey(
     }
 }
 
-/** 标签行右侧「⋮」键（与音乐页标签行同一写法：文本 glyph，无位图）。 */
+/** 标签行右侧「⋮」键（2.0.3 起统一走共享 24dp 矢量图标 CinefinMoreVertIcon）。 */
 @Composable
 private fun LibraryOverflowKey(
     contentDescription: String,
@@ -206,7 +207,7 @@ private fun LibraryOverflowKey(
             modifier =
                 Modifier.clearAndSetSemantics { this.contentDescription = contentDescription }
         ) {
-            Text(text = "⋮", style = CinefinType.TitleMedium, color = tint)
+            CinefinMoreVertIcon(contentDescription = contentDescription, tint = tint)
         }
     }
 }
