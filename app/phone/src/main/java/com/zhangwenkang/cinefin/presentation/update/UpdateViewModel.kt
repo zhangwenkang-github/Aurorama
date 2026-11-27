@@ -55,6 +55,13 @@ constructor(
     private var installStatus = UpdateInstallUiStatus()
     private var installBaselineVersionCode: Long? = null
     private var automaticVerificationUpdateId: String? = null
+    private var requestFailure: UpdateRequestFailure? = null
+
+    /**
+     * 本会话里用户亲手点过下载的 updateId。只有它非空时才把下载 Work 的排队/失败映射到页面， 避免冷启动读到上次会话遗留的 FAILED Work
+     * 就把「发现新版本」错报成「下载失败」。
+     */
+    private var dispatchedDownloadId: String? = null
 
     init {
         viewModelScope.launch { refreshState(WorkSnapshot()) }
@@ -63,12 +70,14 @@ constructor(
 
     fun checkForUpdates() {
         resetInstallStatus()
+        dispatchedDownloadId = null
+        requestFailure = null
         dispatchUpdateAction(UpdateAction.CHECK, _state.value.updateId, scheduler)
     }
 
     fun download() {
         resetInstallStatus()
-        dispatchUpdateAction(UpdateAction.DOWNLOAD, _state.value.updateId, scheduler)
+        startDownload()
     }
 
     fun cancelDownload() {
@@ -82,7 +91,21 @@ constructor(
 
     fun retryDownload() {
         resetInstallStatus()
-        dispatchUpdateAction(UpdateAction.DOWNLOAD, _state.value.updateId, scheduler)
+        startDownload()
+    }
+
+    /** 点击后立刻刷新一次，让「正在开始下载」在不依赖 WorkManager 首帧的情况下就能显示； 拿不到 updateId 时把失败回写到页面，禁止静默返回。 */
+    private fun startDownload() {
+        val updateId = _state.value.updateId
+        val dispatched = dispatchUpdateAction(UpdateAction.DOWNLOAD, updateId, scheduler)
+        if (dispatched == UpdateDispatchResult.MISSING_UPDATE_ID) {
+            requestFailure = UpdateRequestFailure.MISSING_UPDATE_ID
+            renderInstallStatus()
+            return
+        }
+        requestFailure = null
+        dispatchedDownloadId = updateId
+        viewModelScope.launch { refreshState(lastSnapshot) }
     }
 
     fun install() {
@@ -205,8 +228,12 @@ constructor(
                 downloadedBytes = loaded.third,
                 checkRunning = check.running,
                 checkTerminal = check.terminal,
+                download = snapshot.download.observationForDispatchedDownload(dispatchedDownloadId),
             )
         lastBaseState = _state.value
+        if (lastBaseState.phase == UpdateUiPhase.READY_FOR_VERIFICATION) {
+            dispatchedDownloadId = null
+        }
         renderInstallStatus()
         val readyUpdateId =
             lastBaseState.updateId?.takeIf {
@@ -272,7 +299,11 @@ constructor(
     }
 
     private fun renderInstallStatus() {
-        _state.value = applyUpdateInstallUiStatus(lastBaseState, installStatus)
+        _state.value =
+            applyUpdateRequestFailure(
+                applyUpdateInstallUiStatus(lastBaseState, installStatus),
+                requestFailure,
+            )
     }
 
     private data class WorkSnapshot(
@@ -283,6 +314,43 @@ constructor(
 }
 
 private fun List<WorkInfo>.isRunning(): Boolean = any { it.state == WorkInfo.State.RUNNING }
+
+/** 只有本会话亲手派发过下载时才暴露 Work 观测；没有观测到对应 Work 的一帧按 QUEUED 处理， 保证点击后立刻就有「正在开始下载」的反馈。 */
+private fun List<WorkInfo>.observationForDispatchedDownload(
+    dispatchedUpdateId: String?
+): UpdateDownloadWorkObservation {
+    if (dispatchedUpdateId == null) return UpdateDownloadWorkObservation()
+    val observed = latestDownloadObservation()
+    return if (observed.status == UpdateCheckWorkStatus.ABSENT) {
+        UpdateDownloadWorkObservation(status = UpdateCheckWorkStatus.QUEUED)
+    } else {
+        observed
+    }
+}
+
+private fun List<WorkInfo>.latestDownloadObservation(): UpdateDownloadWorkObservation {
+    val latest = maxByOrNull { it.generation } ?: return UpdateDownloadWorkObservation()
+    return when (latest.state) {
+        WorkInfo.State.ENQUEUED ->
+            UpdateDownloadWorkObservation(status = UpdateCheckWorkStatus.QUEUED)
+        WorkInfo.State.BLOCKED ->
+            UpdateDownloadWorkObservation(status = UpdateCheckWorkStatus.BLOCKED)
+        WorkInfo.State.RUNNING ->
+            UpdateDownloadWorkObservation(status = UpdateCheckWorkStatus.RUNNING)
+        WorkInfo.State.SUCCEEDED ->
+            UpdateDownloadWorkObservation(
+                status = UpdateCheckWorkStatus.SUCCEEDED,
+                terminal = updateTerminalResult(latest),
+            )
+        WorkInfo.State.FAILED ->
+            UpdateDownloadWorkObservation(
+                status = UpdateCheckWorkStatus.FAILED,
+                terminal = updateTerminalResult(latest),
+            )
+        WorkInfo.State.CANCELLED ->
+            UpdateDownloadWorkObservation(status = UpdateCheckWorkStatus.CANCELLED)
+    }
+}
 
 private fun List<WorkInfo>.latestCheckObservation(): UpdateCheckWorkObservation {
     val latest = maxByOrNull { it.generation } ?: return UpdateCheckWorkObservation()

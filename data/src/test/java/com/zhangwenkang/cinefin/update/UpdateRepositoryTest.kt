@@ -271,6 +271,44 @@ class UpdateRepositoryTest {
         assertTrue(result is UpdateDownloadResult.ReadyForVerification)
     }
 
+    @Test
+    fun downloadRecoversFromCorruptTransferStateUsingThePersistedRelease() = runBlocking {
+        val store = UpdateStateStore(temporaryFolder.newFolder(), clock = { 1_000L })
+        val release = releaseIdentity()
+        store.saveDiscoveredRelease(release, 1_000L)
+        store.beginDownload(release, 1_000L)
+        val poisoned =
+            (store.loadTransfer() as UpdateStateReadResult.Present<UpdateTransferState>).value
+        store.completeFile(poisoned).writeBytes(ByteArray(8))
+        assertEquals(
+            UpdateTransferPhase.READY_FOR_VERIFICATION,
+            (store.loadTransfer() as UpdateStateReadResult.Present<UpdateTransferState>)
+                .value
+                .phase,
+        )
+        store.completeFile(poisoned).delete()
+        assertTrue(store.loadTransfer() is UpdateStateReadResult.Invalid)
+
+        var downloadedRelease: UpdateReleaseIdentity? = null
+        val repository =
+            repository(
+                store,
+                UpdateDownloadExecutor { requested, _ ->
+                    downloadedRelease = requested
+                    UpdateDownloadResult.ReadyForVerification(
+                        updateId = stableUpdateId(requested),
+                        completeFile = File("unused.apk"),
+                        bytesWritten = requested.assetSize,
+                    )
+                },
+            )
+
+        val result = repository.download(stableUpdateId(release))
+
+        assertEquals(release, downloadedRelease)
+        assertTrue(result is UpdateDownloadResult.ReadyForVerification)
+    }
+
     private fun repository(
         store: UpdateStateStore,
         executor: UpdateDownloadExecutor,

@@ -27,6 +27,7 @@
     <string name="update_up_to_date">已是最新版本。</string>
     <string name="update_available">发现新版本 %1$s。</string>
     <string name="update_downloading">正在下载更新…</string>
+    <string name="update_starting_download">正在开始下载…</string>
     <string name="update_progress_bytes">已下载 %1$s / %2$s</string>
     <string name="update_ready">下载完成，等待校验。</string>
     <string name="update_verifying">正在校验更新包…</string>
@@ -37,6 +38,19 @@
     <string name="update_install_cancelled_or_unchanged">安装已取消，或应用版本未变化。</string>
     <string name="update_install_failed">系统安装器返回后无法复核已安装版本。</string>
     <string name="update_failed">更新未完成，请重试。</string>
+    <string name="update_failure_network">下载失败：网络请求未完成，请检查网络后重试。</string>
+    <string name="update_failure_server">下载失败：服务器拒绝请求（HTTP 5xx），请稍后重试。</string>
+    <string name="update_failure_rate_limited">下载失败：请求过于频繁，请稍后重试。</string>
+    <string name="update_failure_storage">下载失败：存储空间不足或文件写入失败。</string>
+    <string name="update_failure_package">下载失败：服务器返回的更新包与版本记录不一致。</string>
+    <string name="update_failure_range">下载失败：已下载的部分无法续传。</string>
+    <string name="update_failure_state">下载失败：本地更新记录异常，已重置，请重试。</string>
+    <string name="update_request_stale">更新信息缺失或已过期，请重新检查更新。</string>
+    <string name="update_check_failure_network">检查失败：GitHub 请求未完成，请检查网络后重试。</string>
+    <string name="update_check_failure_invalid">检查失败：无法解析最新版本信息。</string>
+    <string name="update_check_failure_asset">检查失败：最新版本没有适用于本机架构的安装包。</string>
+    <string name="update_check_failure_storage">检查失败：本地更新状态无法保存。</string>
+    <string name="update_check_failure_state">检查失败：本地更新状态异常，请重试。</string>
     <string name="update_cancelled">更新下载已取消。</string>
     <string name="update_check">检查更新</string>
     <string name="update_retry_check">再次检查</string>

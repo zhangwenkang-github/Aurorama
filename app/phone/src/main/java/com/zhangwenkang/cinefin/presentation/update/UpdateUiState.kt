@@ -12,6 +12,7 @@ import com.zhangwenkang.cinefin.update.stableUpdateId
 enum class UpdateUiPhase {
     IDLE,
     CHECKING,
+    STARTING_DOWNLOAD,
     UP_TO_DATE,
     AVAILABLE,
     DOWNLOADING,
@@ -25,6 +26,11 @@ enum class UpdateUiPhase {
     INSTALL_RESULT_FAILED,
     FAILED,
     CANCELLED,
+}
+
+/** 点击侧立刻可判定的请求失败；与持久 transfer 失败互不替代。 */
+enum class UpdateRequestFailure {
+    MISSING_UPDATE_ID
 }
 
 enum class UpdatePrimaryAction {
@@ -65,6 +71,7 @@ data class UpdateUiState(
     val primaryAction: UpdatePrimaryAction = UpdatePrimaryAction.NONE,
     val canCheck: Boolean = true,
     val releaseNotes: String? = null,
+    val requestFailure: UpdateRequestFailure? = null,
 ) {
     val progress: Float?
         get() =
@@ -114,7 +121,7 @@ fun applyUpdateInstallUiStatus(
     )
 }
 
-internal enum class UpdateCheckWorkStatus {
+enum class UpdateCheckWorkStatus {
     ABSENT,
     QUEUED,
     RUNNING,
@@ -128,6 +135,30 @@ internal data class UpdateCheckWorkObservation(
     val status: UpdateCheckWorkStatus = UpdateCheckWorkStatus.ABSENT,
     val terminal: UpdateTerminalResult? = null,
 )
+
+/**
+ * 下载 Work 的观测。与检查 Work 共用 [UpdateCheckWorkStatus] 投影： 下载 Worker 在持久 transfer
+ * 落盘前就失败时，页面只能从这里知道「点过、失败了」。
+ */
+data class UpdateDownloadWorkObservation(
+    val status: UpdateCheckWorkStatus = UpdateCheckWorkStatus.ABSENT,
+    val terminal: UpdateTerminalResult? = null,
+)
+
+/** Worker 写回的终止枚举 → 用户可见的失败码；非失败终态一律按状态异常处理。 */
+internal fun downloadFailureCode(terminal: UpdateTerminalResult?): UpdateFailureCode =
+    when (terminal) {
+        UpdateTerminalResult.NETWORK_ERROR -> UpdateFailureCode.NETWORK_ERROR
+        UpdateTerminalResult.STORAGE_ERROR -> UpdateFailureCode.STORAGE_ERROR
+        UpdateTerminalResult.INVALID_RELEASE -> UpdateFailureCode.INVALID_RESPONSE
+        else -> UpdateFailureCode.STATE_ERROR
+    }
+
+/** 点击侧请求失败叠加到已推导状态上；不改写 phase / primaryAction。 */
+internal fun applyUpdateRequestFailure(
+    base: UpdateUiState,
+    failure: UpdateRequestFailure?,
+): UpdateUiState = base.copy(requestFailure = failure)
 
 internal data class UpdateCheckWorkSelection(
     val running: Boolean = false,
@@ -174,6 +205,7 @@ fun buildUpdateUiState(
     downloadedBytes: Long = 0L,
     checkRunning: Boolean = false,
     checkTerminal: UpdateTerminalResult? = null,
+    download: UpdateDownloadWorkObservation = UpdateDownloadWorkObservation(),
 ): UpdateUiState {
     val current = AppVersion.parseCurrentVersionName(currentVersion)
     val availableRelease = release?.takeIf { stored ->
@@ -239,6 +271,48 @@ fun buildUpdateUiState(
             primaryAction = UpdatePrimaryAction.NONE,
             canCheck = false,
         )
+    }
+
+    // 下载 Work 先于持久 transfer 落盘：排队/启动中要给反馈，Worker 提前失败要报错。
+    if (applicableTransfer == null) {
+        when (download.status) {
+            UpdateCheckWorkStatus.QUEUED,
+            UpdateCheckWorkStatus.BLOCKED,
+            UpdateCheckWorkStatus.RUNNING ->
+                return UpdateUiState(
+                    phase = UpdateUiPhase.STARTING_DOWNLOAD,
+                    availableVersion = availableRelease?.version,
+                    updateId = updateId,
+                    totalBytes = availableRelease?.assetSize ?: 0L,
+                    primaryAction = UpdatePrimaryAction.NONE,
+                    canCheck = true,
+                    releaseNotes = availableRelease?.releaseNotes,
+                )
+            UpdateCheckWorkStatus.FAILED ->
+                return UpdateUiState(
+                    phase = UpdateUiPhase.FAILED,
+                    availableVersion = availableRelease?.version,
+                    updateId = updateId,
+                    failureCode = downloadFailureCode(download.terminal),
+                    primaryAction =
+                        if (updateId != null) {
+                            UpdatePrimaryAction.RETRY
+                        } else {
+                            UpdatePrimaryAction.RETRY_CHECK
+                        },
+                    releaseNotes = availableRelease?.releaseNotes,
+                )
+            UpdateCheckWorkStatus.CANCELLED ->
+                return UpdateUiState(
+                    phase = UpdateUiPhase.CANCELLED,
+                    availableVersion = availableRelease?.version,
+                    updateId = updateId,
+                    primaryAction = UpdatePrimaryAction.RETRY,
+                    releaseNotes = availableRelease?.releaseNotes,
+                )
+            UpdateCheckWorkStatus.ABSENT,
+            UpdateCheckWorkStatus.SUCCEEDED -> Unit
+        }
     }
 
     if (checkTerminal != null && checkTerminal.isFailure()) {

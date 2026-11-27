@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.presentation.update
 import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -41,6 +42,8 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.presentation.film.components.LumenCardFrame
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
+import com.zhangwenkang.cinefin.update.UpdateFailureCode
+import com.zhangwenkang.cinefin.update.UpdateTerminalResult
 
 @Composable
 fun UpdateScreen(
@@ -89,6 +92,32 @@ fun UpdateScreen(
                     verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3),
                 ) {
                     UpdateStatus(state)
+                    state.requestFailure?.let {
+                        Text(
+                            text = stringResource(R.string.update_request_stale),
+                            style = CinefinType.BodySmall,
+                            color = colors.error,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    state.failureCode?.let { code ->
+                        Text(
+                            text = stringResource(failureReasonRes(code)),
+                            style = CinefinType.BodySmall,
+                            color = colors.error,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    state.checkFailure?.let { terminal ->
+                        checkFailureRes(terminal)?.let { res ->
+                            Text(
+                                text = stringResource(res),
+                                style = CinefinType.BodySmall,
+                                color = colors.error,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
                     if (state.phase == UpdateUiPhase.AVAILABLE) {
                         state.releaseNotes?.takeIf(String::isNotBlank)?.let { notes ->
                             Text(
@@ -101,6 +130,7 @@ fun UpdateScreen(
                     }
                     if (
                         state.phase == UpdateUiPhase.CHECKING ||
+                            state.phase == UpdateUiPhase.STARTING_DOWNLOAD ||
                             state.phase == UpdateUiPhase.VERIFYING ||
                             state.phase == UpdateUiPhase.INSTALLER_LAUNCHED
                     ) {
@@ -143,6 +173,7 @@ private fun UpdateStatus(state: UpdateUiState) {
         when (state.phase) {
             UpdateUiPhase.IDLE -> stringResource(R.string.update_idle)
             UpdateUiPhase.CHECKING -> stringResource(R.string.update_checking)
+            UpdateUiPhase.STARTING_DOWNLOAD -> stringResource(R.string.update_starting_download)
             UpdateUiPhase.UP_TO_DATE -> stringResource(R.string.update_up_to_date)
             UpdateUiPhase.AVAILABLE ->
                 stringResource(R.string.update_available, state.availableVersion.orEmpty())
@@ -173,6 +204,29 @@ private fun UpdateDownloadedBytes(state: UpdateUiState) {
         color = LocalCinefinColors.current.onSurfaceVariant,
     )
 }
+
+@StringRes
+private fun failureReasonRes(code: UpdateFailureCode): Int =
+    when (code) {
+        UpdateFailureCode.NETWORK_ERROR -> R.string.update_failure_network
+        UpdateFailureCode.HTTP_SERVER_ERROR -> R.string.update_failure_server
+        UpdateFailureCode.RATE_LIMITED -> R.string.update_failure_rate_limited
+        UpdateFailureCode.STORAGE_ERROR -> R.string.update_failure_storage
+        UpdateFailureCode.INVALID_RESPONSE -> R.string.update_failure_package
+        UpdateFailureCode.RANGE_NOT_SATISFIABLE -> R.string.update_failure_range
+        UpdateFailureCode.STATE_ERROR -> R.string.update_failure_state
+    }
+
+@StringRes
+private fun checkFailureRes(terminal: UpdateTerminalResult): Int? =
+    when (terminal) {
+        UpdateTerminalResult.NETWORK_ERROR -> R.string.update_check_failure_network
+        UpdateTerminalResult.INVALID_RELEASE -> R.string.update_check_failure_invalid
+        UpdateTerminalResult.NO_COMPATIBLE_ASSET -> R.string.update_check_failure_asset
+        UpdateTerminalResult.STORAGE_ERROR -> R.string.update_check_failure_storage
+        UpdateTerminalResult.STATE_ERROR -> R.string.update_check_failure_state
+        else -> null
+    }
 
 @Composable
 private fun PrimaryAction(
