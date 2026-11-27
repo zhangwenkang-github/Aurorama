@@ -396,6 +396,58 @@ class PlayerControlLayoutTest {
         )
     }
 
+    @Test
+    fun bottomKeyTiers_keepOrderAndOnlyDropDecode() {
+        assertEquals("两级档位：全量 / 省解码", 2, PLAYER_BOTTOM_KEY_TIERS.size)
+        assertEquals("第一档就是全量键行（顺序不变）", PLAYER_BOTTOM_KEY_ORDER, PLAYER_BOTTOM_KEY_TIERS[0])
+        assertEquals(
+            "第二档只省「解码」，其余入口与顺序不变",
+            listOf(
+                PlayerBottomKey.Audio,
+                PlayerBottomKey.Subtitle,
+                PlayerBottomKey.Speed,
+                PlayerBottomKey.Info,
+                PlayerBottomKey.Repeat,
+            ),
+            PLAYER_BOTTOM_KEY_TIERS[1],
+        )
+    }
+
+    @Test
+    fun bottomKeys_degradedTierIsJudgedWithItsOwnWidth() {
+        // 2.0.3-F4：降级后必须用「5 键的真实行宽」再判一次——以前（实现与注释不符时）5 键形态会被 6 键预算误判
+        val spec = playerControlSpec(411f)
+        val fiveKeyBudget =
+            spec.bottomRowWidthDp(showLabels = false, withEndTime = true, keyCount = 5) +
+                spec.toolRowPaddingDp * 2f
+        val sixKeyBudget =
+            spec.bottomRowWidthDp(showLabels = false, withEndTime = true) +
+                spec.toolRowPaddingDp * 2f
+        val degraded = PLAYER_BOTTOM_KEY_ORDER.filter { it != PlayerBottomKey.Decode }
+        assertTrue("前提：6 键预算必须比 5 键预算宽", sixKeyBudget > fiveKeyBudget)
+
+        assertEquals(
+            "刚好放得下 5 键（放不下 6 键）的窄窗：停在降级档，不继续隐藏入口",
+            degraded,
+            playerBottomKeysForWidth(
+                fiveKeyBudget,
+                showLabels = false,
+                hasEndTime = true,
+                spec = spec,
+            ),
+        )
+        assertEquals(
+            "连 5 键也差 1dp：同样停在降级档（键行横向滚动兜底）",
+            degraded,
+            playerBottomKeysForWidth(
+                fiveKeyBudget - 1f,
+                showLabels = false,
+                hasEndTime = true,
+                spec = spec,
+            ),
+        )
+    }
+
     // ---------- W67b：竖屏内容区收起后的画面区 ----------
 
     @Test
