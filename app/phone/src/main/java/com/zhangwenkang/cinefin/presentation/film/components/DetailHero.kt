@@ -403,9 +403,6 @@ internal val DetailHeroCompactBackdropHeight = 260.dp
 internal fun detailHeroPosterWidthDp(screenWidthDp: Float): Float =
     (screenWidthDp * 0.32f).coerceIn(120f, 140f)
 
-/** W66b：hero 动作区降级判定（纯函数，单测覆盖）——屏宽 <360dp 时「一行四键」降级为 「播放整行 + 三键一行」，保证窄机不挤压文字。 */
-internal fun detailHeroActionsDegraded(screenWidthDp: Float): Boolean = screenWidthDp < 360f
-
 /** 平板头图基准高度（纯函数）：400dp；实际由 [ItemHeader] 的 `heightIn(min)` 保证不裁切。 */
 internal fun detailHeroMinHeightDp(expanded: Boolean): Float = if (expanded) 400f else 300f
 

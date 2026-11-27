@@ -32,6 +32,8 @@ import com.zhangwenkang.cinefin.models.CollectionSection
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.UiText
 import com.zhangwenkang.cinefin.presentation.film.components.CollectionGrid
+import com.zhangwenkang.cinefin.presentation.film.components.ItemOverflowActionsHost
+import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import java.util.UUID
 
 @Composable
@@ -46,16 +48,23 @@ fun CollectionScreen(
 
     LaunchedEffect(true) { viewModel.loadItems(collectionId) }
 
-    CollectionScreenLayout(
-        collectionName = collectionName,
-        state = state,
-        onAction = { action ->
-            when (action) {
-                is CollectionAction.OnItemClick -> onItemClick(action.item)
-                is CollectionAction.OnBackClick -> navigateBack()
-            }
-        },
-    )
+    // 2.0.3-C：合集海报的 ⋮（编辑元数据 / 删除）；删除或改名后重取合集内容。
+    ItemOverflowActionsHost(
+        offlineMode = LocalOfflineMode.current,
+        onItemDeleted = { viewModel.loadItems(collectionId) },
+        onMetadataSaved = { viewModel.loadItems(collectionId) },
+    ) {
+        CollectionScreenLayout(
+            collectionName = collectionName,
+            state = state,
+            onAction = { action ->
+                when (action) {
+                    is CollectionAction.OnItemClick -> onItemClick(action.item)
+                    is CollectionAction.OnBackClick -> navigateBack()
+                }
+            },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

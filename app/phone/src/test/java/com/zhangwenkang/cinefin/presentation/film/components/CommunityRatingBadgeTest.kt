@@ -37,4 +37,15 @@ class CommunityRatingBadgeTest {
     fun `类型范围外的条目不显示评分`() {
         assertNull(communityRatingBadgeText(dummyCollections.first()))
     }
+
+    /** 2.0.3-C：首页视频卡传 `showRating = false`，即使是电影也不渲染评分徽标。 */
+    @Test
+    fun `首页关闭评分时不渲染徽标`() {
+        val movie = dummyMovie.copy(communityRating = 8.0f)
+        assertEquals("★ 8.0", communityRatingBadgeText(movie, showRating = true))
+        assertNull(communityRatingBadgeText(movie, showRating = false))
+        assertNull(
+            communityRatingBadgeText(dummyShow.copy(communityRating = 9.0f), showRating = false)
+        )
+    }
 }

@@ -5,21 +5,17 @@ import android.os.Environment
 import android.os.StatFs
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
-import androidx.compose.material3.Text
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -30,18 +26,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.window.core.layout.WindowSizeClass
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.components.navSelectedContent
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckDialog
@@ -49,13 +40,10 @@ import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckEnv
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckRules
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderState
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
-import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
-import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.auroraGradient
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadState
 import com.zhangwenkang.cinefin.models.FindroidEpisode
@@ -65,15 +53,17 @@ import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.isDownloaded
 
 /**
- * 详情页动作区（W51 重绘）。
+ * 详情页动作区（2.0.3-C 图标化重绘）。
  *
- * 布局：第一行 = 播放 / 重播 / 预告（图标键）；第二行 = **下载 / 已播放 / 喜欢** 三枚带标签按钮（同排，选中走极光选中语言）。
+ * 一条圆形图标键：播放 / 重播 / 预告 / 下载 / 已播放 / 喜欢 + 右侧 ⋮（编辑元数据 / 删除）。 键内不再有文字标签，图标 24dp、1dp `outline` 细描边、触控目标
+ * 44dp（竖屏 hero 布局 48dp）；选中态只换极光描边与内容色，不铺填充底。 玩家靠图标辨识动作，无障碍文案由 contentDescription 保留。
  *
  * 下载动作两套语义：
  * - [downloadState] 非空（Show / Season / Episode，W51）：三态（未下载 / 已在队列 / 已下载），点击统一回调
  *   [onDownloadClick]，由屏幕决定入队或弹 Snackbar；
  * - [downloadState] 为空（电影，既有行为）：未下载 → 下载（含存储选择）、已下载 → 删除确认。
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ItemButtonsBar(
     item: FindroidItem,
@@ -92,17 +82,10 @@ fun ItemButtonsBar(
     storageSelectionEnabled: Boolean = true,
     /** W51：覆盖「未下载」态的可点性（容器批量下载不看单条目 `canDownload`，由对话框按剧集过滤）。 */
     downloadEnabled: Boolean = true,
-    /**
-     * W66b：竖屏 hero 布局（DetailHero 竖屏专用）——一行四键（播放 / 下载 / 已播放 / 收藏，图标上文字下、64dp）， 屏宽 <360dp
-     * 自动降级为「播放整行 + 三键一行」。默认 false = 既有两行布局（横屏 / 平板不变）。
-     */
+    /** W66b：竖屏 hero 布局键位放大到 48dp（横屏 / 平板 44dp）；两种布局同为单行圆形图标键。 */
     heroLayout: Boolean = false,
 ) {
     val context = LocalContext.current
-    val screenWidthDp = LocalConfiguration.current.screenWidthDp.toFloat()
-    val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
-    val compact =
-        !windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
 
     val trailerUri =
         when (item) {
@@ -158,7 +141,6 @@ fun ItemButtonsBar(
     val showDownloadAction = if (isLegacy) downloaderState != null else true
     val downloadBusyNow = downloadBusy || (isLegacy && downloaderState?.isDownloading == true)
     val resolvedDownloadState = downloadState
-    /** W66b：hero 布局的下载键数据（与既有两行布局共用同一套三态 / legacy 语义）。 */
     val downloadLabel: String? =
         if (showDownloadAction) {
             when {
@@ -197,82 +179,73 @@ fun ItemButtonsBar(
         }
     }
 
+    val keySize = if (heroLayout) 48.dp else 44.dp
+    val playDescription = stringResource(CoreR.string.play_button_description)
+    val trailerDescription = stringResource(CoreR.string.trailer_button_description)
+    val playedDescription = stringResource(CoreR.string.detail_action_played)
+    val favoriteDescription = stringResource(CoreR.string.detail_action_favorite)
+
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         Column(
             modifier = modifier,
             verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
         ) {
-            if (heroLayout) {
-                DetailHeroActionButtons(
-                    item = item,
-                    canPlayNow = item.canPlay && canPlay,
-                    onPlayClick = { onPlayClick(false) },
-                    download =
-                        downloadLabel?.let { label ->
-                            HeroDownloadAction(
-                                label = label,
-                                selected = downloadSelected,
-                                enabled = downloadEnabledNow,
-                                onClick = onDownloadAction,
-                            )
-                        },
-                    onMarkAsPlayedClick = onMarkAsPlayedClick,
-                    onMarkAsFavoriteClick = onMarkAsFavoriteClick,
-                    degraded = detailHeroActionsDegraded(screenWidthDp),
-                    modifier = Modifier.fillMaxWidth(),
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+                verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+            ) {
+                DetailActionKey(
+                    icon = CoreR.drawable.ic_play,
+                    contentDescription = playDescription,
+                    onClick = { onPlayClick(false) },
+                    enabled = item.canPlay && canPlay,
+                    emphasized = true,
+                    size = keySize,
                 )
-            } else {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    PlayButton(
-                        item = item,
-                        onClick = { onPlayClick(false) },
-                        modifier = if (compact) Modifier.weight(1f) else Modifier,
-                        enabled = item.canPlay && canPlay,
-                    )
-                    if (item.playbackPositionTicks.div(600000000) > 0) {
-                        DetailIconButton(
-                            icon = CoreR.drawable.ic_rotate_ccw,
-                            onClick = { onPlayClick(true) },
-                        )
-                    }
-                    trailerUri?.let { uri ->
-                        DetailIconButton(
-                            icon = CoreR.drawable.ic_film,
-                            onClick = { onTrailerClick(uri) },
-                        )
-                    }
-                }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (showDownloadAction) {
-                        DetailLabeledButton(
-                            label = downloadLabel ?: "",
-                            icon = CoreR.drawable.ic_download,
-                            selected = downloadSelected,
-                            enabled = downloadEnabledNow,
-                            onClick = onDownloadAction,
-                        )
-                    }
-                    DetailLabeledButton(
-                        label = stringResource(CoreR.string.detail_action_played),
-                        icon = CoreR.drawable.ic_check,
-                        selected = item.played,
-                        onClick = onMarkAsPlayedClick,
-                    )
-                    DetailLabeledButton(
-                        label = stringResource(CoreR.string.detail_action_favorite),
-                        icon =
-                            if (item.favorite) CoreR.drawable.ic_bookmark_filled
-                            else CoreR.drawable.ic_bookmark,
-                        selected = item.favorite,
-                        onClick = onMarkAsFavoriteClick,
+                if (item.playbackPositionTicks.div(600000000) > 0) {
+                    DetailActionKey(
+                        icon = CoreR.drawable.ic_rotate_ccw,
+                        contentDescription = null,
+                        onClick = { onPlayClick(true) },
+                        size = keySize,
                     )
                 }
+                trailerUri?.let { uri ->
+                    DetailActionKey(
+                        icon = CoreR.drawable.ic_film,
+                        contentDescription = trailerDescription,
+                        onClick = { onTrailerClick(uri) },
+                        size = keySize,
+                    )
+                }
+                if (showDownloadAction) {
+                    DetailActionKey(
+                        icon = CoreR.drawable.ic_download,
+                        contentDescription = downloadLabel,
+                        selected = downloadSelected,
+                        enabled = downloadEnabledNow,
+                        onClick = onDownloadAction,
+                        size = keySize,
+                    )
+                }
+                DetailActionKey(
+                    icon = CoreR.drawable.ic_check,
+                    contentDescription = playedDescription,
+                    selected = item.played,
+                    onClick = onMarkAsPlayedClick,
+                    size = keySize,
+                )
+                DetailActionKey(
+                    icon =
+                        if (item.favorite) CoreR.drawable.ic_bookmark_filled
+                        else CoreR.drawable.ic_bookmark,
+                    contentDescription = favoriteDescription,
+                    selected = item.favorite,
+                    onClick = onMarkAsFavoriteClick,
+                    size = keySize,
+                )
+                ItemOverflowMenu(item = item, size = keySize, outlined = true)
             }
             if (downloaderState != null) {
                 AnimatedVisibility(
@@ -356,278 +329,49 @@ fun ItemButtonsBar(
     }
 }
 
-/** 行内图标键（44dp 方圆形，§8.1 Icon 变形）；选中态由 [DetailLabeledButton] 承担。 */
-@Composable
-private fun DetailIconButton(@DrawableRes icon: Int, onClick: () -> Unit) {
-    CinefinIconButton(
-        onClick = onClick,
-        modifier = Modifier.size(44.dp),
-        icon = { tint ->
-            Icon(
-                painter = painterResource(icon),
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.size(20.dp),
-            )
-        },
-    )
-}
-
 /**
- * 详情页带标签动作键（§8.1 Outlined 变形 + 选中态）：48dp 触控高、12dp 圆角、1dp 描边； 未选中 = 中性文字 / 透明底，选中 = 极光淡色容器 +
- * 极光描边与内容（2.0.1 定稿 §2 批② 全 App 统一选中语言；2.0.2 §D5 批② 起域色退出选中槽位）。
+ * 详情动作区的圆形图标键（§8.1 Outlined 变形的图标版，2.0.3-C）：1dp `outline` 细描边、无填充底、图标 24dp； 选中（已下载 / 已播放 /
+ * 喜欢）只换极光描边与内容色；播放键用极光内容色保持一级辨识。触控目标由 [size] 保证 ≥44dp。
  */
 @Composable
-private fun DetailLabeledButton(
-    label: String,
+private fun DetailActionKey(
     @DrawableRes icon: Int,
-    selected: Boolean,
+    contentDescription: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-) {
-    val colors = LocalCinefinColors.current
-    val contentColor =
-        when {
-            !enabled -> colors.onSurfaceFaint.copy(alpha = colors.disabledAlpha)
-            selected -> navSelectedContent(colors)
-            else -> colors.onSurfaceVariant
-        }
-    val containerColor =
-        if (selected && enabled) {
-            colors.aurora1.copy(alpha = CinefinTokens.MediaContainerAlpha)
-        } else {
-            Color.Transparent
-        }
-    val borderColor =
-        if (selected && enabled) {
-            colors.aurora1.copy(alpha = CinefinTokens.MediaOutlineAlpha)
-        } else {
-            colors.outline
-        }
-    Row(
-        modifier =
-            modifier
-                .defaultMinSize(minHeight = 48.dp)
-                .clip(CinefinShapes.Button)
-                .background(containerColor)
-                .border(1.dp, borderColor, CinefinShapes.Button)
-                .cinefinClickable(enabled = enabled, onClick = onClick)
-                .padding(horizontal = CinefinSpacing.Space4, vertical = CinefinSpacing.Space3),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
-    ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = null,
-            tint = contentColor,
-            modifier = Modifier.size(18.dp),
-        )
-        Text(
-            text = label,
-            style = CinefinType.LabelLarge,
-            color = contentColor,
-            maxLines = 1,
-        )
-    }
-}
-
-/** hero 布局的下载键数据（W66b；与两行布局共用同一套三态 / legacy 语义）。 */
-private class HeroDownloadAction(
-    val label: String,
-    val selected: Boolean,
-    val enabled: Boolean,
-    val onClick: () -> Unit,
-)
-
-/**
- * W66b 竖屏 hero 动作区：一行四键（播放 / 下载 / 已播放 / 收藏）等宽、图标上文字下、64dp； 屏宽 <360dp 由 [degraded] 降级为「播放整行 + 三键一行」。
- */
-@Composable
-private fun DetailHeroActionButtons(
-    item: FindroidItem,
-    canPlayNow: Boolean,
-    onPlayClick: () -> Unit,
-    download: HeroDownloadAction?,
-    onMarkAsPlayedClick: () -> Unit,
-    onMarkAsFavoriteClick: () -> Unit,
-    degraded: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    val playLabel = stringResource(CoreR.string.play)
-    val playedLabel = stringResource(CoreR.string.detail_action_played)
-    val favoriteLabel = stringResource(CoreR.string.detail_action_favorite)
-    val favoriteIcon =
-        if (item.favorite) CoreR.drawable.ic_bookmark_filled else CoreR.drawable.ic_bookmark
-
-    if (degraded) {
-        Column(
-            modifier = modifier,
-            verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
-        ) {
-            HeroActionKey(
-                icon = CoreR.drawable.ic_play,
-                label = playLabel,
-                selected = false,
-                emphasized = true,
-                enabled = canPlayNow,
-                onClick = onPlayClick,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2)) {
-                download?.let { action ->
-                    HeroActionKey(
-                        icon = CoreR.drawable.ic_download,
-                        label = action.label,
-                        selected = action.selected,
-                        enabled = action.enabled,
-                        onClick = action.onClick,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                HeroActionKey(
-                    icon = CoreR.drawable.ic_check,
-                    label = playedLabel,
-                    selected = item.played,
-                    enabled = true,
-                    onClick = onMarkAsPlayedClick,
-                    modifier = Modifier.weight(1f),
-                )
-                HeroActionKey(
-                    icon = favoriteIcon,
-                    label = favoriteLabel,
-                    selected = item.favorite,
-                    enabled = true,
-                    onClick = onMarkAsFavoriteClick,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
-    } else {
-        Row(
-            modifier = modifier,
-            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
-        ) {
-            HeroActionKey(
-                icon = CoreR.drawable.ic_play,
-                label = playLabel,
-                selected = false,
-                emphasized = true,
-                enabled = canPlayNow,
-                onClick = onPlayClick,
-                modifier = Modifier.weight(1f),
-            )
-            download?.let { action ->
-                HeroActionKey(
-                    icon = CoreR.drawable.ic_download,
-                    label = action.label,
-                    selected = action.selected,
-                    enabled = action.enabled,
-                    onClick = action.onClick,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            HeroActionKey(
-                icon = CoreR.drawable.ic_check,
-                label = playedLabel,
-                selected = item.played,
-                enabled = true,
-                onClick = onMarkAsPlayedClick,
-                modifier = Modifier.weight(1f),
-            )
-            HeroActionKey(
-                icon = favoriteIcon,
-                label = favoriteLabel,
-                selected = item.favorite,
-                enabled = true,
-                onClick = onMarkAsFavoriteClick,
-                modifier = Modifier.weight(1f),
-            )
-        }
-    }
-}
-
-/**
- * hero 键（图标上 / 文字下，64dp）：[emphasized] = 播放键（一级 CTA）极光渐变实底 + `onAurora` 内容 + `auroraGlow` 投影（2.0.1
- * 定稿 §2 批②；禁用时回落中性实底）；其余三键 = 1dp 描边 Outlined，选中（已播放 / 收藏 / 已下载）走极光淡色容器 + 极光描边与内容。
- */
-@Composable
-private fun HeroActionKey(
-    @DrawableRes icon: Int,
-    label: String,
-    selected: Boolean,
-    enabled: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
+    selected: Boolean = false,
     emphasized: Boolean = false,
+    enabled: Boolean = true,
+    size: Dp = 44.dp,
 ) {
     val colors = LocalCinefinColors.current
-    // 一级 CTA（播放）= 极光渐变实底 + onAurora 内容 + auroraGlow 投影；禁用时回落中性实底。
-    val gradientFill = emphasized && enabled
     val contentColor =
         when {
             !enabled -> colors.onSurfaceFaint.copy(alpha = colors.disabledAlpha)
-            emphasized -> colors.onAurora
             selected -> navSelectedContent(colors)
+            emphasized -> colors.aurora1
             else -> colors.onSurfaceVariant
-        }
-    val containerColor =
-        when {
-            emphasized -> if (enabled) Color.Transparent else colors.onSurface
-            selected && enabled -> colors.aurora1.copy(alpha = CinefinTokens.MediaContainerAlpha)
-            else -> Color.Transparent
         }
     val borderColor =
         when {
-            emphasized -> Color.Transparent
-            selected && enabled -> colors.aurora1.copy(alpha = CinefinTokens.MediaOutlineAlpha)
+            !enabled -> colors.outline.copy(alpha = colors.disabledAlpha)
+            selected -> colors.aurora1.copy(alpha = CinefinTokens.MediaOutlineAlpha)
             else -> colors.outline
         }
-    Column(
+    Box(
         modifier =
             modifier
-                .height(64.dp)
-                .then(
-                    if (gradientFill) {
-                        Modifier.shadow(
-                            elevation = CinefinTokens.AuroraGlowElevationDp.dp,
-                            shape = CinefinShapes.Button,
-                            clip = false,
-                            ambientColor =
-                                colors.aurora1.copy(alpha = CinefinTokens.AuroraGlowAlpha),
-                            spotColor = colors.aurora1.copy(alpha = CinefinTokens.AuroraGlowAlpha),
-                        )
-                    } else {
-                        Modifier
-                    }
-                )
-                .clip(CinefinShapes.Button)
-                .then(
-                    if (gradientFill) {
-                        Modifier.auroraGradient(colors)
-                    } else {
-                        Modifier.background(containerColor)
-                    }
-                )
-                .border(1.dp, borderColor, CinefinShapes.Button)
-                .cinefinClickable(enabled = enabled, onClick = onClick)
-                .padding(vertical = CinefinSpacing.Space2),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+                .size(size)
+                .clip(CircleShape)
+                .border(1.dp, borderColor, CircleShape)
+                .cinefinClickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
         Icon(
             painter = painterResource(icon),
-            contentDescription = null,
+            contentDescription = contentDescription,
             tint = contentColor,
-            modifier = Modifier.size(20.dp),
-        )
-        Spacer(Modifier.height(CinefinSpacing.Space1))
-        Text(
-            text = label,
-            style = CinefinType.LabelMedium,
-            color = contentColor,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.size(24.dp),
         )
     }
 }

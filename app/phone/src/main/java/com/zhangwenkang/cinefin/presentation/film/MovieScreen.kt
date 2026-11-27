@@ -48,8 +48,6 @@ import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyVideoMetadata
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.film.presentation.detail.DetailDeleteRules
-import com.zhangwenkang.cinefin.film.presentation.detail.DetailEditRules
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailWriteEvent
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieAction
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieState
@@ -61,7 +59,6 @@ import com.zhangwenkang.cinefin.player.local.domain.PlayerMediaInfoFormat
 import com.zhangwenkang.cinefin.presentation.components.DetailSkeleton
 import com.zhangwenkang.cinefin.presentation.downloads.DownloadStatusViewModel
 import com.zhangwenkang.cinefin.presentation.film.components.ActorsRow
-import com.zhangwenkang.cinefin.presentation.film.components.DeleteServerFileButton
 import com.zhangwenkang.cinefin.presentation.film.components.DeleteServerFileDialog
 import com.zhangwenkang.cinefin.presentation.film.components.DetailBodyMode
 import com.zhangwenkang.cinefin.presentation.film.components.DetailHero
@@ -69,13 +66,14 @@ import com.zhangwenkang.cinefin.presentation.film.components.DetailLoadError
 import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeInfo
 import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeState
 import com.zhangwenkang.cinefin.presentation.film.components.EditMetadataDialog
-import com.zhangwenkang.cinefin.presentation.film.components.EditServerMetadataButton
 import com.zhangwenkang.cinefin.presentation.film.components.ExtraInfoText
 import com.zhangwenkang.cinefin.presentation.film.components.InfoText
 import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
+import com.zhangwenkang.cinefin.presentation.film.components.ItemOverflowAction
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.LumenInfoTable
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
+import com.zhangwenkang.cinefin.presentation.film.components.ProvideItemOverflowActions
 import com.zhangwenkang.cinefin.presentation.film.components.VideoMetadataBar
 import com.zhangwenkang.cinefin.presentation.film.components.communityRatingText
 import com.zhangwenkang.cinefin.presentation.film.components.detailBodyMode
@@ -287,73 +285,68 @@ private fun MovieScreenLayout(
             ?.takeIf { bodyMode != DetailBodyMode.Error }
             ?.let { movie ->
                 Column(modifier = Modifier.fillMaxWidth().verticalScroll(scrollState)) {
-                    DetailHero(
-                        item = movie,
-                        scrollState = scrollState,
-                        eyebrow = movie.detailEyebrow(),
-                        title = movie.name,
-                        originalTitle = movie.originalTitle,
-                        meta = movie.metaLine(),
-                        downloadBadge =
-                            downloadBadges[movie.id]
-                                ?: if (movie.isDownloaded()) {
-                                    DownloadBadgeInfo(DownloadBadgeState.DOWNLOADED)
-                                } else {
-                                    DownloadBadgeInfo()
-                                },
-                        heroEyebrow = movie.detailTypeEyebrow(),
-                    ) { heroLayout ->
-                        ItemButtonsBar(
+                    // 2.0.3-C：详情页 ⋮（编辑元数据 / 删除）——动作沿用本页既有对话框与 ViewModel 事件流。
+                    ProvideItemOverflowActions(
+                        canEditMetadata = canEditMetadata,
+                        canDeleteContent = false,
+                        offlineMode = offlineMode,
+                        onAction = { _, action ->
+                            when (action) {
+                                ItemOverflowAction.EditMetadata -> onEditMetadataClick()
+                                ItemOverflowAction.Delete -> deleteServerDialogOpen = true
+                            }
+                        },
+                    ) {
+                        DetailHero(
                             item = movie,
-                            downloaderState = downloaderState,
-                            onPlayClick = { startFromBeginning ->
-                                onAction(MovieAction.Play(startFromBeginning = startFromBeginning))
-                            },
-                            onMarkAsPlayedClick = {
-                                when (movie.played) {
-                                    true -> onAction(MovieAction.UnmarkAsPlayed)
-                                    false -> onAction(MovieAction.MarkAsPlayed)
-                                }
-                            },
-                            onMarkAsFavoriteClick = {
-                                when (movie.favorite) {
-                                    true -> onAction(MovieAction.UnmarkAsFavorite)
-                                    false -> onAction(MovieAction.MarkAsFavorite)
-                                }
-                            },
-                            onTrailerClick = { uri -> onAction(MovieAction.PlayTrailer(uri)) },
-                            onDownloadClick = { storageIndex ->
-                                onDownloaderAction(DownloaderAction.Download(movie, storageIndex))
-                            },
-                            onDownloadCancelClick = {
-                                onDownloaderAction(DownloaderAction.CancelDownload(movie))
-                            },
-                            onDownloadDeleteClick = {
-                                onDownloaderAction(DownloaderAction.DeleteDownload(movie))
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            heroLayout = heroLayout,
-                        )
-                        if (
-                            DetailEditRules.shouldShowEditAction(
-                                canEditMetadata = canEditMetadata,
-                                offlineMode = offlineMode,
-                            )
-                        ) {
-                            EditServerMetadataButton(
-                                onClick = onEditMetadataClick,
-                                modifier = Modifier.padding(top = CinefinSpacing.Space2),
-                            )
-                        }
-                        if (
-                            DetailDeleteRules.shouldShowDeleteAction(
-                                canDelete = movie.canDelete,
-                                offlineMode = offlineMode,
-                            )
-                        ) {
-                            DeleteServerFileButton(
-                                onClick = { deleteServerDialogOpen = true },
-                                modifier = Modifier.padding(top = CinefinSpacing.Space2),
+                            scrollState = scrollState,
+                            eyebrow = movie.detailEyebrow(),
+                            title = movie.name,
+                            originalTitle = movie.originalTitle,
+                            meta = movie.metaLine(),
+                            downloadBadge =
+                                downloadBadges[movie.id]
+                                    ?: if (movie.isDownloaded()) {
+                                        DownloadBadgeInfo(DownloadBadgeState.DOWNLOADED)
+                                    } else {
+                                        DownloadBadgeInfo()
+                                    },
+                            heroEyebrow = movie.detailTypeEyebrow(),
+                        ) { heroLayout ->
+                            ItemButtonsBar(
+                                item = movie,
+                                downloaderState = downloaderState,
+                                onPlayClick = { startFromBeginning ->
+                                    onAction(
+                                        MovieAction.Play(startFromBeginning = startFromBeginning)
+                                    )
+                                },
+                                onMarkAsPlayedClick = {
+                                    when (movie.played) {
+                                        true -> onAction(MovieAction.UnmarkAsPlayed)
+                                        false -> onAction(MovieAction.MarkAsPlayed)
+                                    }
+                                },
+                                onMarkAsFavoriteClick = {
+                                    when (movie.favorite) {
+                                        true -> onAction(MovieAction.UnmarkAsFavorite)
+                                        false -> onAction(MovieAction.MarkAsFavorite)
+                                    }
+                                },
+                                onTrailerClick = { uri -> onAction(MovieAction.PlayTrailer(uri)) },
+                                onDownloadClick = { storageIndex ->
+                                    onDownloaderAction(
+                                        DownloaderAction.Download(movie, storageIndex)
+                                    )
+                                },
+                                onDownloadCancelClick = {
+                                    onDownloaderAction(DownloaderAction.CancelDownload(movie))
+                                },
+                                onDownloadDeleteClick = {
+                                    onDownloaderAction(DownloaderAction.DeleteDownload(movie))
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                heroLayout = heroLayout,
                             )
                         }
                     }

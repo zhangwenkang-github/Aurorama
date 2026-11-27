@@ -75,6 +75,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeInfo
 import com.zhangwenkang.cinefin.presentation.film.components.InfoText
 import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
+import com.zhangwenkang.cinefin.presentation.film.components.ItemOverflowActionsHost
 import com.zhangwenkang.cinefin.presentation.film.components.ItemPoster
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.LumenInfoTable
@@ -89,6 +90,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.downloadBadgeInfo
 import com.zhangwenkang.cinefin.presentation.film.components.downloadEventMessage
 import com.zhangwenkang.cinefin.presentation.film.components.metaLine
 import com.zhangwenkang.cinefin.presentation.film.components.showsViewAction
+import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.presentation.utils.rememberScrollMemoryState
@@ -176,45 +178,55 @@ fun ShowScreen(
         }
     }
 
-    ShowScreenLayout(
-        state = state,
-        // W75 #5：滚动位置按剧集 id 记忆——进季 / 进集再返回时保持原位置（不置顶）。
-        scrollKey = "show:$showId",
-        downloadState = showDownloadState,
-        downloadBadges = downloadBadges,
-        downloadBusy = state.downloadTargetsLoading,
+    // 2.0.3-C：剧集详情 / 季卡的 ⋮（编辑元数据 / 删除）；删掉整部剧关页，删季则刷新本页。
+    ItemOverflowActionsHost(
+        offlineMode = LocalOfflineMode.current,
         snackbarHostState = snackbarHostState,
-        onDownloadClick = {
-            if (state.downloadTargets == null) {
-                viewModel.onAction(ShowAction.LoadDownloadTargets)
-            }
-            batchDialogVisible = true
+        onItemDeleted = { deleted ->
+            if (deleted.id == showId) navigateBack() else viewModel.loadShow(showId = showId)
         },
-        onAction = { action ->
-            when (action) {
-                is ShowAction.Play -> {
-                    val intent = Intent(context, PlayerActivity::class.java)
-                    intent.putExtra("itemId", showId.toString())
-                    intent.putExtra("itemKind", BaseItemKind.SERIES.serialName)
-                    context.startActivity(intent)
+        onMetadataSaved = { viewModel.loadShow(showId = showId) },
+    ) {
+        ShowScreenLayout(
+            state = state,
+            // W75 #5：滚动位置按剧集 id 记忆——进季 / 进集再返回时保持原位置（不置顶）。
+            scrollKey = "show:$showId",
+            downloadState = showDownloadState,
+            downloadBadges = downloadBadges,
+            downloadBusy = state.downloadTargetsLoading,
+            snackbarHostState = snackbarHostState,
+            onDownloadClick = {
+                if (state.downloadTargets == null) {
+                    viewModel.onAction(ShowAction.LoadDownloadTargets)
                 }
-                is ShowAction.PlayTrailer -> {
-                    try {
-                        uriHandler.openUri(action.trailer)
-                    } catch (e: IllegalArgumentException) {
-                        Toast.makeText(context, e.localizedMessage, Toast.LENGTH_SHORT).show()
+                batchDialogVisible = true
+            },
+            onAction = { action ->
+                when (action) {
+                    is ShowAction.Play -> {
+                        val intent = Intent(context, PlayerActivity::class.java)
+                        intent.putExtra("itemId", showId.toString())
+                        intent.putExtra("itemKind", BaseItemKind.SERIES.serialName)
+                        context.startActivity(intent)
                     }
+                    is ShowAction.PlayTrailer -> {
+                        try {
+                            uriHandler.openUri(action.trailer)
+                        } catch (e: IllegalArgumentException) {
+                            Toast.makeText(context, e.localizedMessage, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    is ShowAction.OnBackClick -> navigateBack()
+                    is ShowAction.OnHomeClick -> navigateHome()
+                    is ShowAction.NavigateToItem -> navigateToItem(action.item)
+                    is ShowAction.NavigateToPerson -> navigateToPerson(action.personId)
+                    else -> Unit
                 }
-                is ShowAction.OnBackClick -> navigateBack()
-                is ShowAction.OnHomeClick -> navigateHome()
-                is ShowAction.NavigateToItem -> navigateToItem(action.item)
-                is ShowAction.NavigateToPerson -> navigateToPerson(action.personId)
-                else -> Unit
-            }
-            viewModel.onAction(action)
-        },
-        onRetry = { viewModel.loadShow(showId = showId) },
-    )
+                viewModel.onAction(action)
+            },
+            onRetry = { viewModel.loadShow(showId = showId) },
+        )
+    }
 
     if (batchDialogVisible) {
         // W7-T4（需求 39）：无季节目 = 整剧集都没有季名分组，确认框给「此节目无季分组」专项说明。

@@ -39,12 +39,10 @@ import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyVideoMetadata
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.spacings
-import com.zhangwenkang.cinefin.film.presentation.detail.DetailDeleteRules
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadEvent
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadState
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadViewModel
-import com.zhangwenkang.cinefin.film.presentation.detail.DetailEditRules
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailWriteEvent
 import com.zhangwenkang.cinefin.film.presentation.episode.EpisodeAction
 import com.zhangwenkang.cinefin.film.presentation.episode.EpisodeState
@@ -52,17 +50,17 @@ import com.zhangwenkang.cinefin.film.presentation.episode.EpisodeViewModel
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.presentation.components.DetailSkeleton
 import com.zhangwenkang.cinefin.presentation.film.components.ActorsRow
-import com.zhangwenkang.cinefin.presentation.film.components.DeleteServerFileButton
 import com.zhangwenkang.cinefin.presentation.film.components.DeleteServerFileDialog
 import com.zhangwenkang.cinefin.presentation.film.components.DetailBodyMode
 import com.zhangwenkang.cinefin.presentation.film.components.DetailHero
 import com.zhangwenkang.cinefin.presentation.film.components.DetailLoadError
 import com.zhangwenkang.cinefin.presentation.film.components.EditMetadataDialog
-import com.zhangwenkang.cinefin.presentation.film.components.EditServerMetadataButton
 import com.zhangwenkang.cinefin.presentation.film.components.ExtraInfoText
 import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
+import com.zhangwenkang.cinefin.presentation.film.components.ItemOverflowAction
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
+import com.zhangwenkang.cinefin.presentation.film.components.ProvideItemOverflowActions
 import com.zhangwenkang.cinefin.presentation.film.components.VideoMetadataBar
 import com.zhangwenkang.cinefin.presentation.film.components.communityRatingText
 import com.zhangwenkang.cinefin.presentation.film.components.detailBodyMode
@@ -276,75 +274,67 @@ private fun EpisodeScreenLayout(
             ?.takeIf { bodyMode != DetailBodyMode.Error }
             ?.let { episode ->
                 Column(modifier = Modifier.fillMaxWidth().verticalScroll(scrollState)) {
-                    DetailHero(
-                        item = episode,
-                        scrollState = scrollState,
-                        eyebrow = episodeHeroEyebrow(episode),
-                        title = episode.name,
-                        meta = episodeHeroMeta(episode),
-                        // W76-Q1：点眉标「第 X 季 - 第 Y 集」回到所属季（W66 删掉的顶栏入口不在顶栏重建）。
-                        onEyebrowClick = {
-                            onAction(EpisodeAction.NavigateToSeason(episode.seasonId))
+                    // 2.0.3-C：详情页 ⋮（编辑元数据 / 删除）——动作沿用本页既有对话框与 ViewModel 事件流。
+                    ProvideItemOverflowActions(
+                        canEditMetadata = canEditMetadata,
+                        canDeleteContent = false,
+                        offlineMode = offlineMode,
+                        onAction = { _, action ->
+                            when (action) {
+                                ItemOverflowAction.EditMetadata -> onEditMetadataClick()
+                                ItemOverflowAction.Delete -> deleteServerDialogOpen = true
+                            }
                         },
-                    ) { heroLayout ->
-                        ItemButtonsBar(
+                    ) {
+                        DetailHero(
                             item = episode,
-                            downloaderState = downloaderState,
-                            onPlayClick = { startFromBeginning ->
-                                onAction(
-                                    EpisodeAction.Play(startFromBeginning = startFromBeginning)
-                                )
+                            scrollState = scrollState,
+                            eyebrow = episodeHeroEyebrow(episode),
+                            title = episode.name,
+                            meta = episodeHeroMeta(episode),
+                            // W76-Q1：点眉标「第 X 季 - 第 Y 集」回到所属季（W66 删掉的顶栏入口不在顶栏重建）。
+                            onEyebrowClick = {
+                                onAction(EpisodeAction.NavigateToSeason(episode.seasonId))
                             },
-                            onMarkAsPlayedClick = {
-                                when (episode.played) {
-                                    true -> onAction(EpisodeAction.UnmarkAsPlayed)
-                                    false -> onAction(EpisodeAction.MarkAsPlayed)
-                                }
-                            },
-                            onMarkAsFavoriteClick = {
-                                when (episode.favorite) {
-                                    true -> onAction(EpisodeAction.UnmarkAsFavorite)
-                                    false -> onAction(EpisodeAction.MarkAsFavorite)
-                                }
-                            },
-                            onTrailerClick = {},
-                            onDownloadClick = { storageIndex ->
-                                onDownloadClick(episode, storageIndex)
-                            },
-                            onDownloadCancelClick = {
-                                onDownloaderAction(DownloaderAction.CancelDownload(episode))
-                            },
-                            onDownloadDeleteClick = {
-                                onDownloaderAction(DownloaderAction.DeleteDownload(episode))
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            downloadState = downloadState,
-                            downloadEnabled = episode.canDownload,
-                            heroLayout = heroLayout,
-                        )
-                        if (
-                            DetailEditRules.shouldShowEditAction(
-                                canEditMetadata = canEditMetadata,
-                                offlineMode = offlineMode,
-                            )
-                        ) {
-                            EditServerMetadataButton(
-                                onClick = onEditMetadataClick,
-                                modifier = Modifier.padding(top = MaterialTheme.spacings.small),
-                            )
-                        }
-                        if (
-                            DetailDeleteRules.shouldShowDeleteAction(
-                                canDelete = episode.canDelete,
-                                offlineMode = offlineMode,
-                            )
-                        ) {
-                            DeleteServerFileButton(
-                                onClick = { deleteServerDialogOpen = true },
-                                modifier = Modifier.padding(top = MaterialTheme.spacings.small),
+                        ) { heroLayout ->
+                            ItemButtonsBar(
+                                item = episode,
+                                downloaderState = downloaderState,
+                                onPlayClick = { startFromBeginning ->
+                                    onAction(
+                                        EpisodeAction.Play(startFromBeginning = startFromBeginning)
+                                    )
+                                },
+                                onMarkAsPlayedClick = {
+                                    when (episode.played) {
+                                        true -> onAction(EpisodeAction.UnmarkAsPlayed)
+                                        false -> onAction(EpisodeAction.MarkAsPlayed)
+                                    }
+                                },
+                                onMarkAsFavoriteClick = {
+                                    when (episode.favorite) {
+                                        true -> onAction(EpisodeAction.UnmarkAsFavorite)
+                                        false -> onAction(EpisodeAction.MarkAsFavorite)
+                                    }
+                                },
+                                onTrailerClick = {},
+                                onDownloadClick = { storageIndex ->
+                                    onDownloadClick(episode, storageIndex)
+                                },
+                                onDownloadCancelClick = {
+                                    onDownloaderAction(DownloaderAction.CancelDownload(episode))
+                                },
+                                onDownloadDeleteClick = {
+                                    onDownloaderAction(DownloaderAction.DeleteDownload(episode))
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                downloadState = downloadState,
+                                downloadEnabled = episode.canDownload,
+                                heroLayout = heroLayout,
                             )
                         }
                     }
+
                     Column(modifier = Modifier.padding(start = paddingStart, end = paddingEnd)) {
                         Spacer(Modifier.height(MaterialTheme.spacings.small))
                         state.videoMetadata?.let { videoMetadata ->

@@ -81,6 +81,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeInfo
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.film.components.FavoriteChangeEffect
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
+import com.zhangwenkang.cinefin.presentation.film.components.ItemOverflowActionsHost
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryActiveChipRow
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryFilterPanel
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryListRow
@@ -105,6 +106,7 @@ import com.zhangwenkang.cinefin.presentation.selection.mediaBatchNeedsEpisodeSel
 import com.zhangwenkang.cinefin.presentation.selection.resolveMediaBatchSelection
 import com.zhangwenkang.cinefin.presentation.selection.startVideoQueuePlayback
 import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColumns
+import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberLazyGridScrollMemoryState
 import com.zhangwenkang.cinefin.presentation.utils.rememberLazyScrollMemoryState
@@ -180,32 +182,39 @@ fun LibraryScreen(
         viewModel.loadItems()
     }
 
-    LibraryScreenLayout(
-        libraryName = libraryName,
-        libraryType = libraryType,
-        topLevel = topLevel,
-        onOpenDrawer = onOpenDrawer,
-        onBackToDefault = onBackToDefault,
-        topBarActions = topBarActions,
-        state = state,
-        bookCovers = bookCovers,
-        onRequestBookCover = viewModel::requestBookCover,
-        onRequestBookCoverFallback = viewModel::requestBookCoverFallback,
-        onPrefetchItem = viewModel::prefetchItemDetail,
-        onOpenDownloads = onOpenDownloads,
-        shelfMetaLine = shelfMetaLine,
-        hiddenItemIds = hiddenItemIds,
-        headerContent = headerContent,
-        onItemLongPress = onItemLongPress,
-        onAction = { action ->
-            when (action) {
-                is LibraryAction.OnItemClick -> onItemClick(action.item)
-                is LibraryAction.OnBackClick -> navigateBack()
-                else -> Unit
-            }
-            viewModel.onAction(action)
-        },
-    )
+    // 2.0.3-C：库海报的 ⋮（编辑元数据 / 删除）；删除或改名后重取当前列表。
+    ItemOverflowActionsHost(
+        offlineMode = LocalOfflineMode.current,
+        onItemDeleted = { viewModel.loadItems() },
+        onMetadataSaved = { viewModel.loadItems() },
+    ) {
+        LibraryScreenLayout(
+            libraryName = libraryName,
+            libraryType = libraryType,
+            topLevel = topLevel,
+            onOpenDrawer = onOpenDrawer,
+            onBackToDefault = onBackToDefault,
+            topBarActions = topBarActions,
+            state = state,
+            bookCovers = bookCovers,
+            onRequestBookCover = viewModel::requestBookCover,
+            onRequestBookCoverFallback = viewModel::requestBookCoverFallback,
+            onPrefetchItem = viewModel::prefetchItemDetail,
+            onOpenDownloads = onOpenDownloads,
+            shelfMetaLine = shelfMetaLine,
+            hiddenItemIds = hiddenItemIds,
+            headerContent = headerContent,
+            onItemLongPress = onItemLongPress,
+            onAction = { action ->
+                when (action) {
+                    is LibraryAction.OnItemClick -> onItemClick(action.item)
+                    is LibraryAction.OnBackClick -> navigateBack()
+                    else -> Unit
+                }
+                viewModel.onAction(action)
+            },
+        )
+    }
 }
 
 /**
