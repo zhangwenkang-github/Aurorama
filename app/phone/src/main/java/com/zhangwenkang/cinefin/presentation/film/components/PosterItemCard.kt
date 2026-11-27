@@ -67,6 +67,7 @@ fun PosterItemCard(
     showRating: Boolean = true,
 ) {
     val colors = LocalCinefinColors.current
+    WarnMissingOverflowHost(item)
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
     val pressed by interactionSource.collectIsPressedAsState()

@@ -14,6 +14,8 @@ import com.zhangwenkang.cinefin.local.LocalMediaKind
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.downloads.DownloadStatusViewModel
 import com.zhangwenkang.cinefin.presentation.film.components.FilmSearchBar
+import com.zhangwenkang.cinefin.presentation.film.components.ItemOverflowActionsHost
+import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import java.util.UUID
 
@@ -38,56 +40,63 @@ fun SearchScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val downloadBadges by downloadStatusViewModel.badges.collectAsStateWithLifecycle()
 
-    FilmSearchBar(
-        state = state,
-        downloadBadges = downloadBadges,
-        expanded = true,
-        onExpand = { expanded -> if (!expanded) onClose() },
-        onAction = { action ->
-            when (action) {
-                is SearchAction.OnItemClick ->
-                    if (SearchResultRules.categoryOf(action.item) == SearchCategory.MUSIC) {
-                        onOpenMusic(
-                            action.item.id,
-                            SearchResultRules.serverKindOf(action.item),
-                            action.item.name,
-                        )
-                    } else {
-                        onItemClick(action.item)
-                    }
-                is SearchAction.OnLocalItemClick ->
-                    when (action.hit.entry.kind) {
-                        LocalMediaKind.VIDEO -> onPlayLocalVideo(action.hit.entry.itemId)
-                        LocalMediaKind.BOOK ->
-                            onOpenLocalBook(
-                                action.hit.entry.itemId,
-                                action.hit.entry.displayName,
-                                action.hit.entry.documentUri,
+    // 2.0.3-F6：搜索结果里的视频海报同样有 ⋮（编辑元数据 / 删除）；删除 / 改名后按当前 query 重跑搜索。
+    ItemOverflowActionsHost(
+        offlineMode = LocalOfflineMode.current,
+        onItemDeleted = { viewModel.onAction(SearchAction.Retry) },
+        onMetadataSaved = { viewModel.onAction(SearchAction.Retry) },
+    ) {
+        FilmSearchBar(
+            state = state,
+            downloadBadges = downloadBadges,
+            expanded = true,
+            onExpand = { expanded -> if (!expanded) onClose() },
+            onAction = { action ->
+                when (action) {
+                    is SearchAction.OnItemClick ->
+                        if (SearchResultRules.categoryOf(action.item) == SearchCategory.MUSIC) {
+                            onOpenMusic(
+                                action.item.id,
+                                SearchResultRules.serverKindOf(action.item),
+                                action.item.name,
                             )
-                        LocalMediaKind.MUSIC -> onOpenMusic(action.hit.entry.itemId, null, null)
-                    }
-                is SearchAction.OnDownloadedItemClick -> {
-                    val record = action.record
-                    val itemId = runCatching { UUID.fromString(record.itemId) }.getOrNull()
-                    if (itemId != null) {
-                        when (record.kind) {
-                            DownloadMediaKind.VIDEO -> onPlayLocalVideo(itemId)
-                            DownloadMediaKind.BOOK ->
+                        } else {
+                            onItemClick(action.item)
+                        }
+                    is SearchAction.OnLocalItemClick ->
+                        when (action.hit.entry.kind) {
+                            LocalMediaKind.VIDEO -> onPlayLocalVideo(action.hit.entry.itemId)
+                            LocalMediaKind.BOOK ->
                                 onOpenLocalBook(
-                                    itemId,
-                                    record.displayName ?: record.itemId.take(8),
-                                    null,
+                                    action.hit.entry.itemId,
+                                    action.hit.entry.displayName,
+                                    action.hit.entry.documentUri,
                                 )
-                            DownloadMediaKind.MUSIC -> onOpenMusic(itemId, null, null)
+                            LocalMediaKind.MUSIC -> onOpenMusic(action.hit.entry.itemId, null, null)
+                        }
+                    is SearchAction.OnDownloadedItemClick -> {
+                        val record = action.record
+                        val itemId = runCatching { UUID.fromString(record.itemId) }.getOrNull()
+                        if (itemId != null) {
+                            when (record.kind) {
+                                DownloadMediaKind.VIDEO -> onPlayLocalVideo(itemId)
+                                DownloadMediaKind.BOOK ->
+                                    onOpenLocalBook(
+                                        itemId,
+                                        record.displayName ?: record.itemId.take(8),
+                                        null,
+                                    )
+                                DownloadMediaKind.MUSIC -> onOpenMusic(itemId, null, null)
+                            }
                         }
                     }
+                    else -> Unit
                 }
-                else -> Unit
-            }
-            viewModel.onAction(action)
-        },
-        // 本页是导航目的地根节点，NavHost 的 AnimatedContent 以 fillMaxSize 固定 min=max 约束测量这里；
-        // FilmSearchBar 内部会把最小高度放宽为 0（M3 展开态 SearchBar 在固定高度约束下结果区会被压成 0 高）。
-        modifier = Modifier.fillMaxWidth(),
-    )
+                viewModel.onAction(action)
+            },
+            // 本页是导航目的地根节点，NavHost 的 AnimatedContent 以 fillMaxSize 固定 min=max 约束测量这里；
+            // FilmSearchBar 内部会把最小高度放宽为 0（M3 展开态 SearchBar 在固定高度约束下结果区会被压成 0 高）。
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }

@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.zhangwenkang.cinefin.BuildConfig
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinMoreVertIcon
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
@@ -44,6 +45,8 @@ import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidShow
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import timber.log.Timber
 
 /** 2.0.3-C：海报 / 详情页 ⋮ 菜单项（与 Jellyfin 官方客户端同序：先编辑元数据，后删除）。 */
 enum class ItemOverflowAction {
@@ -144,6 +147,29 @@ fun ProvideItemOverflowActions(
             )
         }
     CompositionLocalProvider(LocalItemOverflowActions provides handler, content = content)
+}
+
+/**
+ * 2.0.3-F6：接线防线——影视海报渲染在**没有** [ProvideItemOverflowActions] / [ItemOverflowActionsHost] 的子树里时，
+ * debug 构建只在每个条目类型上告警一次（release 零开销），避免以后新增网格忘了接 ⋮ 而静默丢失入口。
+ */
+internal fun shouldWarnMissingOverflowHost(supported: Boolean, hasHandler: Boolean): Boolean =
+    supported && !hasHandler
+
+private val warnedMissingOverflowHost = ConcurrentHashMap.newKeySet<String>()
+
+@Composable
+internal fun WarnMissingOverflowHost(item: FindroidItem) {
+    val hasHandler = LocalItemOverflowActions.current != null
+    if (!shouldWarnMissingOverflowHost(supportsItemOverflowActions(item), hasHandler)) return
+    LaunchedEffect(item.id) {
+        if (BuildConfig.DEBUG) {
+            val kind = item::class.simpleName ?: "item"
+            if (warnedMissingOverflowHost.add(kind)) {
+                Timber.w("影视海报缺少 ItemOverflowActionsHost，⋮（编辑元数据 / 删除）不可用：%s", kind)
+            }
+        }
+    }
 }
 
 /** 当前条目的 ⋮ 可见项（未提供写能力时为空）。 */
