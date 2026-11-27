@@ -82,6 +82,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.EpisodeDownloadSele
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.film.components.FavoriteChangeEffect
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
+import com.zhangwenkang.cinefin.presentation.film.components.ItemOverflowActionsHost
 import com.zhangwenkang.cinefin.presentation.film.components.LibraryEntryCard
 import com.zhangwenkang.cinefin.presentation.film.components.videoItemPlaceholderIconRes
 import com.zhangwenkang.cinefin.presentation.navigation.libraryTypeLabelRes
@@ -100,6 +101,7 @@ import com.zhangwenkang.cinefin.presentation.selection.mediaBatchNeedsEpisodeSel
 import com.zhangwenkang.cinefin.presentation.selection.resolveMediaBatchSelection
 import com.zhangwenkang.cinefin.presentation.selection.startVideoQueuePlayback
 import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColumns
+import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberLazyGridScrollMemoryState
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
@@ -299,224 +301,247 @@ private fun VideoScreenLayout(
 
     BackHandler(enabled = selectionMode) { batchSelection = batchSelection.clear() }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        CinefinPageTopBar(
-            // 临时库视图：真实库名 + 类型 + 项目数（库卡总览不出现）。
-            title =
-                if (selectionMode) {
-                    stringResource(
-                        CoreR.string.download_selected_count,
-                        batchSelection.selectedCount,
-                    )
-                } else {
-                    temporaryLibrary?.name ?: stringResource(CoreR.string.title_video)
-                },
-            subtitle =
-                if (selectionMode) {
-                    null
-                } else if (temporaryLibrary != null || selectedLibrary != null) {
-                    val library = temporaryLibrary ?: selectedLibrary!!
-                    listOfNotNull(
-                            stringResource(libraryTypeLabelRes(library.type)),
-                            library.itemCount?.let {
-                                stringResource(FilmR.string.library_item_count, it)
-                            },
+    // 2.0.3-F6：视频 tab（聚合库 / 侧栏临时库）的海报也要有 ⋮（编辑元数据 / 删除）。
+    // 删除 / 改名后只重取 Pager 当前页（pagingItems.refresh()），不重建 Pager，滚动位置与缓存保持。
+    ItemOverflowActionsHost(
+        offlineMode = LocalOfflineMode.current,
+        snackbarHostState = snackbarHostState,
+        onItemDeleted = { pagingItems.refresh() },
+        onMetadataSaved = { pagingItems.refresh() },
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            CinefinPageTopBar(
+                // 临时库视图：真实库名 + 类型 + 项目数（库卡总览不出现）。
+                title =
+                    if (selectionMode) {
+                        stringResource(
+                            CoreR.string.download_selected_count,
+                            batchSelection.selectedCount,
                         )
-                        .joinToString(" · ")
-                } else if (state.allLibraries.isNotEmpty()) {
-                    stringResource(FilmR.string.library_count, state.allLibraries.size)
-                } else {
-                    null
-                },
-            onOpenDrawer = if (selectionMode) null else onOpenDrawer,
-            modifier = Modifier.padding(start = safePadding.start),
-            actions = {
-                if (selectionMode) {
-                    MediaBatchTopBarActions(
-                        selectedCount = batchSelection.selectedCount,
-                        visibleCount = loadedIds.size,
-                        onSelectAll = { batchSelection = batchSelection.selectAll(loadedIds) },
-                        onSelectNone = { batchSelection = batchSelection.selectNone(loadedIds) },
-                        onExit = { batchSelection = batchSelection.clear() },
-                    )
-                    return@CinefinPageTopBar
-                }
-                if (temporaryLibrary != null && onExitTemporaryLibrary != null) {
-                    CinefinBackToDefaultChip(onClick = onExitTemporaryLibrary)
-                }
-                // 库选择（W54-C）：库卡模式 = 过滤显示哪些库卡；聚合模式 = 只显示所选库内容。
-                // 服务器上只有一个视频库时没有可选项；临时库视图只显示那一个库，不出现选择器。
-                if (temporaryLibrary == null && state.allLibraries.size >= 2) {
-                    val allLibrariesLabel = stringResource(FilmR.string.video_library_all)
-                    val allLibrariesDetail =
-                        stringResource(FilmR.string.library_count, state.allLibraries.size)
-                    LibrarySelectorChip(
-                        label = selectedLibrary?.name ?: allLibrariesLabel,
-                        options =
-                            listOf(
-                                LibrarySelectorOption(
-                                    id = null,
-                                    label = allLibrariesLabel,
-                                    detail = allLibrariesDetail,
-                                )
-                            ) +
-                                state.allLibraries.map { library ->
-                                    LibrarySelectorOption(
-                                        id = library.id,
-                                        label = library.name,
-                                        detail =
-                                            library.itemCount?.let {
-                                                stringResource(FilmR.string.library_item_count, it)
-                                            },
-                                    )
+                    } else {
+                        temporaryLibrary?.name ?: stringResource(CoreR.string.title_video)
+                    },
+                subtitle =
+                    if (selectionMode) {
+                        null
+                    } else if (temporaryLibrary != null || selectedLibrary != null) {
+                        val library = temporaryLibrary ?: selectedLibrary!!
+                        listOfNotNull(
+                                stringResource(libraryTypeLabelRes(library.type)),
+                                library.itemCount?.let {
+                                    stringResource(FilmR.string.library_item_count, it)
                                 },
-                        selectedId = state.selectedLibraryId,
-                        onSelect = onSelectLibrary,
+                            )
+                            .joinToString(" · ")
+                    } else if (state.allLibraries.isNotEmpty()) {
+                        stringResource(FilmR.string.library_count, state.allLibraries.size)
+                    } else {
+                        null
+                    },
+                onOpenDrawer = if (selectionMode) null else onOpenDrawer,
+                modifier = Modifier.padding(start = safePadding.start),
+                actions = {
+                    if (selectionMode) {
+                        MediaBatchTopBarActions(
+                            selectedCount = batchSelection.selectedCount,
+                            visibleCount = loadedIds.size,
+                            onSelectAll = { batchSelection = batchSelection.selectAll(loadedIds) },
+                            onSelectNone = {
+                                batchSelection = batchSelection.selectNone(loadedIds)
+                            },
+                            onExit = { batchSelection = batchSelection.clear() },
+                        )
+                        return@CinefinPageTopBar
+                    }
+                    if (temporaryLibrary != null && onExitTemporaryLibrary != null) {
+                        CinefinBackToDefaultChip(onClick = onExitTemporaryLibrary)
+                    }
+                    // 库选择（W54-C）：库卡模式 = 过滤显示哪些库卡；聚合模式 = 只显示所选库内容。
+                    // 服务器上只有一个视频库时没有可选项；临时库视图只显示那一个库，不出现选择器。
+                    if (temporaryLibrary == null && state.allLibraries.size >= 2) {
+                        val allLibrariesLabel = stringResource(FilmR.string.video_library_all)
+                        val allLibrariesDetail =
+                            stringResource(FilmR.string.library_count, state.allLibraries.size)
+                        LibrarySelectorChip(
+                            label = selectedLibrary?.name ?: allLibrariesLabel,
+                            options =
+                                listOf(
+                                    LibrarySelectorOption(
+                                        id = null,
+                                        label = allLibrariesLabel,
+                                        detail = allLibrariesDetail,
+                                    )
+                                ) +
+                                    state.allLibraries.map { library ->
+                                        LibrarySelectorOption(
+                                            id = library.id,
+                                            label = library.name,
+                                            detail =
+                                                library.itemCount?.let {
+                                                    stringResource(
+                                                        FilmR.string.library_item_count,
+                                                        it,
+                                                    )
+                                                },
+                                        )
+                                    },
+                            selectedId = state.selectedLibraryId,
+                            onSelect = onSelectLibrary,
+                        )
+                    }
+                    // 睡眠定时（W55 正式落地）：与音乐 / 播放器共享同一状态源；激活时点亮。
+                    TopBarAction(
+                        icon = FilmR.drawable.ic_video_sleep,
+                        contentDescription = stringResource(FilmR.string.video_sleep_timer),
+                        tint =
+                            if (sleepTimerState.active) LocalCinefinColors.current.aurora1
+                            else null,
+                        onClick = { showSleepTimer = true },
+                    )
+                    // W75 #13：全页搜索入口——与媒体库页顶栏同款图标，点击进入现有搜索流程。
+                    SearchTopBarAction(onClick = onSearchClick)
+                },
+            )
+            Spacer(Modifier.height(CinefinSpacing.Space2))
+
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                if (
+                    temporaryLibrary != null ||
+                        (state.displayMode == VideoDisplayMode.Aggregated &&
+                            state.libraries.isNotEmpty())
+                ) {
+                    AggregatedVideoGrid(
+                        pagingItems = pagingItems,
+                        onItemClick = onItemClick,
+                        downloadBadges = downloadBadges,
+                        showResumeProgress = temporaryLibrary?.type == CollectionType.HomeVideos,
+                        contentPadding = contentPadding,
+                        gridGutter = gridGutter,
+                        paddingStart = paddingStart,
+                        paddingEnd = paddingEnd,
+                        selectionMode = selectionMode,
+                        selectedIds = batchSelection.selectedIds,
+                        onToggleSelection = { item ->
+                            batchSelection =
+                                batchSelection.retain(loadedIds.toSet()).toggle(item.id.toString())
+                        },
+                        onLongPressSelection = { item ->
+                            batchSelection =
+                                batchSelection
+                                    .retain(loadedIds.toSet())
+                                    .longPress(item.id.toString())
+                        },
+                    )
+                } else {
+                    VideoLibraryGrid(
+                        state = state,
+                        expanded = expanded,
+                        minColumnSize = cardMinColumnSize,
+                        contentPadding = contentPadding,
+                        gridGutter = gridGutter,
+                        paddingStart = paddingStart,
+                        paddingEnd = paddingEnd,
+                        onItemClick = onItemClick,
                     )
                 }
-                // 睡眠定时（W55 正式落地）：与音乐 / 播放器共享同一状态源；激活时点亮。
-                TopBarAction(
-                    icon = FilmR.drawable.ic_video_sleep,
-                    contentDescription = stringResource(FilmR.string.video_sleep_timer),
-                    tint = if (sleepTimerState.active) LocalCinefinColors.current.aurora1 else null,
-                    onClick = { showSleepTimer = true },
-                )
-                // W75 #13：全页搜索入口——与媒体库页顶栏同款图标，点击进入现有搜索流程。
-                SearchTopBarAction(onClick = onSearchClick)
-            },
-        )
-        Spacer(Modifier.height(CinefinSpacing.Space2))
 
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            if (
-                temporaryLibrary != null ||
-                    (state.displayMode == VideoDisplayMode.Aggregated &&
-                        state.libraries.isNotEmpty())
-            ) {
-                AggregatedVideoGrid(
-                    pagingItems = pagingItems,
-                    onItemClick = onItemClick,
-                    downloadBadges = downloadBadges,
-                    showResumeProgress = temporaryLibrary?.type == CollectionType.HomeVideos,
-                    contentPadding = contentPadding,
-                    gridGutter = gridGutter,
-                    paddingStart = paddingStart,
-                    paddingEnd = paddingEnd,
-                    selectionMode = selectionMode,
-                    selectedIds = batchSelection.selectedIds,
-                    onToggleSelection = { item ->
-                        batchSelection =
-                            batchSelection.retain(loadedIds.toSet()).toggle(item.id.toString())
-                    },
-                    onLongPressSelection = { item ->
-                        batchSelection =
-                            batchSelection.retain(loadedIds.toSet()).longPress(item.id.toString())
-                    },
-                )
-            } else {
-                VideoLibraryGrid(
-                    state = state,
-                    expanded = expanded,
-                    minColumnSize = cardMinColumnSize,
-                    contentPadding = contentPadding,
-                    gridGutter = gridGutter,
-                    paddingStart = paddingStart,
-                    paddingEnd = paddingEnd,
-                    onItemClick = onItemClick,
-                )
-            }
+                // 空态：服务器上确实没有 movies / tvshows 库（拉取失败走下面的 ErrorCard）。
+                if (
+                    state.loaded &&
+                        !state.isLoading &&
+                        state.error == null &&
+                        state.libraries.isEmpty()
+                ) {
+                    CinefinEmptyState(
+                        title = stringResource(FilmR.string.video_empty_title),
+                        message = stringResource(FilmR.string.video_empty_message),
+                        modifier =
+                            Modifier.align(Alignment.Center).padding(horizontal = paddingStart),
+                    )
+                }
 
-            // 空态：服务器上确实没有 movies / tvshows 库（拉取失败走下面的 ErrorCard）。
-            if (
-                state.loaded && !state.isLoading && state.error == null && state.libraries.isEmpty()
-            ) {
-                CinefinEmptyState(
-                    title = stringResource(FilmR.string.video_empty_title),
-                    message = stringResource(FilmR.string.video_empty_message),
-                    modifier = Modifier.align(Alignment.Center).padding(horizontal = paddingStart),
-                )
-            }
+                if (state.error != null) {
+                    ErrorCard(
+                        onShowStacktrace = { showErrorDialog = true },
+                        onRetryClick = onRetry,
+                        modifier =
+                            Modifier.fillMaxWidth()
+                                .padding(
+                                    start = paddingStart,
+                                    top = CinefinSpacing.Space4,
+                                    end = paddingEnd,
+                                ),
+                    )
+                }
 
-            if (state.error != null) {
-                ErrorCard(
-                    onShowStacktrace = { showErrorDialog = true },
-                    onRetryClick = onRetry,
+                CinefinSnackbarHost(
+                    hostState = snackbarHostState,
                     modifier =
-                        Modifier.fillMaxWidth()
-                            .padding(
-                                start = paddingStart,
-                                top = CinefinSpacing.Space4,
-                                end = paddingEnd,
-                            ),
+                        Modifier.align(Alignment.BottomCenter).padding(horizontal = paddingStart),
                 )
             }
 
-            CinefinSnackbarHost(
-                hostState = snackbarHostState,
-                modifier =
-                    Modifier.align(Alignment.BottomCenter).padding(horizontal = paddingStart),
-            )
-        }
-
-        if (selectionMode) {
-            MediaBatchActionBar(
-                mode = MediaBatchMode.VIDEO,
-                selectedCount = batchSelection.selectedCount,
-                isEnabled = { action -> mediaBatchActionEnabled(action, selectedCaps) },
-                onAction = { action ->
-                    when (action) {
-                        MediaBatchAction.PLAY -> batchViewModel.playSelected(selectedItems)
-                        MediaBatchAction.DOWNLOAD ->
-                            if (selectionResolution.isComplete) {
-                                if (mediaBatchNeedsEpisodeSelection(selectedItems)) {
-                                    // Show / Season：先走显式剧集候选，不弹本提示层。
-                                    batchViewModel.prepareDownloadSelection(
-                                        requestedSelectionIds = batchSelection.selectedIds,
-                                        sourceItems = selectedItems,
-                                    )
-                                } else {
-                                    val targets =
-                                        batchDownloadTargets(
-                                            selectedItems,
-                                            batchViewModel.capsOf(selectedItems),
+            if (selectionMode) {
+                MediaBatchActionBar(
+                    mode = MediaBatchMode.VIDEO,
+                    selectedCount = batchSelection.selectedCount,
+                    isEnabled = { action -> mediaBatchActionEnabled(action, selectedCaps) },
+                    onAction = { action ->
+                        when (action) {
+                            MediaBatchAction.PLAY -> batchViewModel.playSelected(selectedItems)
+                            MediaBatchAction.DOWNLOAD ->
+                                if (selectionResolution.isComplete) {
+                                    if (mediaBatchNeedsEpisodeSelection(selectedItems)) {
+                                        // Show / Season：先走显式剧集候选，不弹本提示层。
+                                        batchViewModel.prepareDownloadSelection(
+                                            requestedSelectionIds = batchSelection.selectedIds,
+                                            sourceItems = selectedItems,
                                         )
-                                    if (targets.isEmpty()) {
-                                        // 无可入队条目：保持既有 DownloadSkipped 反馈。
-                                        batchViewModel.downloadSelected(selectedItems)
                                     } else {
-                                        // W7-T1b：先弹前置检查，确认后才入队（只带装得下的子集）。
-                                        precheck =
-                                            DetailDownloadRules.mediaBatchPrecheck(
-                                                items = targets,
-                                                availableBytes =
-                                                    DownloadPrecheckEnvironment.availableBytes(
-                                                        context,
-                                                        0,
-                                                    ),
-                                                title =
-                                                    context.getString(
-                                                        CoreR.string.detail_action_download
-                                                    ),
+                                        val targets =
+                                            batchDownloadTargets(
+                                                selectedItems,
+                                                batchViewModel.capsOf(selectedItems),
                                             )
+                                        if (targets.isEmpty()) {
+                                            // 无可入队条目：保持既有 DownloadSkipped 反馈。
+                                            batchViewModel.downloadSelected(selectedItems)
+                                        } else {
+                                            // W7-T1b：先弹前置检查，确认后才入队（只带装得下的子集）。
+                                            precheck =
+                                                DetailDownloadRules.mediaBatchPrecheck(
+                                                    items = targets,
+                                                    availableBytes =
+                                                        DownloadPrecheckEnvironment.availableBytes(
+                                                            context,
+                                                            0,
+                                                        ),
+                                                    title =
+                                                        context.getString(
+                                                            CoreR.string.detail_action_download
+                                                        ),
+                                                )
+                                        }
+                                    }
+                                } else {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            context.getString(
+                                                CoreR.string.selection_load_failed,
+                                                selectionResolution.issueCount,
+                                            )
+                                        )
                                     }
                                 }
-                            } else {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar(
-                                        context.getString(
-                                            CoreR.string.selection_load_failed,
-                                            selectionResolution.issueCount,
-                                        )
-                                    )
-                                }
-                            }
-                        MediaBatchAction.MARK_PLAYED ->
-                            batchViewModel.markPlayedSelected(selectedItems)
-                        MediaBatchAction.FAVORITE -> batchViewModel.favoriteSelected(selectedItems)
-                        MediaBatchAction.DELETE -> showBatchDeleteDialog = true
-                    }
-                },
-            )
+                            MediaBatchAction.MARK_PLAYED ->
+                                batchViewModel.markPlayedSelected(selectedItems)
+                            MediaBatchAction.FAVORITE ->
+                                batchViewModel.favoriteSelected(selectedItems)
+                            MediaBatchAction.DELETE -> showBatchDeleteDialog = true
+                        }
+                    },
+                )
+            }
         }
     }
 

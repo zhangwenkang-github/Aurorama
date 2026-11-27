@@ -45,6 +45,14 @@ class ItemOverflowMenuRulesTest {
         )
     }
 
+    /** 2.0.3-F6：只有「影视条目 + 子树没有 host」才告警；书籍/音乐/合集与已接线的网格不打扰日志。 */
+    @Test
+    fun `missing host warns only for video posters`() {
+        assertTrue(shouldWarnMissingOverflowHost(supported = true, hasHandler = false))
+        assertFalse(shouldWarnMissingOverflowHost(supported = true, hasHandler = true))
+        assertFalse(shouldWarnMissingOverflowHost(supported = false, hasHandler = false))
+    }
+
     @Test
     fun `metadata editor opens only for the matching ready snapshot`() {
         assertFalse(

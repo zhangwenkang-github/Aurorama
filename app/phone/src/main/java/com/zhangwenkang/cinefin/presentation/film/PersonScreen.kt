@@ -46,8 +46,10 @@ import com.zhangwenkang.cinefin.models.FindroidPerson
 import com.zhangwenkang.cinefin.presentation.components.DetailSkeleton
 import com.zhangwenkang.cinefin.presentation.film.components.Direction
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
+import com.zhangwenkang.cinefin.presentation.film.components.ItemOverflowActionsHost
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
+import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import java.util.UUID
 
@@ -63,16 +65,23 @@ fun PersonScreen(
 
     LaunchedEffect(true) { viewModel.loadPerson(personId) }
 
-    PersonScreenLayout(
-        state = state,
-        onAction = { action ->
-            when (action) {
-                is PersonAction.NavigateBack -> navigateBack()
-                is PersonAction.NavigateHome -> navigateHome()
-                is PersonAction.NavigateToItem -> navigateToItem(action.item)
-            }
-        },
-    )
+    // 2.0.3-F6：人物页的「出演 / 执导」海报同样有 ⋮（编辑元数据 / 删除）；删除 / 改名后重取人物页。
+    ItemOverflowActionsHost(
+        offlineMode = LocalOfflineMode.current,
+        onItemDeleted = { viewModel.loadPerson(personId) },
+        onMetadataSaved = { viewModel.loadPerson(personId) },
+    ) {
+        PersonScreenLayout(
+            state = state,
+            onAction = { action ->
+                when (action) {
+                    is PersonAction.NavigateBack -> navigateBack()
+                    is PersonAction.NavigateHome -> navigateHome()
+                    is PersonAction.NavigateToItem -> navigateToItem(action.item)
+                }
+            },
+        )
+    }
 }
 
 @Composable
