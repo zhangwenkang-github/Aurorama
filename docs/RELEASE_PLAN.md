@@ -113,6 +113,20 @@ $env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 | 2.0.0 | 2026-11-24 | 7 | `assembleLibreRelease verifyMpvJniReleaseContract "-Paurorama.universalApk=true"` | 169.0 MiB | 78.8 MiB |
 | 2.0.1 | 2026-11-26 | 8 | `assembleLibreRelease verifyMpvJniReleaseContract "-Paurorama.universalApk=true"` | 169.1 MiB | 78.9 MiB |
 | 2.0.2 | 2026-11-27 | 9 | `assembleLibreRelease verifyMpvJniReleaseContract "-Paurorama.universalApk=true"` | 169.1 MiB | 78.9 MiB |
+| 2.0.3 | 2026-11-28 | 10 | `assembleLibreRelease verifyMpvJniReleaseContract "-Paurorama.universalApk=true"` | 169.2 MiB | 79.0 MiB |
+
+**2.0.3 发布资产校验 · 发布对象（2026-11-28 · 2.0.3 体验修复波次 A–E + QA 返修 F1–F6；分支 `codex/v2.0.3`，发布点 `0735849c`；本表为上传口径）**
+
+| 文件（上传时改名） | 体积（字节 / MiB） | SHA-256 |
+|--------------------|--------------------|---------|
+| `Aurorama-2.0.3-universal.apk`（构建产物 `phone-libre-universal-release.apk`） | 177,432,455 / 169.2 | `09bd602c67cd235ae0f84d4d1f733f3b85055e81f907cb0b7407b12504a2650c` |
+| `Aurorama-2.0.3-arm64-v8a.apk`（构建产物 `phone-libre-arm64-v8a-release.apk`） | 82,834,669 / 79.0 | `ebf3d987450cf313fc8bced24819ce0bad92832573af401c148091adfe6309aa` |
+
+- 内容 = 用户实测 11 项体验修复（播放内核死锁自愈 / 首页返回静默刷新 / 详情入口归位 / 播放器界面 / 更新下载根因等）+ 找茬复审返修 F1–F6，详见 `docs/RELEASE_NOTES_v2.0.3.md` 与 `docs/V203_TASKS.md`；版本号 **2.0.3 (10)**。
+- `apksigner verify`：两份均 v2 通过、证书 SHA-256 = `e449c4aadde191a789fe72ca8f7ec5471547c21446ddc04e4b7b8b23cee155ff`（与 §2 一致）。
+- 门禁（2026-11-28 窗口真跑）：全模块单测 0 败（含 phone 641 / music 500 / Update 37+83）+ `ktfmtCheck` 全绿 + `assembleLibreRelease`（7m24s / 410 tasks）+ `verifyMpvJniReleaseContract` PASS。
+- K60 真机取证 10/11 项 ✅（详见 V203_TASKS 状态块）；**Pad 砖态终验 ✅**：43af8627 自 2.0.2(9)（处于"切内核后再也无法播放"死锁态）`install -r` 覆盖 → 起播成功（mpv 出帧 + PLAYING 持续）；K60 升级 E2E ✅（2.0.2(9)→2.0.3(10) 数据保留 `firstInstallTime` 不变、首页渲染、crash 缓冲空）。
+- 发布用副本在 `F:\Develop\code_data\release-assets\2.0.3\`（与构建产物哈希一致）。**已发布 2026-11-28（用户授权）：本地 master 先对齐发布点 `0735849c`（发布纪律）→ push master `d7ff30a7..0735849c` + 分支 `codex/v2.0.3` + tag `v2.0.3` → [GitHub Release](https://github.com/zhangwenkang-github/Aurorama/releases/tag/v2.0.3)「极光幕 / Aurorama v2.0.3」双 APK；发布后自检：重新下载两资产 SHA-256 复核（结果见 V203_TASKS 状态块）。**
 
 **2.0.0 发布资产校验 · 发布对象（2026-11-24 · V2 W0–W9 全波次；分支 `codex/v2-integration`；本表为上传口径）**
 

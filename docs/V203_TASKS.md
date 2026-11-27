@@ -1,7 +1,7 @@
 # 2.0.3 任务卡台账
 
 <!-- V203_STATUS_BEGIN -->
-> **当前状态（2026-11-28）**：**11 项用户实测 bug 全修 + 找茬复审 5 P1 返修 + 视频tab漏网 F6 补修，全部合入 `codex/v2.0.3`，版本 bump 2.0.3/code 10，K60 真机取证 10/11 项通过；剩 Pad 内核自愈终验（装机被 MIUI USB 安装拦截，待用户确认）+ 发布（push/tag/Release 待授权）。**
+> **当前状态（2026-11-28）**：**2.0.3 已发布（用户授权）**——发布点 `0735849c`（分支 `codex/v2.0.3`）；发布纪律执行（本地 master 先对齐发布点 → push master `d7ff30a7..0735849c` + 分支 + tag `v2.0.3`）；GitHub Release「极光幕 / Aurorama v2.0.3」双 APK；**Pad 砖态终验 ✅**（2.0.2(9) 死锁态覆盖安装 2.0.3(10) → 起播成功 mpv 出帧 PLAYING 持续）；K60 升级 E2E ✅（数据保留、首页渲染、crash 空）；11 项用户实测 bug 全修 + 找茬复审 F1–F6 返修全合入。
 > **修复卡**（基线 = 2.0.2 发布点 `d7ff30a7` 的后续 `12f7e68d`）：
 > - A `7e322512` 播放内核（bug 11/8）：切内核失败不再销毁重建（原地恢复+熔断器+`BACKEND_SWITCH_FAILED` 错误卡）；持久化内核建不出来时自愈回落 ExoPlayer 并复位偏好（Pad 整机死锁根因）；单集解析失败回落单片（"该条目不是可播放的剧集"触发链切断）；首页返回改静默刷新（不再整页 loading）。
 > - B `b91cf96c` 播放器界面（bug 5/9/10）：播放顺序（循环模式）移底栏；字幕轨道行四段式重排；面板打开控制层收起、垫层唯一化（scrim 28% token）。
@@ -18,8 +18,7 @@
 > - F6 `29933d68` 真机取证揪出：VideoScreen（视频 tab 聚合/临时库）、SearchBar、PersonScreen 海报网格漏接 ⋮ host，全补；新增 DEBUG 缺 host 告警防线（`WarnMissingOverflowHost`）。
 > **K60 真机取证（2026-11-28，admin@jellyfin-test）**：bug2 首页无评分✅；bug3 详情页⋮+海报⋮（菜单=编辑元数据/删除，与官方同序）✅；bug4 纯图标按钮带无障碍名✅；bug5 循环模式在底栏（与字幕/音轨/倍速同排）✅；bug6 ⋮ 24dp 统一✅；bug7 音乐页单 ⋮✅；bug8 播放返回首页滚动位置保持+无整页重载✅；bug9 字幕面板分区正常（本集无字幕轨，行布局结构性通过）✅；bug10 面板打开控制层收起✅；bug1 检查更新有反馈（"已是最新版本"口径正确）✅——下载路径无可用更新无法真机触发，由 37+83 条单测覆盖。
 > **字幕主/次技术解答（bug 9 提问）**：主字幕走内核渲染管线（mpv sid/ExoPlayer 轨道，支持图形轨 PGS）；次字幕是 App 层下载源文件 Compose 自绘文本。图形轨只能主字幕；内核原生轨道表没有的纯外挂文本轨只能次字幕——两条完全不同的渲染路径，是能力差异不是 bug。
-> **BLOCKED**：Pad（43af8627）装机三连败 `INSTALL_FAILED_USER_RESTRICTED`（MIUI USB 安装限制），bug 11 自愈终验与 Pad 回归待用户在 Pad 上确认安装弹窗/开 USB 安装后补做。
-> **观察项**：字幕轨道行新布局未在有字幕的片上实轨目视；P2-2/P2-5/P2-6/P2-7 已修，P3-2（循环档位徽标）/P3-5（音乐子菜单返回语义）未做=留档；F3 报告 core 全量单测 `DownloaderImplRecoveryTest` 2 条并行偶发（单独复跑绿，与本波无关，观察）。
+> **观察项**：字幕轨道行新布局未在有字幕的片上实轨目视；P3-2（循环档位徽标）/P3-5（音乐子菜单返回语义）未做=留档；core `DownloaderImplRecoveryTest` 2 条并行偶发（单跑绿，与本波无关）。
 > **红线**：生产服只读；push/tag/Release 需用户授权；发布前先并 master。
 <!-- V203_STATUS_END -->
 
@@ -38,4 +37,4 @@
 | E | DONE | 更新下载无反应根因修复 + 反馈可见 | `ea5e8876`，37+83 单测 ✅ |
 | QA | DONE | 找茬复审（无 P0 / 5 P1 / 7 P2 / 8 P3） | 报告见会话存档，P1 全修 |
 | F1–F6 | DONE | P1 返修×5 + VideoScreen 漏网补修 | `b1641c66/0bc0ff7f/434e522b/0716c8c2/f665ff8b/29933d68`，门禁全绿 |
-| R1 | TODO | Pad 装机+bug11 终验 → 发布门 →（授权后）master 对齐/tag v2.0.3/Release | Pad 自愈提示条 + 回归；`RELEASE_NOTES_v2.0.3.md` 已备 |
+| R1 | DONE | Pad 装机+bug11 终验 ✅（砖态恢复 PLAYING）；发布门绿；master 对齐/tag `v2.0.3`/GitHub Release 双 APK（2026-11-28 授权） | 发布记录 `RELEASE_PLAN.md` §7 |
