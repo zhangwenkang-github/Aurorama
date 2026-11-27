@@ -83,7 +83,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -93,6 +92,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinMoreVertIcon
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinProgressVisuals
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
@@ -892,10 +892,8 @@ private fun PlayerContextMenu(
     var expanded by remember { mutableStateOf(false) }
     Box {
         CinefinIconButton(onClick = { expanded = true }) { tint ->
-            // 与曲目行尾部「⋮」同一口径（不新增矢量图）
-            Box(modifier = Modifier.clearAndSetSemantics { contentDescription = "上下文菜单" }) {
-                Text(text = "⋮", style = CinefinType.TitleMedium, color = tint)
-            }
+            // 与曲目行尾部「⋮」同一口径（core 共享 24dp 图标，2.0.3 D Bug 6）。
+            CinefinMoreVertIcon(contentDescription = "上下文菜单", tint = tint)
         }
         DropdownMenu(
             expanded = expanded,
