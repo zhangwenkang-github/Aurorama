@@ -232,12 +232,22 @@ class UpdateStateStore(
         nowEpochMs: Long = clock(),
     ): UpdateStateWriteResult {
         val existing = loadTransfer()
-        if (existing is UpdateStateReadResult.Invalid) {
-            return UpdateStateWriteResult.Failure(existing.reason)
-        }
-
         val newUpdateId = stableUpdateId(release)
-        val previous = (existing as? UpdateStateReadResult.Present)?.value
+        val previous =
+            when (existing) {
+                is UpdateStateReadResult.Present -> existing.value
+                is UpdateStateReadResult.Invalid -> {
+                    // 损坏 / 被清理的 transfer 记录（完整包已删除、旧 schema、长度不符）必须丢弃：
+                    // 否则 download() 会永久返回 STATE_ERROR，「下载更新」点击后永不发网。
+                    if (!discardCorruptTransferState(newUpdateId, release.assetSize)) {
+                        return UpdateStateWriteResult.Failure(
+                            "cannot discard corrupt transfer state"
+                        )
+                    }
+                    null
+                }
+                UpdateStateReadResult.Absent -> null
+            }
         val transfer =
             if (previous != null && previous.release == release) {
                 previous.copy(
@@ -517,6 +527,23 @@ class UpdateStateStore(
     }
 
     private fun partFile(updateId: String): File = directory.resolve("$updateId.apk.part")
+
+    /**
+     * 丢弃无法解析的 transfer 记录，以及与之同名但长度不符的旧完整包。
+     *
+     * 返回 false 表示清理失败（调用方必须继续失败，不能假装可下载）；true 表示状态已清空、可按 release 重建。
+     */
+    private fun discardCorruptTransferState(
+        newUpdateId: String,
+        expectedSize: Long,
+    ): Boolean = runCatching {
+        Files.deleteIfExists(directory.resolve(TRANSFER_STATE_FILE).toPath())
+        val complete = completeFile(newUpdateId)
+        if (complete.exists() && (!complete.isFile || complete.length() != expectedSize)) {
+            Files.deleteIfExists(complete.toPath())
+        }
+    }
+        .isSuccess
 
     private fun completeFile(updateId: String): File = directory.resolve("$updateId.apk")
 

@@ -376,6 +376,110 @@ class UpdateUiStateTest {
         assertEquals(UpdatePrimaryAction.RETRY, cancelled.primaryAction)
     }
 
+    @Test
+    fun queuedOrRunningDownloadWorkShowsStartingFeedbackBeforeTransferExists() {
+        listOf(
+                UpdateCheckWorkStatus.QUEUED,
+                UpdateCheckWorkStatus.BLOCKED,
+                UpdateCheckWorkStatus.RUNNING,
+            )
+            .forEach { status ->
+                val state =
+                    buildUpdateUiState(
+                        currentVersion = "1.3.0",
+                        release = releaseState(),
+                        download = UpdateDownloadWorkObservation(status = status),
+                    )
+
+                assertEquals(UpdateUiPhase.STARTING_DOWNLOAD, state.phase)
+                assertEquals(UpdatePrimaryAction.NONE, state.primaryAction)
+                assertEquals("1.4.0", state.availableVersion)
+                // 排队态必须留「检查更新」逃生口：网络约束不满足时不能把用户困在等待里。
+                assertTrue(state.canCheck)
+            }
+    }
+
+    @Test
+    fun failedDownloadWorkSurfacesFailureAndRetryWithoutPersistedTransfer() {
+        val state =
+            buildUpdateUiState(
+                currentVersion = "1.3.0",
+                release = releaseState(),
+                download =
+                    UpdateDownloadWorkObservation(
+                        status = UpdateCheckWorkStatus.FAILED,
+                        terminal = UpdateTerminalResult.STATE_ERROR,
+                    ),
+            )
+
+        assertEquals(UpdateUiPhase.FAILED, state.phase)
+        assertEquals(UpdateFailureCode.STATE_ERROR, state.failureCode)
+        assertEquals(UpdatePrimaryAction.RETRY, state.primaryAction)
+        assertEquals(stableUpdateId(releaseState().release), state.updateId)
+    }
+
+    @Test
+    fun cancelledDownloadWorkKeepsRetryButNoFailureCode() {
+        val state =
+            buildUpdateUiState(
+                currentVersion = "1.3.0",
+                release = releaseState(),
+                download = UpdateDownloadWorkObservation(status = UpdateCheckWorkStatus.CANCELLED),
+            )
+
+        assertEquals(UpdateUiPhase.CANCELLED, state.phase)
+        assertNull(state.failureCode)
+        assertEquals(UpdatePrimaryAction.RETRY, state.primaryAction)
+    }
+
+    @Test
+    fun downloadWorkObservationNeverOverridesPersistedTransferEvidence() {
+        val state =
+            buildUpdateUiState(
+                currentVersion = "1.3.0",
+                release = releaseState(),
+                transfer = transferState(phase = UpdateTransferPhase.DOWNLOADING),
+                downloadedBytes = 37,
+                download =
+                    UpdateDownloadWorkObservation(
+                        status = UpdateCheckWorkStatus.FAILED,
+                        terminal = UpdateTerminalResult.NETWORK_ERROR,
+                    ),
+            )
+
+        assertEquals(UpdateUiPhase.DOWNLOADING, state.phase)
+        assertEquals(UpdatePrimaryAction.CANCEL, state.primaryAction)
+        assertEquals(37L, state.downloadedBytes)
+    }
+
+    @Test
+    fun downloadTerminalResultsMapToUserVisibleFailureCodes() {
+        assertEquals(
+            UpdateFailureCode.NETWORK_ERROR,
+            downloadFailureCode(UpdateTerminalResult.NETWORK_ERROR),
+        )
+        assertEquals(
+            UpdateFailureCode.STORAGE_ERROR,
+            downloadFailureCode(UpdateTerminalResult.STORAGE_ERROR),
+        )
+        assertEquals(
+            UpdateFailureCode.INVALID_RESPONSE,
+            downloadFailureCode(UpdateTerminalResult.INVALID_RELEASE),
+        )
+        assertEquals(UpdateFailureCode.STATE_ERROR, downloadFailureCode(null))
+    }
+
+    @Test
+    fun missingUpdateIdRequestFailureIsReportedWithoutChangingTheDerivedPhase() {
+        val base = buildUpdateUiState(currentVersion = "1.3.0", release = releaseState())
+
+        val applied = applyUpdateRequestFailure(base, UpdateRequestFailure.MISSING_UPDATE_ID)
+
+        assertEquals(UpdateRequestFailure.MISSING_UPDATE_ID, applied.requestFailure)
+        assertEquals(base.phase, applied.phase)
+        assertEquals(base.primaryAction, applied.primaryAction)
+    }
+
     private fun releaseState(releaseNotes: String? = null): StoredReleaseState {
         val version = "1.4.0"
         val assetName = "Aurorama-$version-arm64-v8a.apk"

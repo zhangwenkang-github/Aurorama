@@ -231,6 +231,52 @@ class UpdateStateStoreTest {
     }
 
     @Test
+    fun beginDownloadDiscardsCorruptTransferRecordInsteadOfFailingForever() {
+        val store = UpdateStateStore(directory)
+        val release = release(assetSize = 6)
+        assertEquals(UpdateStateWriteResult.Success, store.beginDownload(release, nowEpochMs = 200))
+        val transfer =
+            (store.loadTransfer() as UpdateStateReadResult.Present<UpdateTransferState>).value
+        Files.write(store.completeFile(transfer).toPath(), byteArrayOf(1, 2, 3, 4, 5, 6))
+        assertEquals(
+            UpdateTransferPhase.READY_FOR_VERIFICATION,
+            (store.loadTransfer() as UpdateStateReadResult.Present<UpdateTransferState>)
+                .value
+                .phase,
+        )
+        // 完整包被系统清理后，只剩 READY 记录 → loadTransfer() 判为 Invalid。
+        store.completeFile(transfer).delete()
+        assertTrue(store.loadTransfer() is UpdateStateReadResult.Invalid)
+
+        // 再点「下载更新」必须能重建，而不是永久 STATE_ERROR。
+        assertEquals(UpdateStateWriteResult.Success, store.beginDownload(release, nowEpochMs = 300))
+        val rebuilt =
+            (store.loadTransfer() as UpdateStateReadResult.Present<UpdateTransferState>).value
+
+        assertEquals(stableUpdateId(release), rebuilt.updateId)
+        assertEquals(UpdateTransferPhase.DOWNLOADING, rebuilt.phase)
+        assertEquals(0L, store.inspectTransferFiles(rebuilt).offsetOrNull())
+    }
+
+    @Test
+    fun beginDownloadDropsWrongSizedCompleteFileWhenRecovering() {
+        val store = UpdateStateStore(directory)
+        val release = release(assetSize = 6)
+        assertEquals(UpdateStateWriteResult.Success, store.beginDownload(release, nowEpochMs = 200))
+        val transfer =
+            (store.loadTransfer() as UpdateStateReadResult.Present<UpdateTransferState>).value
+        Files.write(store.completeFile(transfer).toPath(), byteArrayOf(1, 2))
+        assertTrue(store.loadTransfer() is UpdateStateReadResult.Invalid)
+
+        assertEquals(UpdateStateWriteResult.Success, store.beginDownload(release, nowEpochMs = 300))
+        val rebuilt =
+            (store.loadTransfer() as UpdateStateReadResult.Present<UpdateTransferState>).value
+
+        assertTrue("尺寸不符的旧完整包必须被清掉", !store.completeFile(rebuilt).exists())
+        assertEquals(0L, store.inspectTransferFiles(rebuilt).offsetOrNull())
+    }
+
+    @Test
     fun failurePhasePersistsAnExplicitCode() {
         val store = UpdateStateStore(directory)
         assertEquals(

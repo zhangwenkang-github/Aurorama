@@ -59,6 +59,27 @@ class UpdateSchedulingTest {
     }
 
     @Test
+    fun downloadClickWithoutAnUpdateIdIsReportedInsteadOfBeingSwallowed() {
+        val scheduler = FakeUpdateWorkScheduling()
+
+        val result = dispatchUpdateAction(UpdateAction.DOWNLOAD, null, scheduler)
+
+        assertEquals(UpdateDispatchResult.MISSING_UPDATE_ID, result)
+        assertEquals(emptyList<String>(), scheduler.downloadIds)
+    }
+
+    @Test
+    fun scheduledDownloadReportsScheduledAfterEnqueuingTheIdentity() {
+        val scheduler = FakeUpdateWorkScheduling()
+        val updateId = "d".repeat(64)
+
+        val result = dispatchUpdateAction(UpdateAction.DOWNLOAD, updateId, scheduler)
+
+        assertEquals(UpdateDispatchResult.SCHEDULED, result)
+        assertEquals(listOf(updateId), scheduler.downloadIds)
+    }
+
+    @Test
     fun uiCancelPersistsCancelledBeforeCancellingUniqueWork() = runBlocking {
         val events = mutableListOf<String>()
         val repository =

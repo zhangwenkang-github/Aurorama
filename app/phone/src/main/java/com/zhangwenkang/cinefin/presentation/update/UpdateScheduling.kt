@@ -19,17 +19,34 @@ internal enum class UpdateAction {
     CANCEL,
 }
 
+/** 派发结果：`MISSING_UPDATE_ID` 必须被 UI 上报，禁止静默吞掉点击。 */
+internal enum class UpdateDispatchResult {
+    SCHEDULED,
+    MISSING_UPDATE_ID,
+}
+
 internal fun dispatchUpdateAction(
     action: UpdateAction,
     updateId: String?,
     scheduler: UpdateWorkScheduling,
-) {
+): UpdateDispatchResult =
     when (action) {
-        UpdateAction.CHECK -> scheduler.scheduleManualCheck()
-        UpdateAction.DOWNLOAD -> updateId?.let(scheduler::scheduleDownload)
-        UpdateAction.CANCEL -> scheduler.cancelDownload()
+        UpdateAction.CHECK -> {
+            scheduler.scheduleManualCheck()
+            UpdateDispatchResult.SCHEDULED
+        }
+        UpdateAction.DOWNLOAD ->
+            if (updateId == null) {
+                UpdateDispatchResult.MISSING_UPDATE_ID
+            } else {
+                scheduler.scheduleDownload(updateId)
+                UpdateDispatchResult.SCHEDULED
+            }
+        UpdateAction.CANCEL -> {
+            scheduler.cancelDownload()
+            UpdateDispatchResult.SCHEDULED
+        }
     }
-}
 
 /** 用户取消必须先由数据层确认并持久化，再允许取消当前唯一下载 Work。 */
 internal suspend fun cancelUpdateDownload(
